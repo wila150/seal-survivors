@@ -76,6 +76,19 @@
   .cell.eqd::after{content:"E";position:absolute;left:3px;top:0;font-size:10px;font-weight:800;color:#3a5bbf}
   .cell.sel{box-shadow:0 0 0 3px #3f63c4}
   .detail{margin-top:10px;background:#fff;border-radius:10px;padding:10px;min-height:60px;font-size:14px}
+  /* 11/19 背包照 PC 原版 ITEM 視窗（客戶端 interface/item.tex）：米白面板＋灰褐外框、8 欄米色格子（空格也畫）、青色泡泡字標題、底部希幣欄 */
+  .pct{font-weight:900;letter-spacing:1px;color:#8ff7ff;-webkit-text-stroke:4px #0b4a74;paint-order:stroke fill;text-shadow:0 2px 0 #062c47;font-family:"Arial Rounded MT Bold",system-ui,sans-serif}
+  .bag.pc{grid-template-columns:repeat(8,minmax(0,48px));justify-content:center;gap:4px;background:#f7f2ea;border:3px solid #a89d97;border-radius:16px;padding:26px 9px 9px;position:relative;box-shadow:inset 0 0 0 2px #fff,0 2px 6px #0002;margin-top:14px}
+  .bag.pc>.pct{position:absolute;left:50%;top:-13px;transform:translateX(-50%);font-size:19px;line-height:1}
+  .bag.pc>small{grid-column:1/-1}
+  .bag.pc .cell{background:linear-gradient(#d8c9ba,#c9b7a6);border:2px solid #b3a190;border-radius:5px;box-shadow:inset 0 1px 0 #fff9,inset 0 -1px 2px #0002}
+  .bag.pc .cell.empty{cursor:default;border-color:#bdac9b!important}
+  .pcgold{display:flex;align-items:center;gap:8px;margin-top:8px;background:#f1ebe0;border:2px solid #b9ab9f;border-radius:20px;padding:4px 6px 4px 14px;font-weight:900;color:#7a5a3c}
+  .pcgold span{flex:1;background:#fbf5d8;border:2px solid #e3d6a0;border-radius:14px;padding:2px 12px;text-align:right;color:#5a4220}
+  .slots.pc{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .slots.pc .eq{min-width:0;background:#f7f2ea;border:2px solid #b3a190;border-radius:12px;padding:6px;flex-direction:column;text-align:center;gap:4px}
+  .slots.pc .eq .ico{width:44px;height:44px;border-radius:6px;background:linear-gradient(#d8c9ba,#c9b7a6);border:2px solid #b3a190;display:flex;align-items:center;justify-content:center}
+  .slots.pc .eq b{font-size:13px}.slots.pc .eq small{font-size:11px;line-height:1.3}
   .detail .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .tabs2{display:flex;gap:6px;margin-bottom:10px}
   .strow{display:grid;grid-template-columns:60px 40px 36px 1fr;gap:8px;align-items:center;padding:4px 0;font-size:14px}
@@ -1039,9 +1052,11 @@ function renderBag() {
         return `<div style="flex:1 1 180px;border:2px solid ${on ? '#e0a826' : has ? '#9db4ee' : '#e0e4ee'};border-radius:10px;padding:6px 8px;${has ? '' : 'opacity:.55'}"><b>【${t.name}】</b>${on ? ' <small style="color:#c8901a">★ 裝備中</small>' : ''}<br><small>${t.desc}・${bonusText(t.bonus)}</small>${has && !on ? `<br><button class="btn" style="margin-top:4px;padding:4px 10px" data-title="${t.id}">裝上</button>` : ''}</div>`; }).join('')}</div></div>`;
   } else {
     if (bagMode === 'shop') html += `<div class="acts" style="display:flex;gap:6px;margin-bottom:10px">${Object.entries(SLOTS).map(([k, v]) => `<button class="btn primary" data-buy="${k}">買${v}（150）</button>`).join('')}</div>`;
-    html += `<div class="slots">${Object.entries(SLOTS).filter(([k]) => bagMode !== 'smith' || smithOk({ slot: k })).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
-      return `<div class="eq" data-id="${it?.id || ''}">${it ? `<img src="${itemIcon(it)}" alt=""><div><b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small></div>` : `<div><b>${v}</b><small>沒有裝備</small></div>`}</div>`; }).join('')}</div>`;
-    html += `<div class="bag">${items.filter(it => bagMode !== 'smith' || smithOk(it)).map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('') || '<small>背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
+    html += `<div class="slots pc">${Object.entries(SLOTS).filter(([k]) => bagMode !== 'smith' || smithOk({ slot: k })).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
+      return `<div class="eq" data-id="${it?.id || ''}"><div class="ico">${it ? `<img src="${itemIcon(it)}" alt="">` : ''}</div>${it ? `<b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small>` : `<b>${v}</b><small>沒有裝備</small>`}</div>`; }).join('')}</div>`;
+    const shown = items.filter(it => bagMode !== 'smith' || smithOk(it)), BAG_CAP = 40; // 伺服器 BAG_MAX＝40；PC 背包空格也畫出來
+    html += `<div class="bag pc"><b class="pct">ITEM</b>${shown.map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('')}${bagMode === 'smith' ? '' : '<div class="cell empty"></div>'.repeat(Math.max(0, BAG_CAP - shown.length))}${shown.length ? '' : '<small style="color:#8a7a6a">背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
+    html += `<div class="pcgold">希幣<span>${(c.gold || 0).toLocaleString()}</span></div>`;
     const it = items.find(i => i.id === selItem);
     html += `<div class="detail">${it ? itemDetail(it) : '<small>點一件裝備看詳細</small>'}</div>`;
   }
@@ -1049,7 +1064,7 @@ function renderBag() {
   const body = $('#dlgBody');
   body.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bagTab = b.dataset.tab; renderBag(); });
   body.querySelectorAll('[data-smt]').forEach(b => b.onclick = () => { smithTab = b.dataset.smt; selItem = null; renderBag(); });
-  body.querySelectorAll('.cell,.eq[data-id]').forEach(el => el.onclick = () => { if (el.dataset.id) { selItem = +el.dataset.id; renderBag(); } });
+  body.querySelectorAll('.cell[data-id],.eq[data-id]').forEach(el => el.onclick = () => { if (el.dataset.id) { selItem = +el.dataset.id; renderBag(); } });
   body.querySelectorAll('[data-stat]').forEach(b => b.onclick = () => act('/api/statup', { charId: c.id, stat: b.dataset.stat }));
   body.querySelectorAll('[data-title]').forEach(b => b.onclick = async () => { try { const c2 = await call('POST', '/api/title', { charId: c.id, title: b.dataset.title || null }); showChar(c2); refreshChar(); renderBag(); toast(b.dataset.title ? `裝上稱號【${titleOf(b.dataset.title).name}】` : '卸下稱號'); } catch (e) { toast(e.message); } });
   body.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => act('/api/buy', { charId: c.id, slot: b.dataset.buy }, r => { selItem = r.item.id; return `買到 ${RARITY[r.item.rarity].name} ${itemName(r.item)}`; }));
