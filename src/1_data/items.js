@@ -55,8 +55,26 @@ export const RARITY = [
   { name: '傳說', color: '#ffa940', mult: 3.0, w: 1 },
 ];
 
-export const STAT_NAMES = { atk: '攻擊力', hp: '最大 HP', armor: '護甲', crit: '暴擊率', speed: '移動速度', haste: '冷卻縮短', magnet: '吸取範圍' };
-const PCT = new Set(['atk', 'crit', 'speed', 'haste', 'magnet']);
+export const STAT_NAMES = { atk: '攻擊力', hp: '最大 HP', armor: '護甲', crit: '暴擊率', speed: '移動速度', haste: '冷卻縮短', magnet: '吸取範圍',
+  str: '力量', agi: '敏捷', int: '智力', vit: '體力', wis: '精神', luk: '感覺', skd: '技能傷害' };
+const PCT = new Set(['atk', 'crit', 'speed', 'haste', 'magnet', 'skd']);
+// ===== 項目 32 後半（11/19「照建議」）：★ 特性＋依品質的詞綴 =====
+// 每件裝備都有 1 個 ★ 特性；詞綴依品質：普通 無／精良 1 項主素質／稀有 ＋爆擊或急速或移速／史詩 2 項主素質＋1 項／傳說 再加「技能傷害 +10～20%」（不含普攻）
+// 存在 items.aff：{ t: 特性編號, a: [[屬性, 數值], ...] }；數值不吃品質倍率（已經依品質給）
+export const TRAITS = [
+  { name: '★ 銳利', k: 'crit', v: 0.02 }, { name: '★ 專注', k: 'haste', v: 0.03 }, { name: '★ 迅捷', k: 'speed', v: 0.03 },
+  { name: '★ 鐵壁', k: 'armor', v: 1 }, { name: '★ 堅韌', k: 'hp', v: 12 }, { name: '★ 貪婪', k: 'magnet', v: 0.15 }, { name: '★ 猛擊', k: 'atk', v: 0.03 },
+];
+const AFF_STATS = ['str', 'agi', 'int', 'vit', 'wis', 'luk'], AFF_EXTRA = [['crit', 0.02, 0.04], ['haste', 0.03, 0.06], ['speed', 0.02, 0.05]];
+export function rollAffix(rarity, rand = Math.random) {
+  const pick = a => a[Math.floor(rand() * a.length)], a = [], stat = (lo, hi) => { const k = pick(AFF_STATS.filter(x => !a.some(y => y[0] === x))); a.push([k, lo + Math.floor(rand() * (hi - lo + 1))]); };
+  const extra = () => { const [k, lo, hi] = pick(AFF_EXTRA); a.push([k, +(lo + rand() * (hi - lo)).toFixed(3)]); };
+  if (rarity === 1) stat(1, 3);
+  else if (rarity === 2) { stat(2, 4); extra(); }
+  else if (rarity >= 3) { stat(3, 5); stat(2, 4); extra(); if (rarity >= 4) a.push(['skd', +(0.10 + rand() * 0.10).toFixed(3)]); }
+  return { t: Math.floor(rand() * TRAITS.length), a, r: rarity }; // r＝擲詞綴時的品質（品質之後被改，例：首領寶箱保底精良 → 伺服器 giveItem 會重擲）
+}
+export const traitOf = it => it?.aff ? TRAITS[it.aff.t] || null : null;
 export const fmtStat = (k, v) => PCT.has(k) ? `+${Math.round(v * 1000) / 10}%` : `+${Math.round(v)}`;
 
 // 強化：每 +1 數值多 12%；成功率；失敗時 +7 以上會碎，其他降 1 級
@@ -87,7 +105,11 @@ export function pickPc(base, lv, rand = Math.random) {
 export function itemStats(it) {
   const base = BASES[it.slot]?.find(b => b.key === it.base); if (!base) return {};
   const m = RARITY[it.rarity].mult * (it.roll || 1) * (1 + 0.12 * (it.refine || 0)) * (GUP[it.gup || 0]?.mult || 1) * pcTier(it);
-  return Object.fromEntries(Object.entries(base.stat).map(([k, v]) => [k, v * m]));
+  const o = Object.fromEntries(Object.entries(base.stat).map(([k, v]) => [k, v * m]));
+  // ★ 特性＋詞綴（項目 32）
+  const T = traitOf(it); if (T) o[T.k] = (o[T.k] || 0) + T.v;
+  for (const [k, v] of it.aff?.a || []) o[k] = (o[k] || 0) + v;
+  return o;
 }
 export const itemName = it => `${it.refine ? '+' + it.refine + ' ' : ''}${pcOf(it)?.[1] || BASES[it.slot]?.find(b => b.key === it.base)?.name || '?'}${it.gup ? '.' + GUP[it.gup].tag : ''}`; // 原版寫法：長劍.G
 export const itemIcon = it => `assets/items/${pcOf(it)?.[4] ?? BASES[it.slot]?.find(b => b.key === it.base)?.icon ?? 0}.png`;
@@ -109,7 +131,7 @@ export function rollItem(rand = Math.random, bonus = 0, slot, lv = 0, job = null
   const b = bases[Math.floor(rand() * bases.length)];
   const ws = RARITY.map((r, i) => r.w * (1 + bonus * i)); let x = rand() * ws.reduce((a, c) => a + c, 0), rarity = 0;
   for (let i = 0; i < ws.length; i++) { x -= ws[i]; if (x <= 0) { rarity = i; break; } }
-  const it = { slot: s, base: b.key, rarity, roll: +(0.9 + rand() * 0.2).toFixed(3), refine: 0 };
+  const it = { slot: s, base: b.key, rarity, roll: +(0.9 + rand() * 0.2).toFixed(3), refine: 0, aff: rollAffix(rarity, rand) };
   if (lv > 0) { const pc = pickPc(b.key, lv, rand); if (pc) it.pc = pc; }
   return it;
 }

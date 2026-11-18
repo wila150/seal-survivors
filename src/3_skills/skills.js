@@ -109,6 +109,7 @@ export class SkillManager {
     const G = this.P?.gem?.[k]; if (G) { if (o.dmg) o.dmg *= 1 + G.dmg; if (o.cd) o.cd *= 1 - G.cd; }
     // 項目 23：局內屬性寶石 每級傷害 +10%
     const EG = this.P?.egem?.[k]; if (EG && o.dmg) o.dmg *= 1 + 0.1 * EG.lv;
+    if (o.dmg && !d.basic && this.P?.skd) o.dmg *= 1 + this.P.skd; // 項目 32：傳說裝備詞綴「技能傷害 +10～20%」
     // 項目 36：強化卡
     const M = this.skills?.[k]?.mods; if (M) {
       if (o.dmg && M.dmg) o.dmg *= 1 + M.dmg; if (o.cd && M.cd) o.cd *= Math.max(0.3, 1 - M.cd);

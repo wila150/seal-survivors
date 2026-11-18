@@ -122,3 +122,7 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 /* 項目 32：裝備格左上角標部位名（頭部、上衣…） */
 #dlg .slots.pc .eq { position: relative; padding-top: 16px !important; }
 #dlg .slots.pc .eq .sl { position: absolute; left: 8px; top: 4px; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #a08850; }
+/* 項目 32：裝備詳細的 ★ 特性＋詞綴 */
+#dlg .affx { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+#dlg .affx span { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #eef3ff; color: #2a4fb8; border: 1px solid #c9d6f5; }
+#dlg .affx .trait { background: linear-gradient(#fff6d6, #f6e2a6); color: #8a5a00; border-color: #e0c070; }

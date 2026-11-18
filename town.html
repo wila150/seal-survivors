@@ -160,7 +160,7 @@ import { loadSealMap, buildSealMap, liftScene, walkMove, addWalkSurfaces } from 
 import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
 import { offJob, dismantleYield } from './src/1_data/items.js';
-import { BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
+import { traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 import { STATS } from './src/1_data/jobs.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime, bossTimes, GS_REQ, EARLY_WEAK } from './src/1_data/stages.js';
 import { MONSTER_MODELS } from './src/1_data/monsters.js';
@@ -1137,7 +1137,9 @@ function identLine(it) {
   return `<small style="color:#2b6fd6"><b>技能屬性：${n.name} Lv+${it.ident.lv}</b>（${it.ident.job}${br ? '・' + br : ''}）${learned ? '' : '<span style="color:#c0392b">　目前沒有生效：要點過這個天賦才會提升</span>'}</small><br>`;
 }
 function itemDetail(it) {
-  let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${statLine(it)}<div class="acts">`;
+  // 項目 32：★ 特性與詞綴另外列一行（數值已經算進上面的總數值）
+  const T = traitOf(it), AF = it.aff?.a || [], affHtml = (T || AF.length) ? `<div class="affx">${T ? `<span class="trait">${T.name} ${STAT_NAMES[T.k]} ${fmtStat(T.k, T.v)}</span>` : ''}${AF.map(([k, v]) => `<span>${STAT_NAMES[k]} ${fmtStat(k, v)}</span>`).join('')}</div>` : '';
+  let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${statLine(it)}${affHtml}<div class="acts">`;
   if (bagMode === 'smith') {
     if (it.refine >= REFINE_MAX) h += '<small>已經強化到最高了</small>';
     else h += `<button class="btn primary" data-act="refine" data-item="${it.id}">精煉 +${it.refine} → +${it.refine + 1}（${Math.round(REFINE_RATE[it.refine] * 100)}%，用 1 個${ORES[oreFor(it)].name}，持有 ${CHAR.mats?.[oreFor(it)] || 0}）</button>${refineBreaks(it.refine) ? '<small style="color:#c0392b">失敗會碎</small>' : it.refine >= 3 ? '<small>失敗會降一級</small>' : ''}`;

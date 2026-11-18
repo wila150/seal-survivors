@@ -64,6 +64,7 @@ const DIFF_BASE = stageBaseLv(STAGE); // 地圖本身的怪物等級（難度＝
 let DIFF = cleanDiff(null, DIFF_BASE); if (!TOWER) { try { DIFF = cleanDiff(JSON.parse(sessionStorage.getItem('ss_diff')), DIFF_BASE); } catch {} }
 const DM = diffMods(DIFF, DIFF_BASE);
 const ST = { ...defaultStats(), ...(CHAR.stats || {}) };
+for (const k of ['str', 'agi', 'int', 'vit', 'wis', 'luk']) ST[k] += Math.round(CHAR.bonus?.[k] || 0); // 項目 32：裝備詞綴的素質
 // 坐騎租約期間五項素質 +5
 const MOUNT_ON = (CHAR.mountUntil || 0) > Date.now();
 if (MOUNT_ON) for (const k in ST) ST[k] += MOUNT.stat;
@@ -359,7 +360,7 @@ function reset() {
   // 項目 34 遞減收益：急速值 → 冷卻倍率＝1／(1＋急速／100)（急速 100＝冷卻剩 50%；精神 1 點＝急速 1、裝備／天賦／石頭／稱號的冷卻 % 換成急速值）
   Object.defineProperty(P, 'haste', { get() { return 1 / (1 + Math.max(0, this.hasteV + (this.tmp.haste > 0 ? 30 : 0)) / 100); } });
   P.tmp = { dmg: 0, haste: 0, speed: 0, dash: 0 }; // 項目 37：菁英寶箱的局內道具（剩餘秒數）
-  P.might *= 1 + (B.atk || 0); P.crit += B.crit || 0; P.speed *= 1 + (B.speed || 0);
+  P.might *= 1 + (B.atk || 0); P.crit += B.crit || 0; P.speed *= 1 + (B.speed || 0); P.skd = B.skd || 0; // skd：項目 32 傳說詞綴「技能傷害」（不含普攻）
   const TE = TAL ? talentEffects(TAL, CHAR.job, ...(([a1, a2]) => [a1, CHAR.job2, a2])(boostedAlloc(TAL, CHAR.job, CHAR.talents, CHAR.job2, CHAR.talents2, CHAR.items))) : { stat: {}, skill: {}, tag: {} }, ts = TE.stat;
   P.might *= 1 + (ts.atk || 0); P.phys += ts.phys || 0; P.magic += ts.magic || 0; P.crit += ts.crit || 0; P.speed *= 1 + (ts.speed || 0);
   P.hasteV += (ts.haste || 0) * 100; P.armor += ts.armor || 0; P.regen += ts.regen || 0; P.magnet *= 1 + (ts.magnet || 0);

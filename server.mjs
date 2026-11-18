@@ -19,7 +19,7 @@ import { PETS, PET_MAX, EGG_PRICE, MVP_EGG_RATE, FEED_EXP, addPetExp } from './s
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from './src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from './src/1_data/talents.js';
 import { RODS, BAIT, CATCH, rollCatch } from './src/1_data/fishing.js';
-import { rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
+import { rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 
 const PORT = +process.env.PORT || 8765;
 let _skills = null; const SKILLS = () => (_skills ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'data', 'skills.json'), 'utf8')));
@@ -43,6 +43,7 @@ try { db.exec('ALTER TABLE characters ADD COLUMN gold INTEGER NOT NULL DEFAULT 0
 try { db.exec('ALTER TABLE items ADD COLUMN bound INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 29：商人限量裝備綁定帳號
 try { db.exec('ALTER TABLE items ADD COLUMN ident TEXT'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN gup INTEGER NOT NULL DEFAULT 0'); } catch {}
+try { db.exec('ALTER TABLE items ADD COLUMN aff TEXT'); } catch {} try { db.exec('ALTER TABLE auctions ADD COLUMN aff TEXT'); } catch {} // 項目 32：★ 特性＋詞綴 JSON
 // 項目 32：裝備部位照 PC（防具拆成盾牌／頭部／上衣／下衣／鞋子）→ 舊的 armor 搬家：盾 → shield、其他 → top；非騎士身上的盾卸下
 for (const t of ['items', 'auctions']) { try { db.exec(`UPDATE ${t} SET slot='shield' WHERE slot='armor' AND base='shield'`); db.exec(`UPDATE ${t} SET slot='top' WHERE slot='armor'`); } catch {} }
 try { db.exec("UPDATE items SET equipped=0 WHERE slot='shield' AND char_id IN (SELECT id FROM characters WHERE job!='騎士')"); } catch {}
@@ -107,7 +108,7 @@ function npcMarket() {
     sendMail(a.seller_char, { sender: '拍賣商人', title: '拍賣成交', body: `你上架的裝備被 ${NPC_SELLERS[Math.floor(Math.random() * NPC_SELLERS.length)]} 以 ${a.price} 金幣買走了（扣 5% 手續費）。`, gold: got });
   }
 }
-const aucView = a => ({ id: a.id, seller: a.seller_name, sellerChar: a.seller_char, slot: a.slot, base: a.base, rarity: a.rarity, roll: a.roll, refine: a.refine, gup: a.gup || 0, pc: a.pc || null, price: a.price, expires: a.expires, ident: a.ident ? JSON.parse(a.ident) : null });
+const aucView = a => ({ id: a.id, seller: a.seller_name, sellerChar: a.seller_char, slot: a.slot, base: a.base, rarity: a.rarity, roll: a.roll, refine: a.refine, gup: a.gup || 0, aff: a.aff ? JSON.parse(a.aff) : null, pc: a.pc || null, price: a.price, expires: a.expires, ident: a.ident ? JSON.parse(a.ident) : null });
 const BAG_MAX = 40;
 const STASH_PAGES = 6, STASH_SIZE = 40, STASH_FREE = 2, STASH_COST = [0, 0, 5000, 10000, 20000, 40000]; // 第 3 頁起花金幣解鎖（數值暫定）
 const stashInfo = uid => { const a = db.prepare('SELECT stash FROM accounts WHERE id=?').get(uid); const s = a?.stash ? JSON.parse(a.stash) : {};
@@ -163,16 +164,17 @@ function auth(req) {
 }
 const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: { wis: 1, ...(d.stats || {}) }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])) }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
-const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, pc: r.pc || null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
+const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
 const ownChar = (uid, cid) => db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+cid, uid);
 const ownItem = (uid, iid) => db.prepare('SELECT i.* FROM items i JOIN characters c ON c.id=i.char_id WHERE i.id=? AND c.account_id=?').get(+iid, uid);
 // it.refine／it.ident 會保留（拍賣成交、取回、過期退回都走這裡；以前取回／成交會把精煉歸零，11/18 修正）
 function giveItem(cid, it, bound = false) {
   if (it.slot === 'armor') it = { ...it, slot: it.base === 'shield' ? 'shield' : 'top' }; // 項目 32：信件／舊資料裡的 armor
+  { const a = typeof it.aff === 'string' ? JSON.parse(it.aff) : it.aff; if (!a || (a.r != null && a.r !== it.rarity)) it = { ...it, aff: rollAffix(it.rarity) }; else it = { ...it, aff: a }; } // 品質被改過（保底）就重擲詞綴
   const ident = typeof it.ident === 'string' ? it.ident : it.ident ? JSON.stringify(it.ident) : null;
-  const r = db.prepare('INSERT INTO items (char_id, slot, base, rarity, roll, refine, created, bound, ident, gup, pc) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(cid, it.slot, it.base, it.rarity, it.roll, it.refine | 0, Date.now(), bound ? 1 : 0, ident, it.gup | 0, it.pc || null);
-  return { ...it, refine: it.refine | 0, gup: it.gup | 0, ident: ident ? JSON.parse(ident) : null, id: Number(r.lastInsertRowid), equipped: false, bound };
+  const r = db.prepare('INSERT INTO items (char_id, slot, base, rarity, roll, refine, created, bound, ident, gup, pc, aff) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(cid, it.slot, it.base, it.rarity, it.roll, it.refine | 0, Date.now(), bound ? 1 : 0, ident, it.gup | 0, it.pc || null, it.aff ? JSON.stringify(it.aff) : null);
+  return { ...it, refine: it.refine | 0, gup: it.gup | 0, aff: it.aff || null, ident: ident ? JSON.parse(ident) : null, id: Number(r.lastInsertRowid), equipped: false, bound };
 }
 const bagCount = cid => db.prepare('SELECT COUNT(*) n FROM items WHERE char_id=?').get(cid).n;
 function shopState(d, hour) {
@@ -853,8 +855,8 @@ const api = {
     const c = ownChar(uid, it.char_id);
     if (db.prepare('SELECT COUNT(*) n FROM auctions WHERE seller_char=?').get(c.id).n >= AUC_MAX) return send(res, 400, { error: `最多同時上架 ${AUC_MAX} 件` });
     db.prepare('DELETE FROM items WHERE id=?').run(it.id);
-    db.prepare('INSERT INTO auctions (seller_char, seller_name, slot, base, rarity, roll, refine, price, expires, created, ident, gup, pc) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
-      .run(c.id, c.name, it.slot, it.base, it.rarity, it.roll, it.refine, price, Date.now() + AUC_HOURS * 3600000, Date.now(), it.ident, it.gup | 0, it.pc || null);
+    db.prepare('INSERT INTO auctions (seller_char, seller_name, slot, base, rarity, roll, refine, price, expires, created, ident, gup, pc, aff) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(c.id, c.name, it.slot, it.base, it.rarity, it.roll, it.refine, price, Date.now() + AUC_HOURS * 3600000, Date.now(), it.ident, it.gup | 0, it.pc || null, it.aff || null); // aff：項目 32 詞綴（items 表是 JSON 字串）
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
   'POST /api/auccancel': async (req, res, _, uid) => {
