@@ -63,9 +63,42 @@ try { db.exec('ALTER TABLE auctions ADD COLUMN pc INTEGER'); } catch {}
 const AUC_MAX = 10, AUC_HOURS = 24, AUC_FEE = 0.05;
 // 過期的拍賣退回賣家背包
 function expireAuctions() {
+  npcMarket(); // 項目 56
   for (const a of db.prepare('SELECT * FROM auctions WHERE expires<?').all(Date.now())) {
-    giveItem(a.seller_char, a);
+    if (a.seller_char) giveItem(a.seller_char, a); // NPC 上架的（seller_char 0）過期就直接收掉
     db.prepare('DELETE FROM auctions WHERE id=?').run(a.id);
+  }
+}
+// ===== 項目 56：離線拍賣 NPC（第八批藍圖）=====
+// ①自動上架：每 2 小時補 2 件，NPC 同時最多 6 件；帶技能屬性鑑定（武器、防具）或 G 化的 PC 道具，定價＝賣價 ×8（G 化、鑑定再加價）
+// ②自動收購：玩家上架 10 分鐘以上，依「行情 ÷ 定價」每小時有機率被買走（便宜賣很快、亂開價幾乎不會成交）；金幣扣 5% 手續費後用信件寄給賣家
+db.exec('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)');
+const NPC_SELLERS = ['旅行商人 卡爾', '收藏家 莉莉', '老商人 巴頓'], NPC_MAX = 6, NPC_EVERY = 2 * 3600e3;
+const metaGet = k => db.prepare('SELECT v FROM meta WHERE k=?').get(k)?.v, metaSet = (k, v) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k, String(v));
+const marketValue = it => sellPrice(it) * 6 * (1 + 0.5 * (it.gup || 0)) * (it.ident ? 1.5 : 1);
+function npcMarket() {
+  const now = Date.now(), last = +(metaGet('npcTick') || 0); if (now - last < 60e3) return; metaSet('npcTick', now);
+  // 上架
+  const lastList = +(metaGet('npcList') || 0), have = db.prepare('SELECT COUNT(*) n FROM auctions WHERE seller_char=0').get().n;
+  if (now - lastList >= NPC_EVERY && have < NPC_MAX) {
+    metaSet('npcList', now); const T = TALENTS();
+    for (let i = 0; i < Math.min(2, NPC_MAX - have); i++) {
+      const it = rollItem(Math.random, 1.2, null, 10 + Math.floor(Math.random() * 90)); if (it.rarity < 1) it.rarity = 1;
+      if (IDENT_SLOTS.includes(it.slot) && Math.random() < 0.7) { const jobs = Object.keys(T.jobs).filter(j => T.jobs[j].nodes?.length); it.ident = JSON.stringify(rollIdent(T, jobs[Math.floor(Math.random() * jobs.length)])); }
+      if (Math.random() < 0.35) it.gup = 1 + (Math.random() < 0.25 ? 1 : 0);
+      const price = Math.round(marketValue({ ...it, ident: it.ident ? 1 : null }) * (1.2 + Math.random() * 0.4) / 10) * 10;
+      db.prepare('INSERT INTO auctions (seller_char, seller_name, slot, base, rarity, roll, refine, price, expires, created, ident, gup, pc) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        .run(0, NPC_SELLERS[Math.floor(Math.random() * NPC_SELLERS.length)], it.slot, it.base, it.rarity, it.roll, 0, price, now + AUC_HOURS * 3600e3, now, it.ident || null, it.gup || 0, it.pc || null);
+    }
+  }
+  // 收購
+  const hrs = Math.min(24, (now - (last || now)) / 3600e3); if (hrs <= 0) return;
+  for (const a of db.prepare('SELECT * FROM auctions WHERE seller_char>0 AND created<? AND expires>=?').all(now - 600e3, now)) {
+    const ratio = marketValue(a) / Math.max(1, a.price), pH = Math.max(0, Math.min(0.8, 0.25 * ratio * ratio));
+    if (Math.random() >= 1 - Math.pow(1 - pH, hrs)) continue;
+    db.prepare('DELETE FROM auctions WHERE id=?').run(a.id);
+    const got = Math.floor(a.price * (1 - AUC_FEE));
+    sendMail(a.seller_char, { sender: '拍賣商人', title: '拍賣成交', body: `你上架的裝備被 ${NPC_SELLERS[Math.floor(Math.random() * NPC_SELLERS.length)]} 以 ${a.price} 金幣買走了（扣 5% 手續費）。`, gold: got });
   }
 }
 const aucView = a => ({ id: a.id, seller: a.seller_name, sellerChar: a.seller_char, slot: a.slot, base: a.base, rarity: a.rarity, roll: a.roll, refine: a.refine, gup: a.gup || 0, pc: a.pc || null, price: a.price, expires: a.expires, ident: a.ident ? JSON.parse(a.ident) : null });
