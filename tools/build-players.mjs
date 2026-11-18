@@ -8,7 +8,7 @@ const SKEL = { M: parseBn1(fs.readFileSync(path.join(ACTOR, 'Man_All.bn1'))), W:
 for (const g of ['M', 'W']) fs.writeFileSync(path.join(process.argv[3], `skel_${g.toLowerCase()}.json`), JSON.stringify(SKEL[g].map(b => ({ name: b.name, parent: SKEL[g].findIndex(x => x.name === b.parent), world: b.world.map(v => +v.toFixed(5)) }))));
 const [dir, out] = process.argv.slice(2);
 const files = fs.readdirSync(dir); const lower = new Map(files.map(f => [f.toLowerCase(), f]));
-const JOBSETS = { musa: 'Musa00', knight: 'knight00', magic: 'magic00', cleric: 'cleric', clown: 'clown00', smith: 'smith00', gunner: 'gunner00' }; // gunner＝獵人（項目 45）
+const JOBSETS = { novice: 'Bs00', musa: 'Musa00', knight: 'knight00', magic: 'magic00', cleric: 'cleric', clown: 'clown00', smith: 'smith00', gunner: 'gunner00' }; // gunner＝獵人（項目 45）
 const texCache = new Map();
 function texFor(msName, buf) {
   const refs = [...buf.toString('latin1', 0, Math.min(buf.length, 20000)).matchAll(/([A-Za-z0-9_\-]+)\.(tga|jpg|bmp|dds|png)/gi)].map(m => m[1]);

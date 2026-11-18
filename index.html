@@ -254,7 +254,7 @@ import { askConfirm, askText } from './src/2_core/ask.js';
 document.getElementById('creditsBody').innerHTML = CREDITS_HTML;
 document.getElementById('creditsLink').onclick = e => { e.preventDefault(); document.getElementById('creditsDlg').showModal(); };
 const $ = s => document.querySelector(s);
-let token = null, chars = [], max = 15, sel = null, mode = 'login', gender = null, job = '劍士', look = { hair: 0, hairColor: 0, outfit: 0 }, stats = defaultStats();
+let token = null, chars = [], max = 15, sel = null, mode = 'login', gender = null, job = '初心者', look = { hair: 0, hairColor: 0, outfit: 0 }, stats = defaultStats();
 try { token = localStorage.getItem('ss_token'); } catch {}
 
 function toast(msg) {
@@ -445,9 +445,10 @@ function drawCreate() {
   const basic = SJ && SKD.skills[SJ.basic], fus = SKD?.fusions.find(f => SJ?.pool.includes(f.a));
   $('#pvInfo').innerHTML = `<b>${job}</b> — ${J.desc}<br>HP <b>${J.hp + stats.vit * 6}</b> · 速度 <b>${J.speed}</b> · 護甲 <b>${J.armor}</b>${J.regen ? ` · 每秒回 <b>${J.regen}</b> HP` : ''}`
     + (SJ ? `<br>初始武器攻擊：${ico(basic.icon, 22)} <b style="font-size:14px">${basic.name}</b> · 第 1 次升級選第一招技能
-      <div class="skrow"><small>技能</small>${SJ.pool.map(k => `<span title="${SKD.skills[k].name}">${ico(SKD.skills[k].icon, 28)}</span>`).join('')}<small style="margin-left:6px">超武</small><span title="${SKD.skills[fus.into].name}">${ico(SKD.skills[fus.into].icon, 28)}</span></div>` : '');
-  $('#jobs').innerHTML = Object.keys(JOBS).map(k => { const b = SKD && SKD.skills[SKD.jobs[k].basic]; return `<button type="button" class="btn${k === job ? ' on' : ''}" data-j="${k}">${b ? ico(b.icon, 36) : `<img src="${JOBS[k].icon}" alt="">`}${k}</button>`; }).join('');
-  $('#jobs').querySelectorAll('button').forEach(b => b.onclick = () => { job = b.dataset.j; drawCreate(); });
+      <div class="skrow"><small>技能</small>${SJ.pool.map(k => `<span title="${SKD.skills[k].name}">${ico(SKD.skills[k].icon, 28)}</span>`).join('')}${fus ? `<small style="margin-left:6px">超武</small><span title="${SKD.skills[fus.into].name}">${ico(SKD.skills[fus.into].icon, 28)}</span>` : ''}</div>` : '');
+  // 11/19 照 PC：新角色一律先當初心者，Base Lv 10 找百業宗師一轉（下面 7 職只是預告，不能點）
+  $('#jobs').innerHTML = `<div style="grid-column:1/-1;font-size:13px;line-height:1.6;color:#4a5878">新角色先當 <b>初心者</b>（PC 原版）：戰鬥只會空手技，<b>Base Lv 10</b> 找主城的百業宗師一轉，從下面 7 個職業選 1 個。</div>`
+    + Object.keys(JOBS).filter(k => k !== '初心者').map(k => { const b = SKD && SKD.skills[SKD.jobs[k].basic]; return `<div class="btn" style="opacity:.75;cursor:default;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px">${b ? ico(b.icon, 30) : ''}<small>${k}</small></div>`; }).join('');
   renderLook($('#look'), look, job, drawCreate);
   $('#pts').textContent = FREE_POINTS - used();
   $('#stats').innerHTML = Object.entries(STATS).map(([k, d]) => `<div class="stat"><b class="${J.main === k ? 'main' : ''}">${d.name}</b><button type="button" class="btn" data-k="${k}" data-d="-1" ${stats[k] <= 1 ? 'disabled' : ''}>－</button><span>${stats[k]}</span><button type="button" class="btn" data-k="${k}" data-d="1" ${stats[k] >= STAT_MAX || used() >= FREE_POINTS ? 'disabled' : ''}>＋</button><small>${d.desc}</small></div>`).join('');
@@ -486,12 +487,12 @@ async function showPreview() {
   $('#pvLoad').style.display = m ? 'none' : 'flex'; if (!m) $('#pvLoad').textContent = '模型載入失敗';
 }
 function openCreate() { if (sel === null || chars.find(x => x.slot === sel)) { sel = [...Array(max).keys()].find(i => !chars.find(x => x.slot === i)) ?? null; if (sel === null) return; render(); }
-  gender = '男'; job = '劍士'; look = { hair: 0, hairColor: 0, outfit: 0 }; stats = defaultStats(); $('#cname').value = ''; $('#createErr').textContent = ''; drawCreate(); $('#createDlg').showModal(); $('#cname').focus(); }
+  gender = '男'; job = '初心者'; look = { hair: 0, hairColor: 0, outfit: 0 }; stats = defaultStats(); $('#cname').value = ''; $('#createErr').textContent = ''; drawCreate(); $('#createDlg').showModal(); $('#cname').focus(); }
 $('#newBtn').onclick = openCreate;
 $('#cancelCreate').onclick = () => $('#createDlg').close();
 document.querySelectorAll('.gender button').forEach(b => b.onclick = () => { gender = b.dataset.g; drawCreate(); });
 $('#randomBtn').onclick = () => {
-  const ks = Object.keys(JOBS); job = ks[Math.random() * ks.length | 0]; gender = Math.random() < 0.5 ? '男' : '女'; const free = OUTFITS.map((_, i) => i).filter(i => !OUTFIT_LOCKED.includes(i));
+  job = '初心者'; gender = Math.random() < 0.5 ? '男' : '女'; const free = OUTFITS.map((_, i) => i).filter(i => !OUTFIT_LOCKED.includes(i));
   look = { hair: Math.random() * HAIR_STYLES | 0, hairColor: Math.random() * HAIR_COLORS.length | 0, outfit: free[Math.random() * free.length | 0] };
   stats = defaultStats(); const main = JOBS[job].main; stats[main] = 11; // 主素質先點 10
   const keys = Object.keys(STATS); while (used() < FREE_POINTS) { const k = keys[Math.random() * keys.length | 0]; if (stats[k] < STAT_MAX) stats[k]++; }

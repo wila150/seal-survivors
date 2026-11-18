@@ -6,7 +6,6 @@
 <meta name="theme-color" content="#0d1117">
 <title>希望OL 倖存者 主城</title>
 <link rel="icon" type="image/svg+xml" href="assets/ui/favicon.svg">
-<link rel="icon" type="image/svg+xml" href="assets/ui/favicon.svg">
 <style>
   /* 遊戲游標：客戶端原版 resource/cursor1.tex（使用者 11/18：鼠標要用遊戲鼠標）*/
   *{cursor:url(assets/ui/cursor_arrow.png) 1 1,default !important}
@@ -148,7 +147,7 @@
 <div id="tload0" style="position:fixed;inset:0;background:#000;z-index:998"></div>
 <script type="module">
 import * as THREE from 'three';
-import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES } from './src/1_data/jobs.js';
+import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES, NOVICE, JOB1_AT, FIRST_JOBS, LIFE_LV } from './src/1_data/jobs.js';
 import { renderLook } from './src/2_core/look-ui.js';
 import { sealModel, sealProp, sealActor, sealMob, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
@@ -372,6 +371,9 @@ $('#talk').onclick = () => nearNpc && talk(nearNpc);
 
 async function talk(n) {
   joyEnd();
+  // 11/19 PC 初心者生活技能：釣魚、倉庫、擺地攤（拍賣）要 Base Lv 8 才會（2u 資料站 初心者技能樹的需求等級）
+  { const need = { fish: ['釣魚', LIFE_LV.釣魚], storage: ['倉庫', LIFE_LV.倉庫], auction: ['擺地攤', LIFE_LV.擺地攤] }[n.id];
+    if (need && CHAR.baseLv < need[1]) return openDlg(n.name, `<p>「你還不會<b>${need[0]}</b>喔。等 <b>Base Lv ${need[1]}</b> 學會了再來找我吧！」</p><p><small>原版初心者技能：${need[0]}（需求 Lv ${need[1]}）。目前 Base Lv ${CHAR.baseLv}。</small></p>`, []); }
   if (n.id === 'captain') return openExpedition();
   if (n.id === 'rank') return openRank();
   if (n.id === 'shop') return openMerchant('sell');
@@ -391,8 +393,23 @@ async function talk(n) {
 }
 
 // ===== 項目 27：百業宗師＝二轉（PC 每職兩條二轉：2u tree_2／tree_3）=====
+// 11/19 一轉（照 PC：初心者 Base Lv 10 → 7 職選 1）
+function openJob1(D) {
+  const ok = CHAR.baseLv >= JOB1_AT, ico = ([f, x, y]) => `<i style="display:inline-block;width:32px;height:32px;vertical-align:middle;background:url(assets/skill/${f}) -${x}px -${y}px no-repeat"></i>`;
+  const cards = FIRST_JOBS.map(j => { const S = D.jobs[j], b = D.skills[S.basic];
+    return `<div style="background:#fff;border:2px solid #c9d5f3;border-radius:12px;padding:8px 10px;line-height:1.5"><div style="display:flex;align-items:center;gap:6px">${b ? ico(b.icon) : ''}<b style="font-size:15px">${j}</b></div>
+      <small>${JOBS[j].desc}</small><div style="margin-top:4px">${S.pool.map(k => D.skills[k] ? ico(D.skills[k].icon) : '').join('')}</div>
+      <button class="btn primary" data-j1="${j}" style="margin-top:6px" ${ok ? '' : 'disabled'}>轉成${j}</button></div>`; }).join('');
+  openDlg('百業宗師・一轉', `<p>「初心者，想走哪一條路？到 <b>Base Lv ${JOB1_AT}</b> 就可以來找我轉職。」${ok ? '' : `<br><small style="color:#c0392b">目前 Base Lv ${CHAR.baseLv}，還差 ${JOB1_AT - CHAR.baseLv} 級</small>`}</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">${cards}</div><p><small>轉職後 Job Lv 從 1 開始，學會該職業的技能；之後 Job Lv 50 可以二轉。</small></p>`, [], true);
+  $('#dlgBody').querySelectorAll('[data-j1]').forEach(b => b.onclick = async () => {
+    const j = b.dataset.j1; if (!(await askConfirm(`確定轉成「${j}」？\n一轉之後不能換回初心者或改成別的一轉職業。`, { ok: '轉職' }))) return;
+    try { const c2 = await call('POST', '/api/job1', { charId: CHAR.id, job: j }); try { sessionStorage.setItem('ss_char', JSON.stringify(c2)); } catch {} toast(`轉職成功！你現在是${j}`); setTimeout(() => location.reload(), 900); } catch (e) { toast(e.message); }
+  });
+}
 async function openJob2() {
   const [T, D] = await Promise.all([fetch('assets/data/talents.json').then(r => r.json()), fetch('assets/data/skills.json').then(r => r.json())]);
+  if (CHAR.job === NOVICE) return openJob1(D); // 11/19：初心者先一轉
   const J = T.jobs[CHAR.job], ok = CHAR.jobLv >= 50;
   const ico = ([f, x, y]) => `<i style="display:inline-block;width:32px;height:32px;vertical-align:middle;background:url(assets/skill/${f}) -${x}px -${y}px no-repeat"></i>`;
   const card = b => { const on = CHAR.job2 === b.key;

@@ -6,7 +6,7 @@ const [actor, out] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
 const files = fs.readdirSync(actor); const lower = new Map(files.map(f => [f.toLowerCase(), f]));
 // 武器代碼照客戶端 actor/man*.act：hd 空手、bgs 大劍、ssh 劍盾、stm 杖、mcc 鎚（祭司）、smith 榔頭
-export const WEAPON = { musa: 'bgs', knight: 'ssh', magic: 'stm', cleric: 'mcc', clown: 'hd', smith: 'smith', gunner: 'gunner' };
+export const WEAPON = { novice: 'hd', musa: 'bgs', knight: 'ssh', magic: 'stm', cleric: 'mcc', clown: 'hd', smith: 'smith', gunner: 'gunner' };
 // 獵人（gunner，項目 45）的動作檔命名不同：hm_／hw_ + 動作（hm_w1、hm_rn、hm_f1、hm_p1…，見 actor/man20.act）
 // 動作組的鍵：pi＝平常站著（用原版 w1 安靜站姿；原版 pi 是戰鬥備戰、一直彈跳，使用者 11/18：不要一直動來動去）
 //            fid＝站久了偶爾播一次的等待動作（原版 w2：伸懶腰、東張西望，2～5 秒）

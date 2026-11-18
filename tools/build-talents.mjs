@@ -206,5 +206,6 @@ for (const [jid, job] of Object.entries(JOBS)) {
   out.jobs[job] = { cols: COLS[job], nodes, branches };
   console.log(`${job}：一轉 ${nodes.length} 個天賦、全點滿 ${total} 點；` + branches.map(b => `${b.name} ${b.nodes.length} 個／${b.nodes.reduce((t, n) => t + n.max, 0)} 點`).join('、'));
 }
+out.jobs['初心者'] = { cols: [], nodes: [], branches: [] }; // 11/19 初心者：沒有天賦樹（Base Lv 10 一轉後才有）
 fs.writeFileSync(new URL('../assets/data/talents.json', import.meta.url), JSON.stringify(out, null, 1));
 console.log('→ assets/data/talents.json');

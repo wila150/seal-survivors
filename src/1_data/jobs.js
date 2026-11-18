@@ -32,7 +32,14 @@ export const JOBS = {
   // 項目 45：原版第七職（2u jobid 9）；模型＝客戶端 gunner00 初始服裝＋彈弓 R_gunner_G_normal，動作 hm_／hw_
   獵人: { icon: 'assets/fx/e_fireball_Green.png', color: 0x6aa84f, hp: 100, speed: 6.6, armor: 1, weapon: 'fireball', main: 'agi', model: 'gunner', gear: ['wpn_R_gunner_G_normal'], mount: 'G_dark_leopard_stand04',
           desc: '彈弓遠程：亂射、雙子爆發貫穿、爆彈分裂、纏繞樹根緩速；超武紅心連擊。' },
+  // 11/19 使用者：「剛開始是初心者」→ 照 PC：新角色先當初心者（原版初始服裝 Bs00＋空手動作 hd），Base Lv 10 找百業宗師一轉
+  初心者: { icon: 'assets/fx/vfx_shockwave_fireR.png', color: 0xb8a890, hp: 100, speed: 6.0, armor: 0, weapon: 'slash', main: 'str', model: 'novice', gear: [], mount: 'G_dark_leopard_stand04',
+          desc: 'PC 原版的起點：戰鬥只會空手技。Base Lv 10 找百業宗師一轉（7 個職業選 1 個）。' },
 };
+export const NOVICE = '初心者', JOB1_AT = 10; // 一轉等級（使用者 11/19 選 Base Lv 10）
+export const FIRST_JOBS = Object.keys(JOBS).filter(k => k !== NOVICE); // 一轉可以選的 7 職
+// PC 初心者技能樹的生活技能（2u 資料站 jobid 0）：到這個 Base 等級才能用（所有職業都一樣）
+export const LIFE_LV = { 交易: 2, 釣魚: 8, 倉庫: 8, 擺地攤: 8, 合成: 10 };
 
 // 玩家模型檔名（assets/models/player_<m|w>_<model>.json）
 export const playerModelId = (job, gender) => `player_${gender === '女' ? 'w' : 'm'}_${(JOBS[job] || JOBS['劍士']).model}`;

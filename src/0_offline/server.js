@@ -3,7 +3,7 @@ import { http, fs, path, crypto, Buffer, DatabaseSync, fileURLToPath, handle } f
 export { handle };
 // 希望OL 倖存者 本機伺服器：靜態檔案＋帳號／角色 API
 // 啟動：node server.mjs   → http://localhost:8765
-import { JOBS, OUTFITS, validateStats, STATS, MOUNT, validLook, defaultStats, FREE_POINTS } from '../1_data/jobs.js';
+import { JOBS, OUTFITS, validateStats, STATS, MOUNT, validLook, defaultStats, FREE_POINTS, NOVICE, JOB1_AT, FIRST_JOBS } from '../1_data/jobs.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime } from '../1_data/stages.js';
 import { NEED as PC_NEED, BASE_MAX } from '../1_data/pc-level.js';
 import PC_CURVE from '../1_data/pc-curve.js';
@@ -107,7 +107,7 @@ const runExp = (kills, monLv, baseLv) => Math.floor(kills * (PC_CURVE.exp[Math.m
 // 項目 25／27：Job 經驗＝本局 Base 經驗；曲線平緩（使用者 11/18 選「Job 50＋平緩曲線」：約 100 局到 Job 50）
 // 一轉上限 Job Lv 50（滿 50 才能二轉）；二轉後接著升到 100（51 以後的點數給二轉樹）。數值暫定，之後後端調
 const jobNeed = lv => (400 + 80 * lv) * (lv >= JOB2_MAX ? 8 : 1); // 項目 40：三轉 Job 經驗 ×8（企劃「Job 經驗 ÷8」）
-const jobMaxOf = d => d.job3 ? JOB3_MAX : d.job2 ? JOB2_MAX : JOB1_MAX;
+const jobMaxOf = d => d.novice ? 10 : d.job3 ? JOB3_MAX : d.job2 ? JOB2_MAX : JOB1_MAX; // 初心者 Job Lv 最高 10（PC）
 const DAY = 86400000;
 
 // 密碼雜湊（scrypt）
@@ -167,16 +167,27 @@ const api = {
   'GET /api/chars': async (req, res, _, uid) => {
     send(res, 200, { max: MAX_SLOTS, chars: db.prepare('SELECT * FROM characters WHERE account_id=? ORDER BY slot').all(uid).map(charView) });
   },
+  // 11/19 一轉：初心者 Base Lv 10 以上找百業宗師選 7 職之一；Job Lv 從 1 開始、天賦清空
+  'POST /api/job1': async (req, res, _, uid) => {
+    const { charId, job } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    if (c.job !== NOVICE) return send(res, 400, { error: '已經一轉了' });
+    if (c.base_lv < JOB1_AT) return send(res, 400, { error: `要 Base Lv ${JOB1_AT} 才能一轉` });
+    if (!FIRST_JOBS.includes(job)) return send(res, 400, { error: '沒有這個職業' });
+    const d = JSON.parse(c.data || '{}'); delete d.novice; d.jobExp = 0; d.talents = {};
+    db.prepare('UPDATE characters SET job=?, job_lv=1, data=? WHERE id=?').run(job, JSON.stringify(d), c.id);
+    send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
   'POST /api/chars': async (req, res, _, uid) => {
     const { name = '', gender = '', slot, job, stats, outfit = 0, hair = 0, hairColor = 0 } = await body(req);
     const n = String(name).trim();
     if (!/^[\p{L}\p{N}_]{2,12}$/u.test(n)) return send(res, 400, { error: '角色名稱要 2～12 個字，不能有空白或符號' });
     if (!['男', '女'].includes(gender)) return send(res, 400, { error: '請選性別' });
     if (!Number.isInteger(slot) || slot < 0 || slot >= MAX_SLOTS) return send(res, 400, { error: '欄位不對' });
-    if (!Object.hasOwn(JOBS, job)) return send(res, 400, { error: '請選職業' });
+    // 11/19：照 PC 新角色一律先當初心者（舊版傳來的 job 不用）
+    const job0 = NOVICE;
     if (!validateStats(stats)) return send(res, 400, { error: '素質點數不對' });
     if (!validLook(hair, hairColor, outfit)) return send(res, 400, { error: '髮型或顏色不對' });
-    try { const r = db.prepare('INSERT INTO characters (account_id, slot, name, gender, job, data, created) VALUES (?,?,?,?,?,?,?)').run(uid, slot, n, gender, job, JSON.stringify({ stats, outfit, hair, hairColor }), Date.now());
+    try { const r = db.prepare('INSERT INTO characters (account_id, slot, name, gender, job, data, created) VALUES (?,?,?,?,?,?,?)').run(uid, slot, n, gender, job0, JSON.stringify({ stats, outfit, hair, hairColor, novice: true }), Date.now());
       send(res, 200, charView(db.prepare('SELECT * FROM characters WHERE id=?').get(r.lastInsertRowid))); }
     catch (e) { send(res, 409, { error: String(e.message).includes('name') ? '這個角色名稱已經有人用了' : '這個欄位已經有角色了' }); }
   },
