@@ -1,5 +1,6 @@
 // 希望倖存者 出征：只負責組裝（場景、介面、傷害、升級），各模組在 src/
 //   玩家 src/2_core/player.js、攝影機 camera.js、流程／首領／結算 game-manager.js、物件池 pool.js、技能 src/3_skills/skills.js
+import { pcLoading } from './src/2_core/pc-loading.js';
 import * as THREE from 'three';
 import { JOBS, defaultStats, MOUNT } from './src/1_data/jobs.js';
 import { sealModel, sealMob, sealModelData } from './src/2_core/seal-model.js';
@@ -176,7 +177,8 @@ const ENEMY_TYPES = {
 const TEMPLATES = {};
 // 進戰場前的載入畫面：怪物樣板＋玩家模型＋坐騎，載完才能按開始
 let loadDone = 0; const loadTotal = Object.keys(ENEMY_TYPES).length + 2;
-const loadTick = () => { loadDone++; const p = Math.round(loadDone / loadTotal * 100); document.getElementById('gloadBar').style.width = p + '%'; document.getElementById('gloadTxt').textContent = `正在進入 ${STAGE.name}… ${p}%`; };
+const GLOAD = pcLoading({ img: STAGE.banner, title: STAGE.name }); // PC 原版載入畫面（地圖插畫＋TIP＋黃色進度條）
+const loadTick = () => { loadDone++; const p = Math.round(loadDone / loadTotal * 100); document.getElementById('gloadBar').style.width = p + '%'; document.getElementById('gloadTxt').textContent = `正在進入 ${STAGE.name}… ${p}%`; GLOAD.set(p); };
 // 這個職業（含二轉分支）會出現的技能 → 預先載入原版特效
 const pcfxReady = PCFX.preload(['levelup', 'monrejen', 'bigkill', 'bigitem', ...(SKD.jobs[CHAR.job]?.pool || []), ...((TAL && CHAR.job2 && branchOf(TAL, CHAR.job, CHAR.job2)?.skills) || []), ...((TAL && CHAR.job3 && [branchOf(TAL, CHAR.job, CHAR.job2)?.skill3].filter(Boolean)) || [])]).catch(() => {});
 const modelsReady = Promise.all(Object.entries(ENEMY_TYPES).map(async ([k, T]) => {
@@ -200,7 +202,7 @@ function enterBoss(type, kind, i) {
 const BOSSES = spawner.BOSSES;
 spawner.countMul = DM.spawn; spawner.eventMul = DM.event;
 Promise.all([rig.actorReady.finally(loadTick), rig.mountReady.finally(loadTick), modelsReady, pcfxReady]).then(() => {
-  document.getElementById('gload').style.display = 'none'; const go = document.getElementById('go'); go.disabled = false; go.textContent = '開始';
+  GLOAD.done(); document.getElementById('gload').style.display = 'none'; const go = document.getElementById('go'); go.disabled = false; go.textContent = '開始';
   // 11/18 使用者：不用按開始 → 載完後標題（希望倖存者＋地圖名＋等級）顯示 1.8 秒就直接開打
   if (!/auto|resume/.test(location.search)) setTimeout(() => { if (state === 'start') start(); }, 1800);
 });

@@ -117,7 +117,6 @@
 </head>
 <body>
 <!-- 進城載入畫面：玩家模型和 NPC 載完才拿掉（11/18 使用者：載入時會先看到紅色膠囊人偶） -->
-<div id="tload" style="position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:radial-gradient(#2b3a5c,#121a2c);color:#ffe9a8;font-weight:700;transition:opacity .4s"><div style="font-size:34px;text-shadow:0 2px 8px #000">希望之城</div><div style="font-size:14px;color:#cfd8ea">載入中…</div></div>
 <div id="labels"></div>
 <div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Lv 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">EXP<div class="bar"><i id="meExp"></i></div><span id="xpPct">0%</span></div></div></div>
 <div id="place" class="chip">希望之城<small>中央廣場</small></div>
@@ -131,12 +130,15 @@
 
 <script src="src/0_offline/boot.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<div id="tload0" style="position:fixed;inset:0;background:#000;z-index:998"></div>
 <script type="module">
 import * as THREE from 'three';
 import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES } from './src/1_data/jobs.js';
 import { renderLook } from './src/2_core/look-ui.js';
 import { sealModel, sealProp, sealActor, sealMob, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
+import { pcLoading } from './src/2_core/pc-loading.js';
+const TLOAD = pcLoading({ img: 'assets/load/elim_load.png', title: '希望之城' }); document.getElementById('tload0')?.remove(); // PC 原版載入畫面（艾林＝獅子城插畫）
 import { RODS, BAIT, CATCH } from './src/1_data/fishing.js';
 import { loadSealMap, buildSealMap, liftScene, walkMove } from './src/2_core/seal-map.js';
 import { view, enableOrbit } from './src/2_core/camera.js';
@@ -300,7 +302,8 @@ function loadPlayer() {
 }
 const playerFirst = loadPlayer();
 // 載入畫面：玩家模型＋NPC 模型都好了（最多等 20 秒）再淡出
-Promise.race([Promise.all([playerFirst, ...npcReady]), new Promise(r => setTimeout(r, 20000))]).then(() => { const L = document.getElementById('tload'); L.style.opacity = 0; setTimeout(() => L.remove(), 450); });
+{ const all = [playerFirst, ...npcReady]; let n = 0; for (const p of all) Promise.resolve(p).finally(() => TLOAD.set(++n / all.length * 100)); }
+Promise.race([Promise.all([playerFirst, ...npcReady]), new Promise(r => setTimeout(r, 20000))]).then(() => TLOAD.done());
 const meLbl = document.createElement('div'); meLbl.className = 'lbl me'; meLbl.textContent = CHAR?.name || ''; labels.appendChild(meLbl);
 
 // ===== 輸入 =====
