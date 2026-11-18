@@ -111,7 +111,7 @@ export function buildSealMap(scene, M, fogColor, opts = {}) {
       d.geos.forEach((g, gi) => {
         const im = new THREE.InstancedMesh(g, d.partMats[gi], list.length);
         list.forEach(([, x, y, z, rot, sc], k) => { place.compose(v.set(x - OFF, y, z - OFF), q.setFromAxisAngle(up, rot * Math.PI), s.setScalar(sc || 1)); im.setMatrixAt(k, place); });
-        im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); im.userData.fixed = true; scene.add(im);
+        im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); im.userData.fixed = true; im.userData.model = name; scene.add(im);
       });
     } catch (e) { console.warn('地圖物件', name, e.message); }
   }));
@@ -162,4 +162,29 @@ export function drawSealMinimap(mmx, Wpx, M, STAGE, { pp, yaw, enemies, chests, 
   }
   mmx.save(); mmx.translate(Wpx / 2, Wpx / 2); mmx.rotate(-yaw + Math.PI); mmx.fillStyle = '#fff'; mmx.strokeStyle = '#c00'; mmx.lineWidth = 2;
   mmx.beginPath(); mmx.moveTo(0, -7); mmx.lineTo(5, 5); mmx.lineTo(0, 2); mmx.lineTo(-5, 5); mmx.closePath(); mmx.fill(); mmx.stroke(); mmx.restore();
+}
+
+// 橋面高度（11/19 使用者：「中間這塊池塘還是會穿模、沒辦法上橋」）
+// 原版可走遮罩只讓橋面那條能走，但高度圖是池底（主城廣場 −7 公尺、池底 −13.8）→ 人走在橋下面
+// 做法：可走、而且比附近可走地面低 1.5 公尺以上的格子＝橋／棧橋候選 → 往下打射線找橋、棧橋模型的表面，把那格的高度換成橋面
+const SURF = /bridge|fishing_place|pier|deck|floor_/i;
+export function addWalkSurfaces(M, scene) {
+  const meshes = scene.children.filter(o => o.isInstancedMesh && SURF.test(o.userData.model || ''));
+  if (!meshes.length) return 0;
+  const W = M.W, H = M.H, base = M.heightAt, over = new Map(), ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0), o = new THREE.Vector3();
+  const box = new THREE.Box3();
+  const near = (x, z) => { let best = -Infinity; for (let r = 3; r <= 9; r += 3) for (let a = 0; a < 12; a++) { const nx = x + Math.cos(a / 12 * 6.283) * r, nz = z + Math.sin(a / 12 * 6.283) * r; if (M.canWalk(nx, nz)) best = Math.max(best, base(nx, nz)); } return best; };
+  for (const m of meshes) {
+    m.computeBoundingBox(); box.copy(m.boundingBox); // InstancedMesh：涵蓋所有擺放位置
+    for (let z = Math.floor(box.min.z); z <= box.max.z; z++) for (let x = Math.floor(box.min.x); x <= box.max.x; x++) {
+      const cx = x + 0.5, cz = z + 0.5; if (!M.canWalk(cx, cz)) continue;
+      const h0 = base(cx, cz); if (near(cx, cz) - h0 < 1.5) continue;
+      ray.set(o.set(cx, h0 + 30, cz), down); ray.far = 40;
+      const hit = ray.intersectObjects(meshes, false).find(h => h.point.y > h0 + 0.5 && h.point.y < h0 + 14);
+      if (hit) { const k = (z + 256) * W + (x + 256); over.set(k, Math.max(over.get(k) ?? -Infinity, hit.point.y)); }
+    }
+  }
+  if (!over.size) return 0;
+  M.heightAt = (x, z) => { const v = over.get(Math.floor(z + 256) * W + Math.floor(x + 256)); return v != null ? v : base(x, z); };
+  return over.size;
 }

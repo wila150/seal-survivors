@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0d1117">
 <title>希望OL 倖存者 主城</title>
+<link rel="icon" type="image/svg+xml" href="assets/ui/favicon.svg">
 <style>
   /* 遊戲游標：客戶端原版 resource/cursor1.tex（使用者 11/18：鼠標要用遊戲鼠標）*/
   *{cursor:url(assets/ui/cursor_arrow.png) 1 1,default !important}
@@ -153,7 +154,7 @@ import { askConfirm, askText } from './src/2_core/ask.js';
 import { pcLoading } from './src/2_core/pc-loading.js';
 const TLOAD = pcLoading({ img: 'assets/load/elim_load.png', title: '希望之城' }); document.getElementById('tload0')?.remove(); // PC 原版載入畫面（艾林＝獅子城插畫）
 import { RODS, BAIT, CATCH } from './src/1_data/fishing.js';
-import { loadSealMap, buildSealMap, liftScene, walkMove } from './src/2_core/seal-map.js';
+import { loadSealMap, buildSealMap, liftScene, walkMove, addWalkSurfaces } from './src/2_core/seal-map.js';
 import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
 import { offJob, dismantleYield } from './src/1_data/items.js';
@@ -246,7 +247,8 @@ addEventListener('resize', resize); resize();
 // ===== 艾林（엘림）主城：原版地圖 32 號（tools/build-map.mjs 轉檔）=====
 // 使用者 11/18：主城周圍不要是一片綠地，要用建築擋住、不要空空的 → 直接用原版艾林：城牆、街區、建築、地形都是原版擺的
 const TMAP = await loadSealMap(32);
-buildSealMap(scene, TMAP, 0xbcd3ea, { blend: { a0: 'stone_b07', a1: 'grass', hi: 'stone_b05' } }); // 城內街道碎石板、中央廣場圓形石板、城外草地
+const TVIEW = buildSealMap(scene, TMAP, 0xbcd3ea, { blend: { a0: 'stone_b07', a1: 'grass', hi: 'stone_b05' } });
+TVIEW.propsReady.then(() => { const n = addWalkSurfaces(TMAP, scene); if (n) console.log('橋面', n, '格'); }); // 池塘的橋、棧橋可以走上去（不再走在橋下） // 城內街道碎石板、中央廣場圓形石板、城外草地
 const TC = { x: 224 - 256, z: 180 - 256 }; // 廣場中心（原版釣魚池）
 // 找最近的可走位置（NPC、出生點用）
 function walkable(x, z) { if (TMAP.canWalk(x, z)) return { x, z }; for (let r = 0.5; r < 12; r += 0.5) for (let a = 0; a < 16; a++) { const nx = x + Math.cos(a / 16 * 6.283) * r, nz = z + Math.sin(a / 16 * 6.283) * r; if (TMAP.canWalk(nx, nz)) return { x: nx, z: nz }; } return { x, z }; }

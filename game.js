@@ -23,7 +23,7 @@ import { openSettings, onSettings, getSettings, applyHud, pixelRatio } from './s
 import { createInput, createPlayer, magnetGems } from './src/2_core/player.js';
 import { BOSS_TITLES, createSpawner, createBossSystem, submitRun } from './src/2_core/game-manager.js';
 import { createWatchdog } from './src/4_diagnostics/watchdog.js';
-import { loadSealMap, buildSealMap, liftScene, zoneAt, zoneName, walkMove, drawSealMinimap } from './src/2_core/seal-map.js';
+import { loadSealMap, buildSealMap, liftScene, zoneAt, zoneName, walkMove, drawSealMinimap, addWalkSurfaces } from './src/2_core/seal-map.js';
 const SKD = await loadSkills();
 // 項目 26：局外天賦（主城天賦樹點的）→ 開局套到 P 與技能
 const TAL = await fetch('assets/data/talents.json').then(r => r.json()).catch(() => null);
@@ -89,6 +89,7 @@ addEventListener('resize', resize); resize();
 // 地圖：希望OL 原版地圖（src/2_core/seal-map.js，tools/build-map.mjs 轉檔）—— 地形起伏、原版地表、原版擺設、可走區
 const MAP = await loadSealMap(STAGE.mapId);
 const MAPVIEW = buildSealMap(scene, MAP, STAGE.fog);
+MAPVIEW.propsReady.then(() => addWalkSurfaces(MAP, scene)); // 橋面高度（不再走在橋下）
 const groundY = () => MAP.heightAt(player.position.x, player.position.z);
 
 const loader = new THREE.TextureLoader();
