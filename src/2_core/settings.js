@@ -4,7 +4,7 @@ import { CREDITS_HTML } from '../1_data/credits.js';
 const KEY = 'ss_settings';
 // 手機（觸控）預設畫質「中」＝解析度倍率 1（高畫質在手機是 2～3 倍像素，11/19 使用者回報手機超卡）
 export const TOUCH = typeof matchMedia === 'function' && matchMedia('(pointer:coarse)').matches;
-const DEF = { master: 1, bgm: 0.7, sfx: 0.8, nums: true, meter: true, shake: true, hud: 1, quality: TOUCH ? 'mid' : 'high', autoPick: false };
+const DEF = { master: 1, bgm: 0.7, sfx: 0.8, nums: true, meter: true, shake: true, hud: 1, quality: TOUCH ? 'mid' : 'high', autoPick: false, autoMount: false };
 let S = { ...DEF };
 try { Object.assign(S, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch {}
 // 舊版暫停選單的兩個開關（ss_opts）接過來
@@ -55,7 +55,7 @@ export function openSettings(onClose) {
   const seg = (k, name, desc, opts) => `<div class="row"><span>${name}<small>${desc}</small></span><span class="seg">${opts.map(([v, l]) => `<button type="button" data-s="${k}" data-val="${v}" class="${S[k] == v ? 'on' : ''}">${l}</button>`).join('')}</span></div>`;
   const pages = [
     () => slider('master', '總音量', '所有聲音') + slider('bgm', '背景音樂', '主城與出征的音樂') + slider('sfx', '音效', '打擊、技能、撿東西'),
-    () => toggle('nums', '傷害數字', '怪物頭上跳出傷害數字') + toggle('meter', '傷害統計', '右上角顯示每個技能打了多少') + toggle('shake', '畫面震動', '首領登場、大招時鏡頭震動') + toggle('autoPick', '升級自動選卡', '不跳卡片，自動選（超武 > 已有技能升級 > 新技能 > 被動）')
+    () => toggle('nums', '傷害數字', '怪物頭上跳出傷害數字') + toggle('meter', '傷害統計', '右上角顯示每個技能打了多少') + toggle('shake', '畫面震動', '首領登場、大招時鏡頭震動') + toggle('autoPick', '升級自動選卡', '不跳卡片，自動選（超武 > 已有技能升級 > 新技能 > 被動）') + toggle('autoMount', '趕路自動上馬', '有坐騎時，朝同一方向走 2 秒自動上馬；停下來放連續技自動下馬（騎乘時不會攻擊）')
       + seg('hud', '介面大小', '血條、技能列、小地圖等', [[0.8, '80%'], [0.9, '90%'], [1, '100%'], [1.15, '115%'], [1.35, '135%'], [1.55, '155%']]),
     () => seg('quality', '畫質', '解析度；手機或電腦卡頓時調低', [['high', '高'], ['mid', '中'], ['low', '低']]),
     () => `<table>${KEYS.map(([k, d]) => `<tr><td>${k}</td><td>${d}</td></tr>`).join('')}</table>`,

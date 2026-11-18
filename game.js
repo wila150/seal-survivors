@@ -247,6 +247,14 @@ function eventsUpdate(dt) {
   if (E.t >= E.limit) return evEnd(false);
   evHud.style.display = 'block'; evHud.innerHTML = `<b>${E.name}</b>　${E.tip}　剩 ${Math.ceil(E.limit - E.t)} 秒<div class="bar"><i style="width:${Math.round(Math.max(0, Math.min(1, prog)) * 100)}%"></i></div>`;
 }
+// 第八批 54 選配：趕路自動上馬（設定「趕路自動上馬」打開才有）：同方向移動 2 秒上馬；停下來（連續技 A）自動下馬
+const AM = { dir: null, t: 0 };
+function autoMount(dt, mv) {
+  if (!getSettings().autoMount || !MOUNT_ON || state !== 'play') return;
+  if (mv.ml > 0.5) { const d = Math.atan2(mv.mz, mv.mx); if (AM.dir != null && Math.abs(Math.atan2(Math.sin(d - AM.dir), Math.cos(d - AM.dir))) < 0.5) AM.t += dt; else { AM.dir = d; AM.t = 0; }
+    if (AM.t > 2 && !rig.mounted) setMounted(true); }
+  else { AM.t = 0; AM.dir = null; if (rig.mounted && CB.st === 1) setMounted(false); }
+}
 // 視角切換：V 鍵或右下按鈕
 function switchView() { const n = cycleView(); showBanner(`<small>視角</small><b>${n}</b>`, 700); }
 addEventListener('keydown', e => { if (e.code === 'KeyV') switchView(); });
@@ -716,7 +724,8 @@ function towerFloorUp() {
 function update(dt) {
   t += dt;
   // 移動（player.js）
-  rig.move(dt, input.read(), P); comboUpdate(dt, input.read()); eventsUpdate(dt); // 項目 52 連續技、53 地圖事件
+  rig.move(dt, input.read(), P); comboUpdate(dt, input.read()); eventsUpdate(dt);
+  autoMount(dt, input.read()); // 第八批 54 選配：趕路自動上馬 // 項目 52 連續技、53 地圖事件
   const pp = player.position;
   // 換區域：跳區域名
   if (TOWER) { const f = towerFloor(t); if (f !== floor) { floor = f; towerFloorUp(); } }
