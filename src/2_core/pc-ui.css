@@ -1,0 +1,21 @@
+/* PC 原版視窗樣式（共用：主城＋出征）。參考 PC 的 MONSTER SURVIVAL／PARTY SEARCH 視窗：
+   白色亮面外框＋藍色外線、置中白字藍描邊標題、米色內容面板、亮面藍按鈕。
+   設定（settings.js #ssSet）與確認框（ask.js #ssAsk）是執行時才插入樣式 → 這裡用 body 前綴提高權重蓋過去 */
+body #ssSet .box, body #ssAsk .box, #pause .box, .pcwin {
+  background: linear-gradient(#fdfdfd, #dde3ec); border: 3px solid #fff; border-radius: 22px;
+  box-shadow: 0 0 0 2px #8193b4, 0 12px 40px #0008; color: #26324d;
+}
+body #ssSet header, body #ssAsk header, #pause .box header, .pcwin h1 {
+  background: none; text-align: center; font-weight: 900; letter-spacing: 2px; color: #fff;
+  -webkit-text-stroke: 3px #2b56b8; paint-order: stroke fill; text-shadow: 0 2px 0 #1a3a85, 0 3px 6px #0005;
+}
+body #ssSet header, body #ssAsk header, #pause .box header { font-size: 19px !important; padding: 12px 14px 6px !important; }
+body #ssAsk .msg, #pause .box .in, .pcwin .pnl { background: #ebe3d4; border: 1px solid #cdbfa6; border-radius: 12px; margin: 0 12px; box-shadow: inset 0 1px 4px #0002 }
+body #ssAsk button.ok, .pcwin .btn.primary, .pcwin #again { background: linear-gradient(#93ccff, #3f7fe2 55%, #2c5fd0); color: #fff; border: 2px solid #fff; box-shadow: 0 0 0 1px #2c5fd0, inset 0 -3px 0 #1d4aa8; text-shadow: 0 1px 2px #0008 }
+#pause .pbtn { border-radius: 12px }
+/* 結算視窗（出征 #over） */
+.pcwin { width: min(560px, 94vw); padding: 0 0 14px; display: flex; flex-direction: column; gap: 10px }
+.pcwin h1 { -webkit-background-clip: border-box !important; background-clip: border-box !important; background: none !important; color: #fff !important; font-size: clamp(26px, 6vw, 40px) !important; margin: 14px 0 0 !important }
+.pcwin .pnl { padding: 12px; color: #26324d; line-height: 1.7 }
+.pcwin #reward { color: #7a4b00 !important }
+.pcwin .row { display: flex; gap: 10px; justify-content: center }

@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1430">
+<title>希望倖存者</title>
+<style>
+  /* 遊戲游標：客戶端原版 resource/cursor1.tex（使用者 11/18：鼠標要用遊戲鼠標）*/
+  *{cursor:url(assets/ui/cursor_arrow.png) 1 1,default !important}
+  input[type=text],input[type=password],input:not([type]),textarea{cursor:text !important}
+  :root{--panel:#eef2fb;--head:linear-gradient(#6f8fd8,#4565b8);--ink:#26324d;--sub:#6b7896;--accent:#3f63c4}
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;font-family:system-ui,"Noto Sans TC",sans-serif;color:var(--ink)}
+  body{background:linear-gradient(#5d93e8,#bcd6f5 55%,#6fae4f 56%,#3f7d34);min-height:100vh;overflow-x:hidden}
+  #bg{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
+  .wrap{position:relative;z-index:1;min-height:100vh;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px 32px;padding:60px max(16px,4vw) 120px}
+  /* Logo */
+  .logo{flex:1 1 300px;color:#fff;align-self:flex-start;margin-top:4vh;text-shadow:0 2px 8px #0006}
+  .logo h1{margin:0;font-size:clamp(42px,7.5vw,96px);line-height:1.05;letter-spacing:6px;background:linear-gradient(#fffbe0,#ffd36b 45%,#e8892b);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 0 #5a3108) drop-shadow(0 8px 18px #0008);text-shadow:none}
+  .logo .sub{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:clamp(15px,2vw,20px);font-weight:700;letter-spacing:3px}
+  .logo .beta{font-size:12px;letter-spacing:2px;padding:3px 10px;border-radius:999px;background:linear-gradient(#ff7a59,#d9432b);border:2px solid #fff;text-shadow:none}
+  .logo small{display:block;margin-top:8px;font-size:14px;letter-spacing:2px;opacity:.9}
+  body.sel .logo h1{font-size:clamp(36px,5vw,64px)}
+  /* 右上小按鈕、底部聲明 */
+  .topbar{position:fixed;top:12px;right:12px;z-index:3;display:flex;gap:8px}
+  .chipbtn{font:inherit;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid #ffffff99;background:#0b1430aa;color:#fff;cursor:pointer;backdrop-filter:blur(4px)}
+  .foot{position:fixed;left:0;right:0;bottom:0;z-index:2;text-align:center;font-size:11px;line-height:1.5;color:#fff;text-shadow:0 1px 3px #000;padding:6px 16px calc(6px + env(safe-area-inset-bottom));pointer-events:none}
+  .toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:9;background:#0b1430ee;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100vw - 32px);transition:opacity .3s}
+  /* 面板 */
+  .panel{flex:0 1 400px;max-width:100%;background:#eef2fbf2;border-radius:14px;overflow:hidden;box-shadow:0 10px 40px #0008;border:2px solid #9db4ee;backdrop-filter:blur(6px)}
+  #select.panel{flex-basis:820px}
+  .panel>header{background:var(--head);color:#fff;font-weight:800;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .panel>header span{font-weight:500;font-size:14px;opacity:.9}
+  .body{padding:16px}
+  .hide{display:none!important}
+  /* 登入 */
+  #auth .body{display:flex;flex-direction:column;gap:12px}
+  label{font-size:14px;color:var(--sub);display:flex;flex-direction:column;gap:4px}
+  input{font:inherit;font-size:16px;padding:10px 12px;border:1px solid #b8c6e8;border-radius:8px;background:#fff;color:var(--ink)}
+  .tabs{display:flex;gap:6px}.tabs button{flex:1}
+  .btn{font:inherit;font-weight:700;font-size:15px;padding:10px 18px;border-radius:10px;border:1px solid #b8c6e8;background:#fff;color:var(--ink);cursor:pointer}
+  .btn.primary{background:linear-gradient(#5b7fe0,#3a5bbf);color:#fff;border-color:#2c4aa0}
+  .btn.on{background:#dfe7fb;border-color:var(--accent);color:var(--accent)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .err{color:#c0392b;font-size:14px;min-height:1.2em}
+  .tips{margin:0;padding:10px 12px 10px 30px;background:#fff;border-radius:10px;font-size:13px;line-height:1.7;color:var(--sub)}
+  .load small{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:4px}
+  .lbar{height:8px;background:#d5ddf0;border-radius:4px;overflow:hidden}.lbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4fc3ff,#a06bff);transition:width .25s}
+  .quit{align-self:flex-end;padding:6px 14px;font-size:13px}
+  /* 角色欄位：15 格角色卡 */
+  #slots{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;max-height:max(260px,calc(100vh - 230px));overflow:auto;padding:2px}
+  @media (max-width:760px){#slots{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}}
+  .slot{aspect-ratio:1/1.08;border-radius:12px;border:1px dashed #b8c6e8;background:repeating-linear-gradient(135deg,#f6f8fd 0 10px,#eef2fb 10px 20px);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#a7b3cf;cursor:pointer;font-size:13px;gap:2px;padding:8px;text-align:center;min-width:0}
+  .slot .plus{font-size:28px;line-height:1}
+  .slot.char{background:linear-gradient(#ffffff,#e6edfb);border:1px solid #c9d5f0;color:var(--ink);justify-content:flex-start}
+  .slot.sel{border:2px solid var(--accent);box-shadow:0 0 0 3px #3f63c433}
+  .face{width:58%;aspect-ratio:1;border-radius:50%;background:radial-gradient(#3a5bbf,#0b1430);display:flex;align-items:center;justify-content:center;overflow:hidden;margin:2px 0 6px;border:2px solid #fff;box-shadow:0 2px 6px #0003;flex:none}
+  .face img{width:100%;height:100%;object-fit:cover}.face img.ico{width:62%;height:62%;object-fit:contain}
+  .slot b{font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.slot small{color:var(--sub);font-size:12px}
+  .slot .lv{font-weight:800;color:var(--accent);font-size:12px}
+  .bar{display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap}.bar .grow{flex:1}
+  /* 進入遊戲的載入畫面 */
+  #enter{position:fixed;inset:0;z-index:20;background:radial-gradient(#1d3478,#070c1f);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+  #enter b{font-size:22px;letter-spacing:3px}#enter .lbar{width:min(320px,80vw)}
+  /* 最新消息 */
+  #newsDlg{width:min(460px,94vw)}#newsDlg ul{margin:0;padding-left:20px;line-height:1.8;font-size:14px}
+  /* 建立角色 */
+  dialog{border:0;border-radius:14px;padding:0;width:min(960px,96vw);max-height:94vh;box-shadow:0 20px 60px #000a;background:var(--panel)}
+  .cgrid{display:grid;grid-template-columns:260px 1fr;gap:16px;overflow:auto;flex:1;min-height:0}
+  /* 建角視窗：標題＋可捲動內容＋固定在底部的按鈕列（11/18：素質改 6 項後內容變長，底部按鈕被切掉） */
+  #createDlg[open]{display:flex;flex-direction:column}#createDlg>header{flex:none}#createDlg #createForm{flex:1;min-height:0}#createDlg .bar{flex:none;margin-top:4px}
+  @media (max-width:700px){.cgrid{grid-template-columns:1fr}}
+  .preview{background:linear-gradient(#cfdcf8,#9fb6ea);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .preview canvas{width:100%!important;height:100%!important;display:block}
+  .pvload{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a5bbf;font-weight:700;pointer-events:none}
+  .pvctl{display:flex;justify-content:center;gap:8px;margin-top:8px}.pvctl .btn{min-width:44px}
+  .gbox{display:flex;align-items:center;justify-content:space-between}.gbox .gender button{flex:0 0 84px;white-space:nowrap}.gbox{gap:8px;min-width:0}.gbox .gender{min-width:0;flex:0 1 auto}.gbox .gender button{flex:1 1 72px;min-width:0;padding-left:6px;padding-right:6px}
+  .skrow{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;align-items:center}.skrow small{color:var(--sub);margin-right:4px}
+  .skico{display:inline-block;border-radius:6px;vertical-align:middle;image-rendering:pixelated}
+  .jobs .skico{border-radius:8px}
+  .preview img{width:70%;height:70%;object-fit:contain;filter:drop-shadow(0 0 12px #fff8);background:#0b1430;border-radius:50%;padding:12px}
+  .preview .dot{position:absolute;bottom:12px;right:12px;width:28px;height:28px;border-radius:50%;border:3px solid #fff}
+  .info{background:#fff;border-radius:12px;padding:12px;font-size:14px;line-height:1.6;margin-top:10px}
+  .info b{font-size:16px}
+  .sec{font-size:14px;color:var(--sub);margin:4px 0 6px;font-weight:700}
+  .jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+  .jobs button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px}
+  .jobs img{width:40px;height:40px;object-fit:contain;background:#0b1430;border-radius:8px}
+  .swatches{display:flex;gap:8px;flex-wrap:wrap}
+  .swatches button{width:36px;height:36px;border-radius:8px;border:2px solid #fff;box-shadow:0 0 0 1px #b8c6e8;cursor:pointer;padding:0}
+  .swatches button.on{box-shadow:0 0 0 3px var(--accent)}
+  .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 16px}
+  .stat{display:grid;grid-template-columns:52px 34px 1fr 34px;align-items:center;gap:6px;font-size:14px}
+  .stat b{font-weight:800}.stat b.main::after{content:"★";color:#e6a23c}
+  .stat span{text-align:center;font-weight:700;font-size:16px}
+  .stat button{padding:4px 0;font-size:16px}
+  .stat small{grid-column:1/-1;color:var(--sub);font-size:12px;margin-top:-4px}
+  .pts{float:right;color:#2e7d32;font-weight:800}
+  dialog::backdrop{background:#0009}
+  dialog header{background:var(--head);color:#fff;font-weight:800;padding:12px 16px}
+  dialog .body{display:flex;flex-direction:column;gap:12px}
+  .gender{display:flex;gap:8px}.gender button{flex:0 0 100px;font-size:16px}
+  .note{font-size:13px;color:var(--sub);line-height:1.5}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="topbar"><button class="chipbtn" id="langBtn">🌐 繁體中文</button><button class="chipbtn" id="newsBtn">📢 最新消息</button></div>
+
+<div class="wrap">
+  <div class="logo"><h1>希望<br>倖存者</h1><div class="sub">希望OL 割草出征 <span class="beta">BETA</span></div><small>出征 · 割草 · 升級 · 轉職</small></div>
+
+  <section id="auth" class="panel hide">
+    <header>◆ 希望倖存者 <span>帳號</span></header>
+    <form class="body" id="authForm">
+      <div class="tabs"><button type="button" class="btn on" data-mode="login">登入</button><button type="button" class="btn" data-mode="register">建立帳號</button></div>
+      <label>帳號<input id="user" autocomplete="username" maxlength="16" placeholder="4～16 個英文或數字"></label>
+      <label>密碼<input id="pass" type="password" autocomplete="current-password" maxlength="64" placeholder="至少 6 個字"></label>
+      <label id="pass2Row" class="hide">再輸入一次密碼<input id="pass2" type="password" autocomplete="new-password" maxlength="64"></label>
+      <div class="err" id="authErr"></div>
+      <button class="btn primary" id="authBtn">登入</button>
+      <ul class="tips">
+        <li>選一個職業，出征割草、升級、轉職</li>
+        <li>角色、裝備、金幣都存在伺服器</li>
+        <li>第一次玩建議先建立帳號，換裝置也能繼續</li>
+      </ul>
+      <div class="load"><div class="lbar"><i id="lbar"></i></div><small><span id="ltxt">預先載入模型…</span><span id="lpct">0%</span></small></div>
+      <button type="button" class="btn quit" id="quitBtn">離開</button>
+      <a href="#" id="creditsLink" style="text-align:center;font-size:12px;color:#8a9ac0">製作名單・非官方同人作品</a>
+    </form>
+  </section>
+
+  <section id="select" class="panel hide">
+    <header>◆ 角色選擇 <span id="who"></span></header>
+    <div class="body">
+      <div id="slots"></div>
+      <div class="bar">
+        <button class="btn" id="delBtn" disabled>刪除</button>
+        <button class="btn" id="logoutBtn">登出</button>
+        <span class="grow"></span>
+        <button class="btn" id="newBtn" disabled>建立</button>
+        <button class="btn primary" id="playBtn" disabled>開始遊戲</button>
+      </div>
+      <div class="err" id="selErr"></div>
+    </div>
+  </section>
+</div>
+
+<div class="foot">非官方粉絲作品，僅供交流。遊戲模型、圖示、音樂等素材版權屬原廠所有。</div>
+<div id="enter" class="hide"><b id="enterTxt">正在進入艾林…</b><div class="lbar"><i id="enterBar"></i></div></div>
+
+<dialog id="creditsDlg" style="width:min(520px,96vw)">
+  <header>◆ 製作名單</header>
+  <div class="body" style="padding:14px 18px"><div id="creditsBody"></div>
+    <div class="bar"><span class="grow"></span><button class="btn primary" onclick="creditsDlg.close()">關閉</button></div></div>
+</dialog>
+<dialog id="newsDlg">
+  <header>◆ 最新消息</header>
+  <div class="body">
+    <ul>
+      <li>11/18　怪物、首領、NPC 改用原版動作：會走、會攻擊、會倒下</li>
+      <li>11/18　技能、怪物音效與各地圖背景音樂改用原版</li>
+      <li>11/18　登入／選角畫面改版：角色卡顯示大頭照</li>
+      <li>11/18　主城新增造型師：髮型、髮色、服裝配色免費改</li>
+      <li>11/18　建立角色可看 3D 預覽、旋轉、切換動作</li>
+      <li>11/18　滑鼠左鍵點地面移動、V 鍵切換視角</li>
+    </ul>
+    <div class="bar"><span class="grow"></span><button class="btn primary" onclick="newsDlg.close()">知道了</button></div>
+  </div>
+</dialog>
+
+<dialog id="createDlg">
+  <header>◆ 建立角色</header>
+  <form class="body" method="dialog" id="createForm">
+    <div class="cgrid">
+      <div>
+        <div class="preview" id="pvBox"><div class="dot" id="pvDot"></div><div class="pvload" id="pvLoad">載入角色中…</div></div>
+        <div class="pvctl"><button type="button" class="btn" id="rotL" title="向左轉">⟲</button><button type="button" class="btn" id="pvAct">待機</button><button type="button" class="btn" id="rotR" title="向右轉">⟳</button></div>
+        <div class="info" id="pvInfo"></div>
+        <div class="info gbox"><span>性別</span><div class="gender"><button type="button" class="btn" data-g="男">♂ 男</button><button type="button" class="btn" data-g="女">♀ 女</button></div></div>
+      </div>
+      <div>
+        <label>名稱<input id="cname" maxlength="12" placeholder="2～12 個字"></label>
+        <div class="sec" style="margin-top:12px">職業</div>
+        <div class="jobs" id="jobs"></div>
+        <div class="sec" style="margin-top:12px">外觀 <small style="font-weight:400">（進主城後找造型師可以免費再改）</small></div>
+        <div id="look"></div>
+        <div class="sec" style="margin-top:12px">素質 <span class="pts">剩餘點數：<span id="pts"></span></span></div>
+        <div class="stats" id="stats"></div>
+      </div>
+    </div>
+    <div class="err" id="createErr"></div>
+    <div class="bar"><button type="button" class="btn" id="randomBtn">隨機</button><span class="grow"></span><button type="button" class="btn" id="cancelCreate">取消</button><button class="btn primary" id="doCreate">建立</button></div>
+  </form>
+</dialog>
+
+<script src="src/0_offline/boot.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { sealModel, sealProp, sealActor } from './src/2_core/seal-model.js';
+import { MONSTER_MODELS } from './src/1_data/monsters.js';
+import { JOBS, STATS, FREE_POINTS, STAT_MAX, OUTFITS, OUTFIT_LOCKED, HAIR_STYLES, HAIR_COLORS, defaultStats, playerModelId, playerAnimSet, playerLook } from './src/1_data/jobs.js';
+import { renderLook } from './src/2_core/look-ui.js';
+import { CREDITS_HTML } from './src/1_data/credits.js';
+import { askConfirm, askText } from './src/2_core/ask.js';
+// 製作名單（項目 43）
+document.getElementById('creditsBody').innerHTML = CREDITS_HTML;
+document.getElementById('creditsLink').onclick = e => { e.preventDefault(); document.getElementById('creditsDlg').showModal(); };
+const $ = s => document.querySelector(s);
+let token = null, chars = [], max = 15, sel = null, mode = 'login', gender = null, job = '劍士', look = { hair: 0, hairColor: 0, outfit: 0 }, stats = defaultStats();
+try { token = localStorage.getItem('ss_token'); } catch {}
+
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = 0; setTimeout(() => t.remove(), 300); }, 2600);
+}
+async function call(method, url, data) {
+  const r = await fetch(url, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: data ? JSON.stringify(data) : undefined });
+  const j = await r.json().catch(() => ({ error: '連不到伺服器' }));
+  if (r.status === 401 && token && !url.includes('login')) { logout(); throw new Error('請重新登入'); }
+  if (!r.ok) throw new Error(j.error || '發生錯誤');
+  return j;
+}
+function show(id) { for (const s of ['auth', 'select']) $('#' + s).classList.toggle('hide', s !== id); document.body.classList.toggle('sel', id === 'select'); }
+
+// ===== 背景：3D 草地＋原版怪物走來走去（閒置／切背景／開對話框就停止繪圖）=====
+const BG_MONSTERS = ['咕咕', '小豌豆', '蘑菇弟弟', '蘑菇妹妹', '搖滾菜頭', '熊寶寶', '飛天豬', '南瓜舞者', '法師咕咕', '護士咕咕'];
+const BG_TREES = [['object_elim_tree_e001', -26, -26, 1.1], ['object_elim_tree_e003', -12, -34, 1], ['object_elim_tree_e001', 4, -40, 1.2], ['object_elim_tree_e003', 18, -30, 1], ['object_elim_tree_e001', 32, -24, 1.1],
+  ['object_elim_streettree_e002', -40, -14, 1.2], ['object_elim_streettree_e002', 44, -12, 1.2], ['object_elim_tree_e003', -4, -22, 0.8]];
+const bg = (() => {
+  const canvas = $('#bg'), r = new THREE.WebGLRenderer({ canvas, antialias: true });
+  r.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  const sc = new THREE.Scene();
+  const grad = (w, h, stops, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, stops); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  sc.background = grad(4, 256, 0, g => { const l = g.createLinearGradient(0, 0, 0, 256); l.addColorStop(0, '#3f78d8'); l.addColorStop(0.55, '#a9cdf5'); l.addColorStop(1, '#d6e4ec'); g.fillStyle = l; g.fillRect(0, 0, 4, 256); });
+  sc.fog = new THREE.Fog(0xd6e4ec, 28, 70);
+  sc.add(new THREE.HemisphereLight(0xffffff, 0x5a7a3a, 1.5)); const sun = new THREE.DirectionalLight(0xfff2d8, 1.6); sun.position.set(-6, 10, 6); sc.add(sun);
+  // 草地：雜訊貼圖重複鋪
+  const grass = grad(128, 128, 0, g => { g.fillStyle = '#6fae4f'; g.fillRect(0, 0, 128, 128); for (let i = 0; i < 900; i++) { g.fillStyle = ['#5f9e43', '#7dbb58', '#68a64a', '#8cc463'][i % 4]; g.fillRect(Math.random() * 128, Math.random() * 128, 2, 3 + Math.random() * 3); } });
+  grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(40, 40);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ map: grass })); ground.rotation.x = -Math.PI / 2; sc.add(ground);
+  const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 200); cam.position.set(0, 3.2, 13); cam.lookAt(0, 2.4, 0);
+  const shadowGeo = new THREE.CircleGeometry(0.5, 20), shadowMat = new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.22, depthWrite: false });
+  const mobs = []; let xMax = 8, raf = 0, last = 0, lastInput = performance.now(), acc = 0;
+  const resize = () => { const w = innerWidth, h = innerHeight; r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); xMax = Math.tan(cam.fov * Math.PI / 360) * cam.aspect * 12 + 1; };
+  addEventListener('resize', () => { resize(); wake(); }); resize();
+  const addMob = (tpl, h) => {
+    const g = new THREE.Group(), m = tpl.clone(); g.add(m);
+    const sh = new THREE.Mesh(shadowGeo, shadowMat); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.02; sh.scale.setScalar(h * 0.7); g.add(sh);
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    g.position.set((Math.random() * 2 - 1) * xMax, 0, -1 + Math.random() * 3.5); sc.add(g);
+    mobs.push({ g, m, dir, speed: 0.7 + Math.random() * 0.9, phase: Math.random() * 6, idle: 0, yaw: dir * Math.PI / 2 });
+  };
+  const step = dt => {
+    for (const o of mobs) {
+      o.phase += dt;
+      if (o.idle > 0) { o.idle -= dt; o.yaw += (0 - o.yaw) * Math.min(1, dt * 5); o.m.position.y = 0; }
+      else {
+        o.g.position.x += o.dir * o.speed * dt;
+        if (Math.abs(o.g.position.x) > xMax) { o.dir = -Math.sign(o.g.position.x); }
+        else if (Math.random() < dt * 0.08) o.idle = 1 + Math.random() * 2;        // 偶爾停下來看鏡頭
+        else if (Math.random() < dt * 0.03) o.dir = -o.dir;
+        o.yaw += (o.dir * Math.PI / 2 - o.yaw) * Math.min(1, dt * 6);
+        o.m.position.y = Math.abs(Math.sin(o.phase * o.speed * 7)) * 0.18;       // 一跳一跳
+        o.m.rotation.z = Math.sin(o.phase * o.speed * 7) * 0.08;
+      }
+      o.g.rotation.y = o.yaw;
+    }
+  };
+  const loop = now => {
+    raf = 0;
+    if (document.hidden || $('#createDlg').open || now - lastInput > 90000) return;   // 閒置 90 秒就睡
+    const dt = Math.min(0.1, (now - last) / 1000); last = now; acc += dt;
+    if (acc >= 1 / 30) { step(acc); r.render(sc, cam); acc = 0; }                   // 30fps 就夠
+    raf = requestAnimationFrame(loop);
+  };
+  const wake = () => { lastInput = performance.now(); if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } };
+  for (const ev of ['pointermove', 'pointerdown', 'keydown', 'touchstart', 'wheel']) addEventListener(ev, wake, { passive: true });
+  document.addEventListener('visibilitychange', wake);
+  $('#createDlg').addEventListener('close', wake);
+  // 預先載入（登入面板的進度條）
+  const jobs = [...BG_MONSTERS.map(k => () => sealModel(MONSTER_MODELS[k], 1).then(t => { t.children[0].rotation.y = Math.PI; addMob(t, 1); if (Math.random() < 0.5) addMob(t, 1); })),
+    ...BG_TREES.map(([n, x, z, s]) => () => sealProp(n, s).then(o => { o.position.set(x, 0, z); sc.add(o); })),
+    () => fetch('assets/data/skills.json').then(r => r.json()).then(d => { SKD = d; if ($('#createDlg').open) drawCreate(); })];
+  let done = 0;
+  const tick = () => { done++; const p = Math.round(done / jobs.length * 100); $('#lbar').style.width = p + '%'; $('#lpct').textContent = p + '%'; $('#ltxt').textContent = done < jobs.length ? `預先載入模型 ${done}/${jobs.length}` : '載入完成'; wake(); };
+  Promise.all(jobs.map(f => f().catch(e => console.warn('背景', e.message)).finally(tick)));
+  wake();
+  return { wake };
+})();
+
+// ===== 右上小按鈕、離開 =====
+$('#langBtn').onclick = () => toast('目前只有繁體中文');
+$('#newsBtn').onclick = () => $('#newsDlg').showModal();
+$('#quitBtn').onclick = () => { window.close(); setTimeout(() => toast('瀏覽器不讓網頁自己關掉，直接關閉這個分頁就可以了'), 150); };
+
+// ===== 登入／建立帳號 =====
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode; document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  $('#pass2Row').classList.toggle('hide', mode !== 'register'); $('#authBtn').textContent = mode === 'login' ? '登入' : '建立帳號並登入'; $('#authErr').textContent = '';
+  $('#pass').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+});
+$('#authForm').onsubmit = async e => {
+  e.preventDefault(); $('#authErr').textContent = '';
+  const username = $('#user').value.trim(), password = $('#pass').value;
+  if (mode === 'register' && password !== $('#pass2').value) return $('#authErr').textContent = '兩次密碼不一樣';
+  $('#authBtn').disabled = true;
+  try {
+    const r = await call('POST', mode === 'login' ? '/api/login' : '/api/register', { username, password });
+    token = r.token; try { localStorage.setItem('ss_token', token); localStorage.setItem('ss_user', r.username); } catch {}
+    await loadChars();
+  } catch (err) { $('#authErr').textContent = err.message; }
+  $('#authBtn').disabled = false;
+};
+async function logout() {
+  if (token) call('POST', '/api/logout').catch(() => {});
+  token = null; try { localStorage.removeItem('ss_token'); } catch {}
+  show('auth');
+}
+$('#logoutBtn').onclick = logout;
+
+// ===== 角色欄位：15 格角色卡（大頭照／名字／職業／Lv）=====
+async function loadChars() {
+  const r = await call('GET', '/api/chars'); chars = r.chars; max = r.max;
+  let u = ''; try { u = localStorage.getItem('ss_user') || ''; } catch {}
+  $('#who').textContent = `${u}　角色 ${chars.length}/${max}`;
+  if (sel !== null && !chars.find(c => c.slot === sel) && sel >= max) sel = null;
+  if (sel === null && chars.length) sel = chars[0].slot;
+  render(); show('select');
+}
+function render() {
+  const box = $('#slots'); box.innerHTML = '';
+  for (let i = 0; i < max; i++) {
+    const c = chars.find(x => x.slot === i), el = document.createElement('div');
+    el.className = 'slot' + (c ? ' char' : '') + (sel === i ? ' sel' : '');
+    el.innerHTML = c ? `<div class="face"></div><b></b><small>${c.jobName || c.job}</small><span class="lv">Lv ${c.baseLv}</span>` : `<span class="plus">＋</span>空欄位`;
+    if (c) { el.querySelector('b').textContent = c.name; const f = el.querySelector('.face'), url = faceCache.get(faceKey(c));
+      f.innerHTML = url ? `<img src="${url}" alt="">` : `<img class="ico" src="${JOBS[c.job]?.icon || ''}" alt="">`; if (!url) headshot(c); }
+    el.onclick = () => { sel = i; render(); };
+    el.ondblclick = () => c ? play() : openCreate();
+    box.appendChild(el);
+  }
+  const c = chars.find(x => x.slot === sel);
+  $('#delBtn').disabled = !c; $('#playBtn').disabled = !c; $('#newBtn').disabled = sel === null || !!c;
+}
+// 大頭照：用角色自己的模型拍一張（同 player.js 的頭像），一次拍一個，存 localStorage 下次直接用
+const faceCache = new Map(), faceKey = c => ['face', c.job, c.gender, c.hair ?? 0, c.hairColor ?? 0, c.outfit ?? 0].join('_');
+let faceQ = Promise.resolve(), faceR = null; const faceBusy = new Set();
+function headshot(c) {
+  const key = faceKey(c); if (faceBusy.has(key)) return; faceBusy.add(key);
+  try { const s = localStorage.getItem('ss_' + key); if (s) { faceCache.set(key, s); return queueMicrotask(render); } } catch {}
+  faceQ = faceQ.then(async () => {
+    const L = playerLook(c.job, c.gender, c.hair ?? 0, c.hairColor ?? 0, c.outfit ?? 0);
+    const m = await sealActor(playerModelId(c.job, c.gender), playerAnimSet(c.job, c.gender), 1.7, L.gear, L.opts);
+    if (!faceR) { faceR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); faceR.setSize(128, 128); }
+    const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 2)); m.children[0].rotation.y = Math.PI; m.rotation.y = 0.35; sc.add(m);
+    const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50); cam.position.set(0, 1.45, 1.6); cam.lookAt(0, 1.35, 0);
+    m.userData.actor?.update(0.016, false); faceR.render(sc, cam); await new Promise(r => setTimeout(r, 50)); m.userData.actor?.update(0.016, false); faceR.render(sc, cam);
+    const url = faceR.domElement.toDataURL(); faceCache.set(key, url); try { localStorage.setItem('ss_' + key, url); } catch {}
+    render();
+  }).catch(e => console.warn('大頭照', e.message));
+}
+function play() {
+  const c = chars.find(x => x.slot === sel); if (!c) return;
+  try { sessionStorage.setItem('ss_char', JSON.stringify(c)); } catch {}
+  $('#enter').classList.remove('hide'); requestAnimationFrame(() => $('#enterBar').style.width = '60%');
+  location.href = 'town.html';
+}
+addEventListener('pageshow', e => { if (e.persisted) { $('#enter').classList.add('hide'); $('#enterBar').style.width = '0'; } });  // 按上一頁回來
+$('#playBtn').onclick = play;
+$('#delBtn').onclick = async () => {
+  const c = chars.find(x => x.slot === sel); if (!c) return;
+  if ((await askText(`確定刪除「${c.name}」？刪除後無法復原。\n請輸入角色名稱確認：`, '', { title: '刪除角色', ok: '刪除', danger: true, max: 20 })) !== c.name) return;
+  try { await call('DELETE', '/api/chars/' + c.id); await loadChars(); } catch (e) { $('#selErr').textContent = e.message; }
+};
+
+// ===== 建立角色 =====
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+const used = () => Object.values(stats).reduce((a, v) => a + v - 1, 0);
+// 技能表（PC 版圖示）
+let SKD = null;  // 背景預載時讀進來
+const ico = (icon, size = 32) => { const [f, x, y] = icon, k = size / 32; return `<i class="skico" title="" style="width:${size}px;height:${size}px;background:url(assets/skill/${f}) -${x * k}px -${y * k}px/${512 * k}px ${512 * k}px no-repeat"></i>`; };
+function drawCreate() {
+  const J = JOBS[job], SJ = SKD?.jobs[job];
+  $('#pvDot').style.background = hex(OUTFITS[look.outfit] ?? J.color);
+  const basic = SJ && SKD.skills[SJ.basic], fus = SKD?.fusions.find(f => SJ?.pool.includes(f.a));
+  $('#pvInfo').innerHTML = `<b>${job}</b> — ${J.desc}<br>HP <b>${J.hp + stats.vit * 6}</b> · 速度 <b>${J.speed}</b> · 護甲 <b>${J.armor}</b>${J.regen ? ` · 每秒回 <b>${J.regen}</b> HP` : ''}`
+    + (SJ ? `<br>初始武器攻擊：${ico(basic.icon, 22)} <b style="font-size:14px">${basic.name}</b> · 第 1 次升級選第一招技能
+      <div class="skrow"><small>技能</small>${SJ.pool.map(k => `<span title="${SKD.skills[k].name}">${ico(SKD.skills[k].icon, 28)}</span>`).join('')}<small style="margin-left:6px">超武</small><span title="${SKD.skills[fus.into].name}">${ico(SKD.skills[fus.into].icon, 28)}</span></div>` : '');
+  $('#jobs').innerHTML = Object.keys(JOBS).map(k => { const b = SKD && SKD.skills[SKD.jobs[k].basic]; return `<button type="button" class="btn${k === job ? ' on' : ''}" data-j="${k}">${b ? ico(b.icon, 36) : `<img src="${JOBS[k].icon}" alt="">`}${k}</button>`; }).join('');
+  $('#jobs').querySelectorAll('button').forEach(b => b.onclick = () => { job = b.dataset.j; drawCreate(); });
+  renderLook($('#look'), look, job, drawCreate);
+  $('#pts').textContent = FREE_POINTS - used();
+  $('#stats').innerHTML = Object.entries(STATS).map(([k, d]) => `<div class="stat"><b class="${J.main === k ? 'main' : ''}">${d.name}</b><button type="button" class="btn" data-k="${k}" data-d="-1" ${stats[k] <= 1 ? 'disabled' : ''}>－</button><span>${stats[k]}</span><button type="button" class="btn" data-k="${k}" data-d="1" ${stats[k] >= STAT_MAX || used() >= FREE_POINTS ? 'disabled' : ''}>＋</button><small>${d.desc}</small></div>`).join('');
+  $('#stats').querySelectorAll('button').forEach(b => b.onclick = () => { stats[b.dataset.k] += +b.dataset.d; drawCreate(); });
+  document.querySelectorAll('.gender button').forEach(x => x.classList.toggle('on', x.dataset.g === gender));
+  showPreview();
+}
+
+// ===== 3D 預覽：職業原版基本服裝＋武器＋動作（對話框開著才繪圖）=====
+let pv = null;
+async function showPreview() {
+  if (!pv) {
+    const THREE = await import('three'), { sealActor } = await import('./src/2_core/seal-model.js');
+    const box = $('#pvBox'), r = new THREE.WebGLRenderer({ antialias: true, alpha: true }); r.setPixelRatio(Math.min(devicePixelRatio, 2)); box.prepend(r.domElement);
+    const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(2, 4, 3); sc.add(sun);
+    const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 })); shadow.rotation.x = -Math.PI / 2; sc.add(shadow);
+    const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50); cam.position.set(0, 1.3, 5.4); cam.lookAt(0, 0.8, 0);
+    pv = { THREE, sealActor, r, sc, cam, cache: new Map(), cur: null, key: '', rot: 0.5, act: 0, raf: 0, last: 0 };
+    const loop = now => { pv.raf = 0; if (!$('#createDlg').open) return; const dt = Math.min(0.05, (now - pv.last) / 1000 || 0); pv.last = now;
+      const w = box.clientWidth, h = box.clientHeight; if (r.domElement.width !== Math.round(w * r.getPixelRatio())) { r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+      if (pv.cur) { pv.cur.rotation.y = pv.rot; const a = pv.cur.userData.actor; a.update(dt, pv.act === 1); }
+      r.render(sc, cam); pv.raf = requestAnimationFrame(loop); };
+    pv.start = () => { if (!pv.raf) { pv.last = performance.now(); pv.raf = requestAnimationFrame(loop); } };
+    $('#rotL').onclick = () => pv.rot -= 0.6; $('#rotR').onclick = () => pv.rot += 0.6;
+    $('#pvAct').onclick = () => { pv.act = (pv.act + 1) % 3; $('#pvAct').textContent = ['待機', '跑步', '攻擊'][pv.act]; if (pv.act === 2) attackLoop(); };
+    const attackLoop = () => { if (pv.act !== 2 || !pv.cur || !$('#createDlg').open) return; pv.cur.userData.actor.attack(1); setTimeout(attackLoop, 1100); };
+  }
+  pv.start();
+  const { playerModelId, playerAnimSet, playerLook } = await import('./src/1_data/jobs.js');
+  const key = [job, gender, look.hair, look.hairColor, look.outfit].join(); if (key === pv.key) return; pv.key = key;
+  if (!pv.cache.has(key)) $('#pvLoad').style.display = 'flex';
+  const L = playerLook(job, gender, look.hair, look.hairColor, look.outfit);
+  if (!pv.cache.has(key)) pv.cache.set(key, pv.sealActor(playerModelId(job, gender), playerAnimSet(job, gender), 1.7, L.gear, L.opts).then(m => { m.children[0].rotation.y = Math.PI; return m; }));
+  const m = await pv.cache.get(key).catch(() => null); if (pv.key !== key) return;
+  if (pv.cur) pv.sc.remove(pv.cur); pv.cur = m; if (m) pv.sc.add(m);
+  $('#pvLoad').style.display = m ? 'none' : 'flex'; if (!m) $('#pvLoad').textContent = '模型載入失敗';
+}
+function openCreate() { gender = '男'; job = '劍士'; look = { hair: 0, hairColor: 0, outfit: 0 }; stats = defaultStats(); $('#cname').value = ''; $('#createErr').textContent = ''; drawCreate(); $('#createDlg').showModal(); $('#cname').focus(); }
+$('#newBtn').onclick = openCreate;
+$('#cancelCreate').onclick = () => $('#createDlg').close();
+document.querySelectorAll('.gender button').forEach(b => b.onclick = () => { gender = b.dataset.g; drawCreate(); });
+$('#randomBtn').onclick = () => {
+  const ks = Object.keys(JOBS); job = ks[Math.random() * ks.length | 0]; gender = Math.random() < 0.5 ? '男' : '女'; const free = OUTFITS.map((_, i) => i).filter(i => !OUTFIT_LOCKED.includes(i));
+  look = { hair: Math.random() * HAIR_STYLES | 0, hairColor: Math.random() * HAIR_COLORS.length | 0, outfit: free[Math.random() * free.length | 0] };
+  stats = defaultStats(); const main = JOBS[job].main; stats[main] = 11; // 主素質先點 10
+  const keys = Object.keys(STATS); while (used() < FREE_POINTS) { const k = keys[Math.random() * keys.length | 0]; if (stats[k] < STAT_MAX) stats[k]++; }
+  drawCreate();
+};
+$('#createForm').onsubmit = async e => {
+  e.preventDefault(); $('#createErr').textContent = '';
+  if (used() < FREE_POINTS && !(await askConfirm(`還有 ${FREE_POINTS - used()} 點素質沒分配，確定建立？`))) return;
+  try { await call('POST', '/api/chars', { name: $('#cname').value.trim(), gender, slot: sel, job, stats, ...look }); $('#createDlg').close(); await loadChars(); }
+  catch (err) { $('#createErr').textContent = err.message; }
+};
+
+// 啟動：有登入就直接進角色選擇
+if (token) loadChars().catch(() => show('auth')); else show('auth');
+</script>
+</body>
+</html>

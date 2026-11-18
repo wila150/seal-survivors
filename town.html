@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>希望OL 倖存者 主城</title>
+<style>
+  /* 遊戲游標：客戶端原版 resource/cursor1.tex（使用者 11/18：鼠標要用遊戲鼠標）*/
+  *{cursor:url(assets/ui/cursor_arrow.png) 1 1,default !important}
+  input[type=text],input[type=password],input:not([type]),textarea{cursor:text !important}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:#cdd6e4;font-family:system-ui,"Noto Sans TC",sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;color:#26324d}
+  canvas{display:block}
+  .chip{position:fixed;background:#eef2fbee;border:1px solid #9db4ee;border-radius:12px;box-shadow:0 4px 14px #0003}
+  /* 左上角色框：跟出征畫面同一款（頭像＋等級徽章＋名字職業＋資訊列＋EXP 條），11/18 使用者：大廳跟遊戲的框不一樣 */
+  #me{left:max(10px,env(safe-area-inset-left));top:max(10px,env(safe-area-inset-top));display:flex;align-items:center;padding:6px 12px 6px 6px;gap:8px;border-radius:44px 14px 14px 44px;background:linear-gradient(#f4f7ffee,#dfe7fbee);box-shadow:0 4px 14px #0005;color:#26324d}
+  #face{position:relative;width:64px;height:64px;flex:none;border-radius:50%;background:radial-gradient(#fff,#bcd);border:3px solid #fff;box-shadow:0 0 0 2px #6f8fd8}
+  #face img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+  #lv{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);background:linear-gradient(#6f8fd8,#3a5bbf);color:#fff;border-radius:10px;padding:0 8px;font-size:12px;white-space:nowrap;border:1px solid #fff}
+  #me .pfr{width:min(250px,42vw)}#me b{font-size:14px}#me small{color:#6b7896;font-size:12px}
+  #me .info{display:flex;justify-content:space-between;gap:8px;background:#26324d;color:#fff;border-radius:6px;padding:1px 8px;margin:3px 0;font-size:11px;line-height:16px}#me .info small{color:#fff;font-size:11px}
+  #me .exprow{display:flex;align-items:center;gap:6px;font-size:11px;color:#3a5bbf}#me .bar{flex:1;height:7px;background:#26324d;border-radius:6px;overflow:hidden}#me .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4fc3ff,#a06bff)}
+  #place{left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);padding:8px 20px;text-align:center;font-weight:800}
+  #place small{display:block;font-weight:500;color:#6b7896;font-size:12px}
+  #menu{position:fixed;left:50%;bottom:max(4px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:2px;padding:4px 10px;background:linear-gradient(#ffffffb0,#e9eefcb0);border:2px solid #fff;border-radius:18px;box-shadow:0 3px 12px #0005;z-index:5;max-width:calc(100vw - 16px)}
+  .pcb{width:54px;height:54px;border:0;padding:0;margin:0;background:transparent center/contain no-repeat;cursor:pointer;font-size:0;color:transparent;flex:0 0 auto}
+  .pcb.status{background-image:url(assets/ui/btn_status_0.png)}.pcb.status:hover{background-image:url(assets/ui/btn_status_1.png)}.pcb.status:active{background-image:url(assets/ui/btn_status_2.png)}
+  .pcb.bag{background-image:url(assets/ui/btn_bag_0.png)}.pcb.bag:hover{background-image:url(assets/ui/btn_bag_1.png)}.pcb.bag:active{background-image:url(assets/ui/btn_bag_2.png)}
+  .pcb.skill{background-image:url(assets/ui/btn_skill_0.png)}.pcb.skill:hover{background-image:url(assets/ui/btn_skill_1.png)}.pcb.skill:active{background-image:url(assets/ui/btn_skill_2.png)}
+  .pcb.map{background-image:url(assets/ui/btn_map_0.png)}.pcb.map:hover{background-image:url(assets/ui/btn_map_1.png)}.pcb.map:active{background-image:url(assets/ui/btn_map_2.png)}
+  .pcb.help{background-image:url(assets/ui/btn_help_0.png)}.pcb.help:hover{background-image:url(assets/ui/btn_help_1.png)}.pcb.help:active{background-image:url(assets/ui/btn_help_2.png)}
+  .pcb.power{width:34px;height:34px;background-image:url(assets/ui/btn_power_0.png)}.pcb.power:hover{background-image:url(assets/ui/btn_power_1.png)}.pcb.power:active{background-image:url(assets/ui/btn_power_2.png)}
+  .pct{height:40px;min-width:44px;border-radius:14px;padding:0 10px;border:2px solid #fff;background:linear-gradient(#8ec0ff,#2f62d6);color:#fff;font-weight:800;font-size:14px;text-shadow:0 1px 2px #0009;box-shadow:inset 0 -3px 0 #1d3f9a,0 2px 4px #0004;cursor:pointer;flex:0 0 auto}
+  .pct:hover{filter:brightness(1.12)}.pct:active{transform:translateY(1px);box-shadow:inset 0 -1px 0 #1d3f9a}
+  @media (max-width:640px){.pcb{width:38px;height:38px}.pcb.power{width:26px;height:26px}.pct{height:32px;min-width:0;padding:0 5px;font-size:11px;border-radius:10px}#menu{gap:0;padding:3px 4px;border-radius:14px}}
+  .btn{font:inherit;font-weight:700;font-size:14px;padding:8px 14px;border-radius:10px;border:1px solid #b8c6e8;background:#fff;color:#26324d;cursor:pointer}
+  .btn.primary{background:linear-gradient(#5b7fe0,#3a5bbf);color:#fff;border-color:#2c4aa0}
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-100%);background:#eef2fbe6;border:1px solid #9db4ee;border-radius:8px;padding:2px 8px;font-size:13px;font-weight:700;white-space:nowrap}
+  .lbl.me{background:none;border:0;color:#fff;text-shadow:0 1px 3px #000}
+  .lbl.near{background:#ffe9a8;border-color:#e6a23c}
+  #talk{left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translateX(-50%);display:none;font-size:17px;padding:12px 28px}
+  #talk kbd{font:inherit;font-size:12px;background:#fff3;border-radius:4px;padding:1px 6px;margin-left:8px}
+  #dlg{position:fixed;inset:0;z-index:20;display:none;align-items:flex-end;justify-content:center;padding:16px;background:#0004}
+  #dlg.on{display:flex}
+  #dlg .box{width:min(560px,100%);background:#eef2fb;border:2px solid #9db4ee;border-radius:14px;overflow:hidden;box-shadow:0 10px 40px #0006}
+  #dlg header{background:linear-gradient(#6f8fd8,#4565b8);color:#fff;font-weight:800;padding:10px 16px}
+  #dlg .body{padding:14px 16px;line-height:1.7;max-height:55vh;overflow:auto}
+  #dlg .opts{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 14px;justify-content:flex-end}
+  table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:4px 6px;border-bottom:1px solid #d5ddf0;text-align:left}
+  #dlg .box.wide{width:min(760px,100%)}
+  #dlg .btn:disabled{opacity:.45;cursor:not-allowed}
+  /* PC 原版小地圖（右上：A～H／1～8 格線、NPC 圖示、MAP 鈕） */
+  #tmmBox{position:fixed;right:10px;top:max(10px,env(safe-area-inset-top));z-index:4;padding:4px;border-radius:10px;background:linear-gradient(#f7f0df,#e6d8bc);border:2px solid #fff;box-shadow:0 0 0 1px #a08a64,0 3px 10px #0006}
+  #tmm{display:block;width:196px;height:196px;border-radius:6px;cursor:pointer}
+  #tmmMap{position:absolute;right:-6px;bottom:-10px;border:2px solid #fff;border-radius:12px;background:linear-gradient(#ffe7b3,#e9a94a);color:#b3261e;font:900 12px sans-serif;font-style:italic;padding:2px 10px;box-shadow:0 2px 4px #0006;cursor:pointer}
+  @media (max-width:640px){#tmm{width:120px;height:120px}#place{top:calc(150px + env(safe-area-inset-top));left:auto;right:10px;transform:none;padding:4px 12px;font-size:13px}#gmBtn{top:calc(196px + env(safe-area-inset-top))!important}#me{max-width:calc(100vw - 150px);box-sizing:border-box}}
+  /* PC 原版視窗樣式（參考 MONSTER SURVIVAL／PARTY SEARCH 視窗：亮面外框、置中藍描邊標題、米色內容面板、圓形藍 ✕、亮面藍按鈕）*/
+  #dlg .box{position:relative;overflow:visible;background:linear-gradient(#fdfdfd,#dde3ec);border:3px solid #fff;border-radius:22px;box-shadow:0 0 0 2px #8193b4,0 12px 40px #0008}
+  #dlg header{background:none;text-align:center;padding:14px 48px 8px;font-size:21px;font-weight:900;letter-spacing:2px;color:#fff;-webkit-text-stroke:3px #2b56b8;paint-order:stroke fill;text-shadow:0 2px 0 #1a3a85,0 3px 6px #0005}
+  #dlg .body{margin:0 12px;background:#ebe3d4;border:1px solid #cdbfa6;border-radius:12px;box-shadow:inset 0 1px 4px #0002}
+  #dlg .opts{background:none}
+  #dlgX{position:absolute;right:-12px;top:-12px;width:36px;height:36px;border-radius:50%;border:3px solid #fff;background:radial-gradient(circle at 35% 30%,#9fd0ff,#2f62d6 70%);color:#fff;font-weight:900;font-size:16px;line-height:1;box-shadow:0 2px 6px #0006;cursor:pointer;z-index:2}
+  #dlgX:hover{filter:brightness(1.15)}
+  #dlg .opts .btn{border-radius:12px}
+  #dlg .opts .btn.primary{background:linear-gradient(#93ccff,#3f7fe2 55%,#2c5fd0);border:2px solid #fff;box-shadow:0 0 0 1px #2c5fd0,inset 0 -3px 0 #1d4aa8;text-shadow:0 1px 2px #0008}
+  .gold{color:#b7791f;font-weight:800}
+  .slots{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .eq{flex:1;min-width:150px;background:#fff;border:1px solid #c9d5f0;border-radius:10px;padding:8px;display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px}
+  .eq img,.cell img{width:32px;height:32px;image-rendering:pixelated}
+  .eq small{color:#6b7896;display:block}
+  .bag{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px}
+  .cell{aspect-ratio:1;background:#fff;border:2px solid #ccc;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+  .cell b{position:absolute;right:2px;bottom:0;font-size:11px;color:#c0392b}
+  .cell.eqd::after{content:"E";position:absolute;left:3px;top:0;font-size:10px;font-weight:800;color:#3a5bbf}
+  .cell.sel{box-shadow:0 0 0 3px #3f63c4}
+  .detail{margin-top:10px;background:#fff;border-radius:10px;padding:10px;min-height:60px;font-size:14px}
+  .detail .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .tabs2{display:flex;gap:6px;margin-bottom:10px}
+  .strow{display:grid;grid-template-columns:60px 40px 36px 1fr;gap:8px;align-items:center;padding:4px 0;font-size:14px}
+  .strow small{color:#6b7896}
+  .exp{display:grid;grid-template-columns:240px 1fr;gap:12px;max-height:62vh}
+  @media (max-width:640px){.exp{grid-template-columns:1fr}}
+  .exp .list{overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
+  .st{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #c9d5f0;border-radius:12px;padding:8px;cursor:pointer}
+  .st.on{border:2px solid #3f63c4;background:#eaf0ff}.st.lock{opacity:.55}
+  .st img{width:56px;height:56px;border-radius:10px;background:#dfe7fb}
+  .st b{display:block}.st small{color:#6b7896;display:block}
+  .tag{display:inline-block;font-size:11px;border-radius:8px;padding:1px 8px;border:1px solid}
+  .tag.ok{color:#2e7d32;border-color:#2e7d32}.tag.lock{color:#c0392b;border-color:#c0392b}.tag.done{color:#b7791f;border-color:#b7791f}
+  .exp .info{overflow:auto}
+  .hero{border-radius:12px;padding:14px;color:#fff;margin-bottom:10px;text-shadow:0 1px 3px #000}
+  .hero b{font-size:22px;display:block}.hero .lv{display:inline-block;background:#fff3;border-radius:8px;padding:1px 10px;font-size:13px}
+  .sec{background:#fff;border-radius:12px;padding:10px;margin-bottom:10px}
+  .sec h4{margin:0 0 8px;font-size:14px;color:#3f63c4}
+  .row{display:flex;gap:8px;overflow-x:auto}
+  .mon{flex:0 0 76px;text-align:center;font-size:12px}
+  .mon img{width:68px;height:68px;border-radius:10px;background:#dfe7fb;display:block;margin:0 auto 2px}
+  .mon.mvp img{background:#ffe7c2;outline:2px solid #e6a23c}.mon small{color:#6b7896;display:block}
+  .bst{display:grid;grid-template-columns:150px 1fr;gap:10px;max-height:64vh}
+  @media (max-width:640px){.bst{grid-template-columns:1fr}.bst .rng{flex-direction:row!important;overflow-x:auto}}
+  .bst .rng{display:flex;flex-direction:column;gap:4px;overflow:auto}
+  .bst .rng button{white-space:nowrap;padding:6px 10px;font-size:13px}
+  .bst .main{overflow:auto}
+  .mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+  .mi{background:#fff;border:1px solid #c9d5f0;border-radius:10px;padding:6px 8px;cursor:pointer;font-size:13px}
+  .mi.on{border:2px solid #3f63c4}.mi.boss{background:#fff4e0}
+  .mi b{display:block}.mi small{color:#6b7896}
+  .mdet{display:flex;gap:12px;background:#fff;border-radius:12px;padding:10px;margin-bottom:10px;font-size:13px;line-height:1.6}
+  .mdet img{width:120px;height:120px;border-radius:10px;background:#dfe7fb;flex:0 0 auto}
+  .mdet table{border-collapse:collapse;margin:4px 0}.mdet td{padding:1px 8px 1px 0;border:0}
+  #joy{position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:2px solid #fff8;background:#fff3;display:none;pointer-events:none}
+  #joy i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px;border-radius:50%;background:#fff9}
+</style>
+<link rel="stylesheet" href="src/2_core/pc-ui.css">
+</head>
+<body>
+<!-- 進城載入畫面：玩家模型和 NPC 載完才拿掉（11/18 使用者：載入時會先看到紅色膠囊人偶） -->
+<div id="tload" style="position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:radial-gradient(#2b3a5c,#121a2c);color:#ffe9a8;font-weight:700;transition:opacity .4s"><div style="font-size:34px;text-shadow:0 2px 8px #000">希望之城</div><div style="font-size:14px;color:#cfd8ea">載入中…</div></div>
+<div id="labels"></div>
+<div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Lv 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">EXP<div class="bar"><i id="meExp"></i></div><span id="xpPct">0%</span></div></div></div>
+<div id="place" class="chip">希望之城<small>中央廣場</small></div>
+<!-- PC 原版主選單按鈕列（assets/ui/btn_*：tools/build-ui.mjs 從客戶端 mainbutton_all.tex 切）；原版沒有的功能用同色系文字鈕 -->
+<div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
+<button class="btn primary chip" id="talk"></button>
+<div id="tmmBox" title="主城地圖（點 MAP 放大，放大後點地圖可以直接走過去）"><canvas id="tmm" width="196" height="196"></canvas><button id="tmmMap">MAP</button></div>
+<button id="gmBtn" title="GM 指令（只限本機）" style="display:none;position:fixed;right:12px;top:calc(220px + env(safe-area-inset-top));z-index:5;border:2px solid #fff;border-radius:10px;background:linear-gradient(#ffb55a,#e07a1c);color:#fff;font-weight:900;padding:6px 12px;box-shadow:0 2px 8px #0005;cursor:pointer">GM</button>
+<div id="joy"><i></i></div>
+<div id="dlg"><div class="box"><header id="dlgTitle"></header><button id="dlgX" title="關閉（Esc）">✕</button><div class="body" id="dlgBody"></div><div class="opts" id="dlgOpts"></div></div></div>
+
+<script src="src/0_offline/boot.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES } from './src/1_data/jobs.js';
+import { renderLook } from './src/2_core/look-ui.js';
+import { sealModel, sealProp, sealActor, sealMob, glowGear } from './src/2_core/seal-model.js';
+import { askConfirm, askText } from './src/2_core/ask.js';
+import { RODS, BAIT, CATCH } from './src/1_data/fishing.js';
+import { loadSealMap, buildSealMap, liftScene, walkMove } from './src/2_core/seal-map.js';
+import { view, enableOrbit } from './src/2_core/camera.js';
+const TOWN = 80; // 看門狗用的範圍（離廣場中心）
+import { BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
+import { STATS } from './src/1_data/jobs.js';
+import { STAGES, stageUnlocked } from './src/1_data/stages.js';
+import { MONSTER_MODELS } from './src/1_data/monsters.js';
+import { createWatchdog } from './src/4_diagnostics/watchdog.js';
+import { openSettings, onSettings } from './src/2_core/settings.js';
+// 主城背景音樂（客戶端 bgm/05.mp3）：瀏覽器擋自動播放 → 第一次點畫面／按鍵才開始；音量跟設定走
+const townBgm = new Audio('assets/bgm/05.mp3'); townBgm.loop = true;
+onSettings(G => { townBgm.volume = Math.min(1, 0.45 * G.master * G.bgm); });
+const startBgm = () => townBgm.play().catch(() => {}); startBgm(); addEventListener('pointerdown', startBgm, { once: true }); addEventListener('keydown', startBgm, { once: true });
+import { openTalents } from './src/2_core/talent-ui.js';
+import { openGems } from './src/2_core/gem-ui.js';
+import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
+import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
+import { PETS, PET_MAX, PET_MAX_LV, EGG_PRICE, FEED_EXP, petStage, petName, petNeed, petAtk, petBonusText } from './src/1_data/pets.js';
+import { DIFF_KEYS, DIFF_MAX, LV_MAX, cleanDiff, diffMods, diffLoot, lootBonus, legendRate, stageBaseLv, pcRef } from './src/1_data/difficulty.js';
+import { DECOMPOSE, DUST_PER_CRYSTAL } from './src/1_data/stones.js';
+import { GUIDE_CATS, buildGuide } from './src/1_data/guide.js';
+import { TOWER_NAME, CURSES, PICK, checkTowerSetup } from './src/1_data/tower.js';
+import { IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, IDENT_PROB, identNode, identMax } from './src/1_data/talents.js';
+// 天賦／技能資料（項目 26～28 共用）
+const DATA = Promise.all([fetch('assets/data/talents.json').then(r => r.json()), fetch('assets/data/skills.json').then(r => r.json())]);
+let TAL = null; DATA.then(([T]) => TAL = T);
+const $ = s => document.querySelector(s);
+
+// ===== 登入與角色 =====
+let token = null, CHAR = null;
+try { token = localStorage.getItem('ss_token'); CHAR = JSON.parse(sessionStorage.getItem('ss_char')); } catch {}
+if (!token || !CHAR) location.replace('./');
+async function call(method, url, data) {
+  const r = await fetch(url, { method, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token }, body: data ? JSON.stringify(data) : undefined });
+  const j = await r.json().catch(() => ({ error: '連不到伺服器' }));
+  if (r.status === 401) { location.replace('./'); throw new Error('請重新登入'); }
+  if (!r.ok) throw new Error(j.error || '發生錯誤'); return j;
+}
+async function refreshChar() {
+  const c = await call('GET', '/api/char/' + CHAR.id); CHAR = c;
+  try { sessionStorage.setItem('ss_char', JSON.stringify(c)); } catch {}
+  $('#meName').textContent = (titleOf(c.title) ? `【${titleOf(c.title).name}】` : '') + c.name; $('#meJob').textContent = c.jobName || c.job;
+  $('#meLv').textContent = `Job ${c.jobLv}　經驗 ${c.exp} / ${c.need}`; $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
+  $('#meExp').style.width = Math.min(100, c.exp / c.need * 100) + '%';
+  showChar(c);
+}
+function showChar(c) {
+  CHAR = c; try { sessionStorage.setItem('ss_char', JSON.stringify(c)); } catch {}
+  $('#meGold').textContent = `💰 ${c.gold}` + (c.points ? `　素質點 ${c.points}` : '');
+  $('#meLv').textContent = `Job ${c.jobLv}　經驗 ${c.exp} / ${c.need}`; $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
+}
+// 模組裡有 top-level await（主城地圖），要等整個模組跑完才執行開場（不然 townMount 等變數還沒宣告，11/18 修）
+let moduleReady; const moduleDone = new Promise(r => moduleReady = r);
+Promise.all([refreshChar(), moduleDone]).then(() => { if (CHAR.unreadMail) toast(`📬 你有 ${CHAR.unreadMail} 封新信，去找郵差`); loadTownMount(); checkUnfinishedRun(); const h = location.hash.slice(1); ({ talent: () => $('#talentBtn').click(), gem: () => $('#gemBtn').click(), mail: () => openMail(), stash: () => openStash(), rank: () => openRank(), rebirth: () => openRebirth(), ident: () => openIdent(), zaro: () => openZaro(), job2: () => openJob2(), guide: () => openGuide(), tower: () => openTower(), pet: () => openPets() })[h]?.(); if (['bag', 'smith'].includes(h)) openBag(h); if (h === 'shop') openMerchant('sell'); if (h === 'stylist') openStylist(); if (h === 'stock') openMerchant('stock'); if (h === 'exp') openExpedition(); if (h === 'mount') openMount(); if (h === 'library') { bSel = 7; openBestiary(); } if (h === 'auction') openAuction('browse'); }).catch(e => console.error(e));
+$('#charsBtn').onclick = () => location.href = './';
+// 右上選單（項目 14）：技能＝本職業 PC 版技能一覽、角色＝素質頁、⚙＝設定
+$('#statBtn').onclick = () => { openBag('bag'); bagTab = 'stats'; renderBag(); };
+$('#setBtn').onclick = () => openSettings();
+$('#mapBtn').onclick = () => openExpedition(); // PC「傳送」＝遠征
+$('#helpBtn').onclick = () => openGuide(); // PC「說明」＝新手指南
+// 項目 28：技能寶石（PC 技能寶石系統）
+$('#gemBtn').onclick = async () => { const [T, D] = await DATA; openGems({ char: CHAR, D, T, openDlg, call, onSaved: c => showChar(c), toast }); };
+// 項目 26：局外天賦樹
+$('#talentBtn').onclick = async () => {
+  const [T, D] = await Promise.all([fetch('assets/data/talents.json').then(r => r.json()), fetch('assets/data/skills.json').then(r => r.json())]);
+  openTalents({ char: CHAR, T, skillName: k => D.skills[k]?.name || k, openDlg, call, onSaved: c => showChar(c) });
+};
+$('#skillBtn').onclick = async () => {
+  const D = await fetch('assets/data/skills.json').then(r => r.json()), J = D.jobs[CHAR.job]; if (!J) return;
+  const ico = ([f, x, y], z = 36) => { const k = z / 32; return `<i style="display:inline-block;width:${z}px;height:${z}px;border-radius:8px;flex:0 0 auto;background:url(assets/skill/${f}) -${x * k}px -${y * k}px/${512 * k}px ${512 * k}px no-repeat"></i>`; };
+  const TN = { MELEE_ARC: '扇形近戰', PROJECTILE_BOUNCE: '彈射投射', ORBIT_AURA: '環繞光環', ZONE_AOE: '區域轟炸' }, GN = { ice: '冰', fire: '火', heavy: '重擊' };
+  const row = (k, tag) => { const d = D.skills[k]; return `<div class="eq" style="cursor:default;margin-bottom:6px">${ico(d.icon)}<div style="flex:1"><b>${d.name}</b> <small style="color:#6b7896">${tag}</small><small>${TN[d.type]}${d.tags.map(t => '・' + GN[t]).join('')}${d.status?.slow ? '・緩速' : ''}${d.status?.poison ? '・中毒' : ''}${d.status?.stun ? '・暈眩' : ''}</small></div></div>`; };
+  const fu = D.fusions.find(f => J.pool.includes(f.a));
+  openDlg(`${CHAR.job}的技能`, `<p><small>出征時：開局只有普攻，第 1 次升級選第一招，最多帶 ${CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4} 招（一轉 4／二轉 5／三轉 6）；兩招 Lv5 可融合成二轉超武。</small></p>`
+    + row(J.basic, '普攻') + J.pool.map(k => row(k, '技能')).join('') + (fu ? row(fu.into, `超武：${D.skills[fu.a].name}＋${D.skills[fu.b].name} Lv5`) : ''), []);
+};
+
+// ===== 場景 =====
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.shadowMap.enabled = true;
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xbcd3ea); scene.fog = new THREE.Fog(0xbcd3ea, 45, 95);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a66, 1.2));
+const sun = new THREE.DirectionalLight(0xfff1d6, 1.5); sun.position.set(-14, 26, 10); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45 }); scene.add(sun);
+function resize() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+// ===== 艾林（엘림）主城：原版地圖 32 號（tools/build-map.mjs 轉檔）=====
+// 使用者 11/18：主城周圍不要是一片綠地，要用建築擋住、不要空空的 → 直接用原版艾林：城牆、街區、建築、地形都是原版擺的
+const TMAP = await loadSealMap(32);
+buildSealMap(scene, TMAP, 0xbcd3ea, { blend: { a0: 'stone_b07', a1: 'grass', hi: 'stone_b05' } }); // 城內街道碎石板、中央廣場圓形石板、城外草地
+const TC = { x: 224 - 256, z: 180 - 256 }; // 廣場中心（原版釣魚池）
+// 找最近的可走位置（NPC、出生點用）
+function walkable(x, z) { if (TMAP.canWalk(x, z)) return { x, z }; for (let r = 0.5; r < 12; r += 0.5) for (let a = 0; a < 16; a++) { const nx = x + Math.cos(a / 16 * 6.283) * r, nz = z + Math.sin(a / 16 * 6.283) * r; if (TMAP.canWalk(nx, nz)) return { x: nx, z: nz }; } return { x, z }; }
+const std = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8, ...o });
+const solids = []; // 不能穿過的東西 {x,z,r}（NPC）；建築、城牆、水用原版可走區
+view.yaw = Math.PI; // 原版地圖城堡在 +z，轉過來讓城堡在畫面上方
+enableOrbit(renderer.domElement); // 右鍵拖曳轉視角、滾輪縮放
+
+// ===== NPC =====
+const NPCS = [
+  { id: 'captain', name: '出征隊長', color: 0x3a5bbf, x: 0, z: -10, model: 'N_seit_new_stand' },
+  { id: 'job', name: '百業宗師', color: 0x8e5bd9, x: -9, z: -5, model: 'N_spirit_King_stand' },
+  { id: 'shop', name: '裝備商人', color: 0xf0a030, x: 9, z: -5, model: 'N_Gourmet_M' },
+  { id: 'smith', name: '強化師', color: 0x9a7b5a, x: 11, z: 5, model: 'N_oldminer' },
+  { id: 'storage', name: '倉庫管理員', color: 0x37b7b7, x: -11, z: 5, model: 'N_GirlA' },
+  { id: 'rank', name: '排行榜', color: 0xd9534f, x: 0, z: 11, model: 'N_Pierrot_Aa' },
+  { id: 'library', name: '圖書館員', color: 0x6b8e5a, x: -13, z: 0, model: 'N_Eventgirl01_1' },
+  { id: 'mount', name: '坐騎管理員', color: 0x8a6a3a, x: -7, z: 9, model: 'N_Kein_new_stand' },
+  { id: 'auction', name: '拍賣商人', color: 0xb07cff, x: 7, z: 9, model: 'N_CandyLady' },
+  { id: 'stylist', name: '造型師', color: 0xe86fa8, x: 13, z: 0, model: 'N_GirlB' },
+  { id: 'pet', name: '寵物飼育員', color: 0x8fd16a, x: -12, z: -9, model: 'N_petbreeder' }, // 項目 30
+  { id: 'rebirth', name: '轉生師', color: 0x9b59b6, x: -6, z: -11, model: 'N_Ingzela_fw' }, // 項目 21
+  { id: 'mail', name: '郵差', color: 0xd9a030, x: 6, z: -11, model: 'N_Hk' }, // 項目 20
+  { id: 'zaro', name: '寶石收藏家 扎羅', color: 0xe0483c, x: 4, z: 3, model: 'N_Lseung' }, // 項目 28 鑲嵌石（PC：獅子城中央水池）
+  { id: 'fish', name: '釣魚老人', color: 0x3f86b8, x: 0, z: 5.5, model: 'N_boatman' }, // 項目 48 釣魚（原版船夫 NPC，頭上掛原版釣魚標記）
+  { id: 'ident', name: '技能鑑定師 魯魯', color: 0x4fa3ff, x: -4, z: 3, model: 'N_Eventgirl02_1' }, // 項目 28（PC：獅子城中央水池）
+];
+const labels = $('#labels');
+function makeChar(color, x, z) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.45, 0.8, 4, 12), std(color, { roughness: 0.5 })); body.position.y = 0.9; body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 12), std(0xffe0c0)); head.position.y = 1.85; head.castShadow = true; g.add(head);
+  g.position.set(x, 0, z); scene.add(g); return g;
+}
+const npcReady = [], npcActors = [];
+for (const n of NPCS) {
+  // 原本以 (0,0) 為中心的位置 → 搬到原版廣場，站不了就找旁邊能站的（畫面方向轉了 180 度，所以座標反過來）
+  Object.assign(n, walkable(TC.x - n.x * 1.6, TC.z - n.z * 1.6));
+  n.obj = makeChar(n.color, n.x, n.z); n.obj.lookAt(TC.x, 0, TC.z);
+  // NPC：有原版骨架＋待機動作就用會動的版本（項目 6），沒有就靜態
+  npcReady.push(sealMob(n.model, 1.8).catch(() => null).then(f => f ? (() => { const g = f.create(); npcActors.push(g.userData.actor); return g; })() : sealModel(n.model, 1.8)).then(m => { m.children[0].rotation.y = Math.PI; while (n.obj.children.length) n.obj.remove(n.obj.children[0]); n.obj.add(m); }).catch(() => {}));
+  if (n.id === 'fish') sealMob('N_FishingMark', 0.8).then(f => { if (!f) return; const g = f.create(); g.position.set(n.x, 2.3, n.z); scene.add(g); npcActors.push(g.userData.actor); }).catch(() => {}); // 原版釣魚標記（會轉）
+  n.el = document.createElement('div'); n.el.className = 'lbl'; n.el.textContent = n.name; labels.appendChild(n.el);
+  solids.push({ x: n.x, z: n.z, r: 0.7 });
+}
+
+// 玩家
+const START = walkable(TC.x, TC.z + 26);
+const player = makeChar(OUTFITS[CHAR?.outfit] ?? JOBS[CHAR?.job]?.color ?? 0x4fa3ff, START.x, START.z);
+let pActor = null; // 玩家動作（站／跑）
+// 載入玩家模型（造型師改完外觀會再叫一次）；坐騎留著
+const lookOf = c => playerLook(c?.job, c?.gender, c?.hair ?? 0, c?.hairColor ?? 0, c?.outfit ?? 0);
+let playerLoadId = 0;
+function loadPlayer() {
+  const id = ++playerLoadId, L = lookOf(CHAR);
+  return sealActor(playerModelId(CHAR?.job, CHAR?.gender), playerAnimSet(CHAR?.job, CHAR?.gender), 1.7, L.gear, L.opts).then(m => {
+    if (id !== playerLoadId) return;
+    { const w = (CHAR.items || []).find(i => i.equipped && i.slot === 'weapon'); if (w?.gup) glowGear(m, GUP[w.gup].glow); } // 項目 46：G 化武器發光（換裝後重進主城生效）
+    m.children[0].rotation.y = Math.PI; for (const ch of [...player.children]) if (ch !== townMount) player.remove(ch);
+    // 頭像：跟出征一樣用自己的模型拍大頭照（先 update 一次讓骨架套上）
+    try { m.userData.actor.update(0.016, false); const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); r.setSize(128, 128);
+      const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 2)); sc.add(m); m.rotation.y = 0.35;
+      const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50); cam.position.set(0, 1.45, 1.6); cam.lookAt(0, 1.35, 0); r.render(sc, cam);
+      $('#faceImg').src = r.domElement.toDataURL(); r.dispose(); sc.remove(m); m.rotation.y = 0; } catch {}
+    m.position.y = townRiding ? 0.85 : 0; player.add(m); pActor = m.userData.actor;
+  }).catch(e => console.warn('玩家模型', e.message));
+}
+const playerFirst = loadPlayer();
+// 載入畫面：玩家模型＋NPC 模型都好了（最多等 20 秒）再淡出
+Promise.race([Promise.all([playerFirst, ...npcReady]), new Promise(r => setTimeout(r, 20000))]).then(() => { const L = document.getElementById('tload'); L.style.opacity = 0; setTimeout(() => L.remove(), 450); });
+const meLbl = document.createElement('div'); meLbl.className = 'lbl me'; meLbl.textContent = CHAR?.name || ''; labels.appendChild(meLbl);
+
+// ===== 輸入 =====
+const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (dlgOpen) closeDlg(); else if (nearNpc) talk(nearNpc); } if (e.code === 'Escape') closeDlg(); if (e.code === 'KeyI' && !dlgOpen) openBag('bag'); });
+addEventListener('keyup', e => keys[e.code] = false);
+const joy = { on: false, ox: 0, oy: 0, dx: 0, dy: 0 }, joyEl = $('#joy');
+// 滑鼠：左鍵點地移動（按住跟著滑鼠）、右鍵轉視角；觸控：浮動搖桿
+const click = { on: false, held: false, x: 0, z: 0 }, ray = new THREE.Raycaster(), gplane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitP = new THREE.Vector3();
+function aimClick(e) { gplane.constant = -TMAP.heightAt(player.position.x, player.position.z); ray.setFromCamera({ x: e.clientX / innerWidth * 2 - 1, y: -(e.clientY / innerHeight) * 2 + 1 }, camera); if (ray.ray.intersectPlane(gplane, hitP)) { click.x = hitP.x; click.z = hitP.z; click.on = true; } }
+renderer.domElement.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') { if (e.button === 0) { click.held = true; aimClick(e); } return; } });
+addEventListener('pointermove', e => { if (click.held && e.pointerType === 'mouse') aimClick(e); });
+addEventListener('pointerup', () => { click.held = false; });
+renderer.domElement.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; joy.on = true; joy.ox = e.clientX; joy.oy = e.clientY; joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px'; joyEl.style.display = 'block'; });
+addEventListener('pointermove', e => { if (!joy.on) return; let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy; const d = Math.hypot(dx, dy), m = 45; if (d > m) { dx *= m / d; dy *= m / d; } joy.dx = dx / m; joy.dy = dy / m; joyEl.firstChild.style.transform = `translate(${dx}px,${dy}px)`; });
+const joyEnd = () => { joy.on = false; joy.dx = joy.dy = 0; joyEl.style.display = 'none'; joyEl.firstChild.style.transform = ''; };
+addEventListener('pointerup', joyEnd); addEventListener('pointercancel', joyEnd);
+
+// ===== 對話 =====
+let nearNpc = null, dlgOpen = false;
+const esc = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
+// ===== 未完成的一局（企劃_工程交付 項目 13）：出征中離開，回主城時問要不要繼續 =====
+function checkUnfinishedRun() {
+  const key = 'ss_run_' + CHAR.id; let snap = null;
+  try { snap = JSON.parse(localStorage.getItem(key)); } catch {}
+  if (!snap) return;
+  if (Date.now() - snap.saved > 24 * 3600e3) { try { localStorage.removeItem(key); } catch {} return; } // 超過一天就不留
+  const tm = `${snap.t / 60 | 0}:${String(snap.t % 60 | 0).padStart(2, '0')}`;
+  openDlg('未完成的一局', `你在 <b>${esc(snap.stageName)}</b> 的第 <b>${tm}</b> 分（Lv ${snap.lv}）離開了一局，要繼續嗎？<br><small>放棄的話，會先結算已經拿到的經驗與金幣。</small>`, [
+    ['放棄', async () => {
+      try { localStorage.removeItem(key); } catch {}
+      try { const j = await call('POST', '/api/runs', { charId: CHAR.id, secs: Math.floor(snap.t), kills: snap.kills | 0, lv: snap.lv | 0, cleared: false, chests: snap.chests | 0, bossChests: snap.bossChests | 0, stage: snap.stageKey });
+        openDlg('已結算這一局', `你已領取的部分：經驗 <b>+${j.gain}</b>、金幣 <b>+${j.gold}</b>${j.items?.length ? `、裝備 ${j.items.length} 件` : ''}${j.levelUps ? `<br>角色升級！Lv ${j.baseLv}` : ''}${j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}` : ''}`, []);
+        refreshChar();
+      } catch (e) { openDlg('結算失敗', esc(e.message), []); }
+    }],
+    ['繼續', () => { try { sessionStorage.setItem('ss_stage', snap.stage); } catch {} location.href = `game.html?resume&stage=${snap.stage}`; }, true],
+  ]);
+}
+function openDlg(title, html, opts, wide = false) {
+  dlgOpen = true; document.querySelector('#dlg .box').classList.toggle('wide', wide); $('#dlgTitle').textContent = title; $('#dlgBody').innerHTML = html;
+  const box = $('#dlgOpts'); box.innerHTML = '';
+  for (const [label, fn, primary] of [...opts, ['離開', closeDlg]]) { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.textContent = label; b.onclick = fn; box.appendChild(b); }
+  $('#dlg').classList.add('on');
+}
+function closeDlg() { dlgOpen = false; $('#dlg').classList.remove('on'); }
+$('#dlgX').onclick = () => closeDlg();
+$('#dlg').addEventListener('pointerdown', e => { if (e.target.id === 'dlg') closeDlg(); });
+$('#talk').onclick = () => nearNpc && talk(nearNpc);
+
+async function talk(n) {
+  joyEnd();
+  if (n.id === 'captain') return openExpedition();
+  if (n.id === 'rank') return openRank();
+  if (n.id === 'shop') return openMerchant('sell');
+  if (n.id === 'smith') return openBag('smith');
+  if (n.id === 'storage') return openStash();
+  if (n.id === 'mount') return openMount();
+  if (n.id === 'library') return openGuide();
+  if (n.id === 'auction') return openAuction('browse');
+  if (n.id === 'fish') return openFishing();
+  if (n.id === 'stylist') return openStylist();
+  if (n.id === 'ident') return openIdent();
+  if (n.id === 'zaro') return openZaro();
+  if (n.id === 'mail') return openMail();
+  if (n.id === 'rebirth') return openRebirth();
+  if (n.id === 'pet') return openPets();
+  if (n.id === 'job') return openJob2();
+}
+
+// ===== 項目 27：百業宗師＝二轉（PC 每職兩條二轉：2u tree_2／tree_3）=====
+async function openJob2() {
+  const [T, D] = await Promise.all([fetch('assets/data/talents.json').then(r => r.json()), fetch('assets/data/skills.json').then(r => r.json())]);
+  const J = T.jobs[CHAR.job], ok = CHAR.jobLv >= 50;
+  const ico = ([f, x, y]) => `<i style="display:inline-block;width:32px;height:32px;vertical-align:middle;background:url(assets/skill/${f}) -${x}px -${y}px no-repeat"></i>`;
+  const card = b => { const on = CHAR.job2 === b.key;
+    return `<div style="background:#fff;border:2px solid ${on ? '#e0a826' : '#c9d5f3'};${on ? 'box-shadow:0 0 0 2px #f5d26b;' : ''}border-radius:12px;padding:10px 12px;margin-bottom:8px;line-height:1.6">
+      <div><b style="font-size:16px">${b.name}</b> <small style="color:#6b7896">→ 三轉 ${b.third}</small>${on ? ' <small style="color:#c8901a">★ 目前</small>' : ''}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><small style="color:#6b7896">學到局內技能：</small>${b.skills.map(k => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px">${ico(D.skills[k].icon)}<b style="font-size:13px">${D.skills[k].name}</b></span>`).join('')}</div>
+      <small style="color:#6b7896">二轉天賦樹 ${b.nodes.length} 個天賦（Job Lv 51 起每級 1 點）</small></div>`; };
+  const cond = `<p>條件：一轉 Job Lv 50　${ok ? '<b style="color:#2e8b57">✔ 達成</b>' : `<b style="color:#c0392b">✘ 目前 ${CHAR.jobLv}</b>`}</p>`;
+  const intro = CHAR.job3 ? `「${CHAR.jobName}，你已經走到這條路的盡頭了。」` : CHAR.job2 ? `「你已經是${CHAR.jobName}了。想換另一條路也可以，但二轉天賦會重置；到了 Job Lv 100 還能再三轉。」` : `「${CHAR.job}的二轉有兩條路，選一條當你的專精。一轉天賦會保留。」`;
+  const go = async b => {
+    if (CHAR.job2 && !(await askConfirm(`換成${b.name}？二轉天賦會全部重置。`, { danger: true }))) return;
+    try { const c = await call('POST', '/api/job2', { charId: CHAR.id, branch: b.key }); showChar(c); $('#meJob').textContent = c.jobName;
+      openDlg('百業宗師', `<p>恭喜！你成為了 <b>${c.jobName}</b>。</p><p><small>出征升級時會出現新技能：${b.skills.map(k => D.skills[k].name).join('、')}。Job Lv 51 起可以點二轉天賦。</small></p>`, [['看天賦', () => openTalents({ char: CHAR, T, skillName: k => D.skills[k]?.name || k, openDlg, call, onSaved: c => showChar(c), tree: 2 }), true]]);
+    } catch (e) { openDlg('百業宗師', `<p>${e.message}</p>`, []); }
+  };
+  // 項目 40：三轉（延續二轉分支）：Base Lv 70＋Job Lv 100＋打倒紅土地帶 MVP
+  const B = CHAR.job2 && J.branches.find(b => b.key === CHAR.job2), last = STAGES.at(-1);
+  const c3 = B ? [[CHAR.baseLv >= 70, `Base Lv 70（目前 ${CHAR.baseLv}）`], [CHAR.jobLv >= 100, `Job Lv 100（目前 ${CHAR.jobLv}）`], [(CHAR.cleared || []).includes(last.key), `打倒 ${last.bosses.at(-1)[1]}（通關${last.name}）`]] : [];
+  const ok3 = B && !CHAR.job3 && c3.every(x => x[0]);
+  const sec3 = !B ? '' : `<div style="background:#fff;border:2px solid ${CHAR.job3 ? '#e0a826' : '#c9d5f3'};border-radius:12px;padding:10px 12px;margin-top:4px;line-height:1.6">
+    <div><b style="font-size:16px">三轉：${B.third}</b>${CHAR.job3 ? ' <small style="color:#c8901a">★ 已三轉</small>' : ''}</div>
+    <div style="display:flex;align-items:center;gap:6px"><small style="color:#6b7896">學到局內技能：</small>${B.skill3 ? `<span style="display:inline-flex;align-items:center;gap:4px">${ico(D.skills[B.skill3].icon)}<b style="font-size:13px">${D.skills[B.skill3].name}</b></span>` : ''}<small style="color:#6b7896">・技能欄 6 格</small></div>
+    ${CHAR.job3 ? '<small style="color:#6b7896">Job Lv 101～130，點數跟二轉樹共用（可以回頭補點二轉天賦）</small>' : c3.map(([y, t]) => `<div>${y ? '<b style="color:#2e8b57">✔</b>' : '<b style="color:#c0392b">✘</b>'} <small>${t}</small></div>`).join('')}</div>`;
+  const go3 = async () => {
+    if (!(await askConfirm(`三轉成為${B.third}？三轉後不能再換二轉分支。`))) return;
+    try { const c = await call('POST', '/api/job3', { charId: CHAR.id }); showChar(c); $('#meJob').textContent = c.jobName;
+      openDlg('百業宗師', `<p>恭喜！你成為了 <b>${c.jobName}</b>。</p><p><small>出征升級時會出現三轉技能「${D.skills[B.skill3].name}」，技能欄變成 6 格。Job Lv 101 起可以點三轉天賦（在二轉天賦樹裡）。</small></p>`, [['看天賦', () => openTalents({ char: CHAR, T, skillName: k => D.skills[k]?.name || k, openDlg, call, onSaved: c => showChar(c), tree: 2 }), true]]);
+    } catch (e) { openDlg('百業宗師', `<p>${e.message}</p>`, []); }
+  };
+  openDlg('百業宗師', `<p>${intro}</p>${cond}` + J.branches.map(card).join('') + sec3,
+    [...(ok3 ? [[`三轉：${B.third}`, go3, true]] : []), ...(ok && !CHAR.job3 ? J.branches.filter(b => b.key !== CHAR.job2).map(b => [`${CHAR.job2 ? '改成' : '轉職：'}${b.name}`, () => go(b), !CHAR.job2]) : [])]);
+}
+
+// ===== GM 面板（只限本機；照 PC 小助手的 GM 指令表：分類、搜尋、指令清單、發送）=====
+const IS_LOCAL = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+let gmCat = '全部', gmQ = '', gmLog = [], gmLine = '';
+if (IS_LOCAL) { $('#gmBtn').style.display = 'block'; $('#gmBtn').onclick = () => openGm(); }
+addEventListener('keydown', e => { if (IS_LOCAL && e.code === 'Backquote' && !e.target.closest('input,textarea')) { e.preventDefault(); openGm(); } });
+function openGm() {
+  const list = GM_CMDS.filter(([c, cmd, d]) => (gmCat === '全部' || c === gmCat) && (!gmQ || (cmd + d).includes(gmQ)));
+  const html = `${gmLog.length ? `<div style="font-size:13px;max-height:66px;overflow:auto;margin-bottom:6px;background:#fff;border-radius:8px;padding:4px 8px">${gmLog.map((l, i) => `<div style="color:${l.ok ? '#2e7d32' : '#c0392b'};${i ? 'opacity:.6' : 'font-weight:700'}">${esc(l.t)}</div>`).join('')}</div>` : ''}<div style="background:#fff7ec;border:2px solid #f0b46a;border-radius:12px;padding:10px">
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><small>搜尋：</small><input id="gmQ" value="${esc(gmQ)}" style="flex:1" placeholder="指令或說明"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${['全部', ...GM_CATS].map(c => `<button class="btn ${gmCat === c ? 'primary' : ''}" data-gc="${c}" style="${gmCat === c ? 'background:#e07a1c;border-color:#e07a1c' : ''}">${c}</button>`).join('')}</div>
+    <div style="background:#fff;border:1px solid #f0d2a8;border-radius:8px;max-height:200px;overflow:auto;padding:4px 8px;font-size:14px">${list.map(([, cmd, d]) => `<div data-gcmd="${esc(cmd)}" style="cursor:pointer;padding:3px 0;border-bottom:1px dashed #f3e2c8"><code style="color:#b35a00">${esc(cmd)}</code>　<small style="color:#7a6a58">${esc(d)}</small></div>`).join('') || '<small>沒有符合的指令</small>'}</div>
+    <div style="display:flex;gap:6px;margin-top:8px"><small style="align-self:center">發送</small><input id="gmIn" value="${esc(gmLine)}" style="flex:1;font-family:monospace" placeholder="/lv 70"><button class="btn primary" id="gmGo" style="background:#e07a1c;border-color:#e07a1c">發送</button></div>
+    <small style="color:#7a6a58">點清單＝填進發送欄（可改參數），Enter 執行。快捷鍵 \` 開關。目前角色：${esc(CHAR.name)}</small>
+    </div>`;
+  openDlg('GM 命令表（只限本機）', html, [], true);
+  const b = $('#dlgBody'), inp = $('#gmIn');
+  b.querySelectorAll('[data-gc]').forEach(x => x.onclick = () => { gmCat = x.dataset.gc; openGm(); });
+  b.querySelectorAll('[data-gcmd]').forEach(x => x.onclick = () => { gmLine = x.dataset.gcmd; openGm(); const i = $('#gmIn'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); });
+  const q = $('#gmQ'); q.addEventListener('keydown', e => e.stopPropagation()); q.addEventListener('input', () => { gmQ = q.value.trim(); const p = q.selectionStart; openGm(); const q2 = $('#gmQ'); q2.focus(); q2.setSelectionRange(p, p); });
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') run(); });
+  inp.addEventListener('input', () => { gmLine = inp.value; });
+  $('#gmGo').onclick = run;
+  async function run() {
+    const line = inp.value.trim(); if (!line) return; gmLine = line;
+    const [cmd, a1] = line.replace(/^\//, '').split(/\s+/);
+    // 前端指令：出征類（直接開遊戲）
+    if (cmd === 'help') { gmLog.unshift({ ok: true, t: GM_CMDS.map(c => c[1].split(' ')[0]).join(' ') }); return openGm(); }
+    if (cmd === 'stage' || cmd === 'boss') { const st = cmd === 'stage' ? +a1 || 0 : 0; try { sessionStorage.setItem('ss_stage', String(st)); } catch {} location.href = cmd === 'boss' ? `game.html?auto&boss=${+a1 || 0}` : 'game.html'; return; }
+    if (cmd === 'tower') { location.href = 'game.html?tower=1'; return; }
+    try { const r = await call('POST', '/api/gm', { charId: CHAR.id, line }); showChar(r.char); refreshChar(); gmLog.unshift({ ok: true, t: `${line} → ${r.msg}` }); }
+    catch (e) { gmLog.unshift({ ok: false, t: `${line} → ${e.message}` }); }
+    gmLog = gmLog.slice(0, 30); openGm();
+  }
+}
+
+// ===== PC 小地圖（主城）=====
+// 範圍：廣場中心 ±40（8×8 格、每格 10）；原版色調圖 1px＝1 單位；預設鏡頭轉了 180 度（城堡在上），地圖也轉 180 度
+const TMM = { R: 40, img: new Image(), icons: new Image(), last: 0 };
+TMM.img.src = TMAP.base + 'color.png'; TMM.icons.src = 'assets/ui/minimapicon.png';
+// 原版小地圖 NPC 圖示（interface/minimapicon.tex，32px 格子 [欄, 列]）
+const NPC_ICON = { captain: [4, 0], job: [5, 1], shop: [7, 0], smith: [7, 1], storage: [3, 2], rank: [4, 2], library: [3, 0], mount: [7, 2], auction: [3, 1],
+  stylist: [1, 0], ident: [5, 0], zaro: [0, 1], mail: [1, 2], rebirth: [6, 2], fish: [1, 3], pet: [0, 2] };
+function drawTownMap(cv, big = false) {
+  const g = cv.getContext('2d'), S = cv.width, M = big ? 22 : 14, A = S - M, R = TMM.R, cell = A / 8;
+  const P = (x, z) => [M + (1 - (x - (TC.x - R)) / (2 * R)) * A, (1 - (z - (TC.z - R)) / (2 * R)) * A];
+  g.clearRect(0, 0, S, S); g.fillStyle = '#d9c9a6'; g.fillRect(0, 0, S, S);
+  if (TMM.img.complete && TMM.img.naturalWidth) { g.save(); g.translate(M + A, A); g.scale(-1, -1); g.drawImage(TMM.img, TC.x + 256 - R, TC.z + 256 - R, 2 * R, 2 * R, 0, 0, A, A); g.restore(); }
+  g.strokeStyle = '#ffffff70'; g.lineWidth = 1; g.beginPath();
+  for (let i = 0; i <= 8; i++) { g.moveTo(M + i * cell, 0); g.lineTo(M + i * cell, A); g.moveTo(M, i * cell); g.lineTo(M + A, i * cell); } g.stroke();
+  g.fillStyle = '#5a4630'; g.font = `bold ${big ? 13 : 9}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let i = 0; i < 8; i++) { g.fillText('ABCDEFGH'[i], M + (i + 0.5) * cell, A + M / 2); g.fillText(String(8 - i), M / 2, (i + 0.5) * cell); }
+  // NPC：圓點＋名字第一個字（放大時顯示全名）
+  for (const n of NPCS) { const [x, y] = P(n.x, n.z), r = big ? 11 : 7, ic = NPC_ICON[n.id];
+    if (ic && TMM.icons.complete && TMM.icons.naturalWidth) g.drawImage(TMM.icons, ic[0] * 32, ic[1] * 32, 32, 32, x - r, y - r, r * 2, r * 2); // 原版圖示
+    else { g.beginPath(); g.arc(x, y, r * 0.75, 0, 7); g.fillStyle = '#' + n.color.toString(16).padStart(6, '0'); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke(); }
+    if (big) { g.fillStyle = '#2a1f12'; g.font = 'bold 11px sans-serif'; g.fillText(n.name.split(' ')[0], x, y + r + 8); } }
+  // 玩家箭頭（方向＝角色面向；地圖轉了 180 度所以 x、z 都反過來）
+  const [px, py] = P(player.position.x, player.position.z), fx = -Math.sin(player.rotation.y), fy = -Math.cos(player.rotation.y), L = big ? 12 : 8;
+  g.save(); g.translate(px, py); g.rotate(Math.atan2(fy, fx) + Math.PI / 2); g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.65, L * 0.7); g.lineTo(0, L * 0.3); g.lineTo(-L * 0.65, L * 0.7); g.closePath();
+  g.fillStyle = '#ff3b30'; g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke(); g.restore();
+  return P;
+}
+function tickTownMap(now) { if (now - TMM.last < 200) return; TMM.last = now; drawTownMap($('#tmm')); }
+// 放大地圖：點 NPC 清單或地圖上的位置就自動走過去
+function openTownMap() {
+  openDlg('希望之城 地圖', `<canvas id="tmmBig" width="460" height="460" style="width:min(460px,100%);display:block;margin:0 auto;border-radius:8px;cursor:crosshair"></canvas>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${NPCS.map((n, i) => `<button class="btn" data-tn="${i}" style="padding:4px 10px;font-size:13px"><span style="color:#${n.color.toString(16).padStart(6, '0')}">●</span> ${esc(n.name)}</button>`).join('')}</div>
+    <p><small>點地圖＝走到那裡；點人物＝走到他旁邊。</small></p>`, [], true);
+  const cv = $('#tmmBig'), go = (x, z) => { const w = walkable(x, z); click.x = w.x; click.z = w.z; click.on = true; closeDlg(); };
+  let P = drawTownMap(cv, true); const iv = setInterval(() => { if (!document.body.contains(cv)) return clearInterval(iv); P = drawTownMap(cv, true); }, 250);
+  cv.onclick = e => { const r = cv.getBoundingClientRect(), k = cv.width / r.width, X = (e.clientX - r.left) * k, Y = (e.clientY - r.top) * k, M = 22, A = cv.width - M, R = TMM.R;
+    go(TC.x - R + (1 - (X - M) / A) * 2 * R, TC.z - R + (1 - Y / A) * 2 * R); };
+  $('#dlgBody').querySelectorAll('[data-tn]').forEach(b => b.onclick = () => { const n = NPCS[+b.dataset.tn]; go(n.x + (TC.x - n.x) * 0.08, n.z + (TC.z - n.z) * 0.08); });
+}
+$('#tmmMap').onclick = openTownMap; $('#tmm').onclick = openTownMap;
+
+// ===== 項目 30：寵物飼育員（買蛋、出戰、餵食、改名）=====
+let petSel = null, petFeed = new Set();
+function openPets() {
+  const c = CHAR, pets = c.pets || [], p = pets.find(x => x.id === petSel) || pets.find(x => x.id === c.pet) || pets[0]; petSel = p?.id ?? null;
+  const hex = n => '#' + n.toString(16).padStart(6, '0');
+  const card = x => { const D = PETS[x.kind], on = x.id === c.pet; return `<div data-ps="${x.id}" style="cursor:pointer;flex:0 0 132px;background:#fff;border:2px solid ${x.id === petSel ? '#ff8a3d' : on ? '#e0a826' : '#c9d5f3'};border-radius:12px;padding:6px 8px;text-align:center">
+    <div style="font-size:26px;color:${hex(D.color)}">${['', '✦', '✶'][petStage(x.lv)] || ''}●</div><b style="font-size:13px">${esc(petName(x))}</b><br><small>Lv ${x.lv}・${D.name}${on ? '<br><b style="color:#c8901a">★ 出戰中</b>' : ''}</small></div>`; };
+  const bag = (c.items || []).filter(i => !i.equipped), fexp = bag.filter(i => petFeed.has(i.id)).reduce((t, i) => t + Math.round(FEED_EXP[i.rarity] * (1 + 0.1 * (i.refine || 0))), 0);
+  const det = !p ? '<p>還沒有寵物。在下面挑一顆蛋吧！</p>' : (() => { const D = PETS[p.kind], A = petAtk(p);
+    return `<div style="background:#fff;border-radius:12px;padding:10px 12px;line-height:1.7"><b style="font-size:16px;color:${hex(D.color)}">${esc(petName(p))}</b>　<small>${D.name}・屬性 ${['無', '火', '水', '木', '金', '土', '光', '暗'][D.elem]}</small>
+      <div>Lv <b>${p.lv}</b> / ${PET_MAX_LV}　${p.lv < PET_MAX_LV ? `經驗 ${p.exp} / ${petNeed(p.lv)}` : '（滿級）'}　<small>${p.lv < 10 ? 'Lv10 進化' : p.lv < 20 ? 'Lv20 再進化' : '已完全進化'}</small></div>
+      <div><small>出征：每 ${A.cd.toFixed(1)} 秒攻擊最近的怪 ${Math.round(A.dmg)} 傷害（屬性相剋）・被動 ${petBonusText(p)}</small></div>
+      <div class="acts" style="margin-top:6px">${p.id === c.pet ? '<button class="btn" data-pa="">收回</button>' : '<button class="btn primary" data-pa="1">出戰</button>'}<button class="btn" id="petRename">改名</button></div>
+      <div style="margin-top:8px"><small><b>餵食</b>：點背包裡不要的裝備（品質越高經驗越多，餵了就沒了）</small></div>
+      <div class="bag">${bag.map(i => `<div class="cell ${petFeed.has(i.id) ? 'sel' : ''}" data-pf="${i.id}" style="border-color:${RARITY[i.rarity].color}"><img src="${itemIcon(i)}" alt="">${i.refine ? `<b>+${i.refine}</b>` : ''}</div>`).join('') || '<small style="grid-column:1/-1">背包沒有可以餵的裝備</small>'}</div>
+      <button class="btn primary" id="petFeedGo" ${petFeed.size ? '' : 'disabled'}>餵 ${petFeed.size} 件（+${fexp} 經驗）</button></div>`; })();
+  const html = `<p>「這些精靈會陪你出征，餵牠們不要的裝備就會長大，Lv10、Lv20 還會進化喔。」</p>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">${pets.map(card).join('')}</div>${det}
+    <div class="sec" style="margin-top:10px"><b>買寵物蛋</b>　<small>每顆 ${EGG_PRICE} 金幣・最多 ${PET_MAX} 隻・打倒 MVP 也有機會撿到</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${Object.entries(PETS).map(([k, D]) => `<button class="btn" data-pb="${k}" ${c.gold < EGG_PRICE || pets.length >= PET_MAX ? 'disabled' : ''}><span style="color:${hex(D.color)}">●</span> ${D.name}</button>`).join('')}</div></div>`;
+  openDlg('寵物飼育員', html, [], true);
+  const b = $('#dlgBody'), done = (c2, m) => { showChar(c2); refreshChar(); if (m) toast(m); openPets(); };
+  b.querySelectorAll('[data-ps]').forEach(x => x.onclick = () => { petSel = +x.dataset.ps; petFeed.clear(); openPets(); });
+  b.querySelectorAll('[data-pb]').forEach(x => x.onclick = async () => { try { const c2 = await call('POST', '/api/petbuy', { charId: c.id, kind: x.dataset.pb }); petSel = c2.pets.at(-1).id; done(c2, `孵出了 ${PETS[x.dataset.pb].name}！`); } catch (e) { toast(e.message); } });
+  b.querySelectorAll('[data-pa]').forEach(x => x.onclick = async () => { try { done(await call('POST', '/api/petactive', { charId: c.id, petId: x.dataset.pa ? p.id : null }), x.dataset.pa ? '出戰！下次出征會跟著你' : '收回了'); } catch (e) { toast(e.message); } });
+  b.querySelectorAll('[data-pf]').forEach(x => x.onclick = () => { const id = +x.dataset.pf; petFeed.has(id) ? petFeed.delete(id) : petFeed.add(id); openPets(); });
+  $('#petFeedGo')?.addEventListener('click', async () => { if (!(await askConfirm(`把 ${petFeed.size} 件裝備餵給${petName(p)}？餵了就沒了。`))) return;
+    try { const r = await call('POST', '/api/petfeed', { charId: c.id, petId: p.id, itemIds: [...petFeed] }); petFeed.clear(); done(r.char, `+${r.exp} 經驗${r.ups ? `，升到 Lv ${r.pet.lv}！` : ''}`); } catch (e) { toast(e.message); } });
+  $('#petRename')?.addEventListener('click', async () => { const n = await askText('寵物的新名字（1～8 個字，空白＝原名）', p.name || '', { max: 8 }); if (n == null) return;
+    try { done(await call('POST', '/api/petname', { charId: c.id, petId: p.id, name: n }), '改好了'); } catch (e) { toast(e.message); } });
+}
+
+// ===== 項目 21：轉生師 =====
+function openRebirth() {
+  const c = CHAR, n = c.rebirth || 0, ok = c.baseLv >= 70 && n < 10;
+  const html = `<p>「到了 Base Lv 70，就能捨棄等級重新出發。轉生之後素質全部重新分配，還會多 <b>75</b> 點。」</p>
+    <p>目前轉生 <b>${n} / 10</b> 次　Base Lv <b>${c.baseLv}</b>${c.baseLv >= 70 ? ' <b style="color:#2e8b57">✔</b>' : ' <small style="color:#c0392b">（要 70）</small>'}</p>
+    <div class="detail"><b>轉生後：</b><br>・Base Lv 回到 1、經驗歸零<br>・素質全部回到 1，可重配點數＝${20 + 75 * (n + 1)}（20＋75×${n + 1}）；升級拿到的素質點會清掉<br>・<b>保留</b>：職業／二轉、Job 等級、天賦、裝備、背包、倉庫、寶石、鑲嵌石、金幣</div>`;
+  openDlg('轉生師', html, ok ? [[`轉生（第 ${n + 1} 次）`, async () => {
+    if (!(await askConfirm(`確定轉生？Base Lv 會回到 1、素質全部重配。`, { danger: true }))) return;
+    try { const c2 = await call('POST', '/api/rebirth', { charId: CHAR.id }); showChar(c2); refreshChar();
+      openDlg('轉生師', `<p>轉生完成！這是你的第 <b>${c2.rebirth}</b> 次轉生。</p><p>你有 <b>${c2.points}</b> 點素質可以分配。</p>`, [['去分配素質', () => { openBag('bag'); bagTab = 'stats'; renderBag(); }, true]]);
+    } catch (e) { toast(e.message); }
+  }, true]] : []);
+}
+
+// ===== 項目 19：排行榜（六個分頁、職業篩選、前三名金銀銅、自己的角色藍框、每 30 秒更新）=====
+let rTab = 'power', rJob = '', rTimer = 0;
+const RANK_TABS = [['power', '戰力'], ['base', 'Base 等級'], ['job', 'Job 等級'], ['stage', '關卡進度'], ['kills', '擊殺數'], ['tower', '無盡塔']];
+async function openRank(quiet = false) {
+  clearTimeout(rTimer);
+  let r; try { r = await call('GET', `/api/rank?tab=${rTab}&job=${encodeURIComponent(rJob)}`); } catch (e) { return toast(e.message); }
+  if (quiet && !dlgOpen) return; // 背景更新時視窗已關就不再打開
+  const fmt = s => `${String(s / 60 | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const col = { power: ['戰力', x => x.power], base: ['Base', x => `Lv ${x.baseLv}`], job: ['Job', x => `Lv ${x.jobLv}`], stage: ['通關', x => `${x.stages} 張・最久 ${fmt(x.best)}`], kills: ['總擊殺', x => x.kills], tower: ['本月最佳', x => `${x.towerScore.toLocaleString()} 分・第 ${x.towerFloor} 層`] }[rTab];
+  const medal = n => ['🥇', '🥈', '🥉'][n - 1] || n;
+  const row = x => `<tr style="${x.mine ? 'outline:2px solid #3a7bff;background:#eaf1ff' : ''}${x.rank <= 3 ? ';font-weight:700' : ''}"><td>${medal(x.rank)}</td><td>${esc(x.name)}</td><td>${esc(x.jobName)}</td><td>${col[1](x)}</td></tr>`;
+  const html = `<div class="tabs2" style="flex-wrap:wrap">${RANK_TABS.map(([k, v]) => `<button class="btn ${rTab === k ? 'primary' : ''}" data-rt="${k}">${v}</button>`).join('')}</div>
+    <div class="tabs2" style="align-items:center"><select id="rJob"><option value="">全部職業</option>${Object.keys(JOBS).map(j => `<option ${rJob === j ? 'selected' : ''}>${j}</option>`).join('')}</select>
+      <small style="color:#6b7896">　共 ${r.total ?? 0} 名・每 30 秒更新（${new Date(r.at || Date.now()).toLocaleTimeString()}）・藍框＝你的角色</small></div>
+    ${r.note ? `<p>${r.note}</p>` : r.rows.length ? `<table><tr><th>#</th><th>角色</th><th>職業</th><th>${col[0]}</th></tr>${r.rows.map(row).join('')}${r.mine?.length ? `<tr><td colspan="4" style="text-align:center">⋯</td></tr>${r.mine.map(row).join('')}` : ''}</table>` : '還沒有人上榜，去當第一名吧！'}
+    ${rTab === 'power' ? '<p><small>戰力＝身上裝備的數值換算成分數（攻擊、爆擊、冷卻、移速、吸取、HP、護甲）。</small></p>' : ''}`;
+  openDlg('排行榜', html, [], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-rt]').forEach(x => x.onclick = () => { rTab = x.dataset.rt; openRank(); });
+  $('#rJob').onchange = e => { rJob = e.target.value; openRank(); };
+  rTimer = setTimeout(() => { if (dlgOpen && $('#rJob')) openRank(true); }, 30000);
+}
+
+// ===== 項目 20：郵差（信箱：系統信＋附件領取、可丟掉）=====
+let mails = null, mSel = null;
+const matName = k => ORES[k]?.name || { dust: '閃亮粉末', crystal: '閃亮結晶', rainbow: '七彩粉末' }[k] || k;
+const attachHtml = m => [m.gold ? `💰 ${m.gold} 金幣` : '', ...m.items.map(it => `<span style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</span>`), ...Object.entries(m.mats).map(([k, v]) => `${matName(k)} ×${v}`)].filter(Boolean).join('、');
+async function openMail(refetch = true) {
+  if (refetch || !mails) { try { mails = (await call('GET', '/api/mail/' + CHAR.id)).mails; } catch (e) { return toast(e.message); } }
+  const has = m => m.gold || m.items.length || Object.keys(m.mats).length, m = mails.find(x => x.id === mSel);
+  const html = `<p>「有你的信喔！」</p>
+    <div style="max-height:200px;overflow:auto">${mails.map(x => `<div class="eq" data-ml="${x.id}" style="margin-bottom:4px;${mSel === x.id ? 'border-color:#ff8a3d' : ''}${x.read ? ';opacity:.75' : ''}">
+      <div style="flex:1">${x.read ? '' : '<b style="color:#c0392b">● </b>'}<b>${x.title.replace(/</g, '&lt;')}</b>　<small>${x.sender}・${new Date(x.created).toLocaleDateString()}</small><small>${has(x) ? (x.claimed ? '附件已領取' : '📎 ' + attachHtml(x)) : ''}</small></div></div>`).join('') || '<small>信箱是空的</small>'}</div>
+    <div class="detail">${m ? `<b>${m.title.replace(/</g, '&lt;')}</b>　<small>寄件人：${m.sender}</small><p>${m.body.replace(/</g, '&lt;')}</p>${has(m) ? `<p>附件：${attachHtml(m)}</p>` : ''}
+      <div class="acts">${has(m) && !m.claimed ? `<button class="btn primary" id="mClaim">領取</button>` : ''}<button class="btn" id="mDel">丟掉這封</button></div>` : '<small>點一封信來看</small>'}</div>`;
+  openDlg(`郵差（${mails.length} 封）`, html, [['全部領取', () => claim('all'), true], ['丟掉已讀且已領取的', () => del(mails.filter(x => x.read && (x.claimed || !has(x))).map(x => x.id))]], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-ml]').forEach(x => x.onclick = async () => { mSel = +x.dataset.ml; const mm = mails.find(y => y.id === mSel); if (!mm.read) { mm.read = true; call('POST', '/api/mailread', { charId: CHAR.id, mailId: mSel }).catch(() => {}); } openMail(false); });
+  $('#mClaim')?.addEventListener('click', () => claim(mSel));
+  $('#mDel')?.addEventListener('click', async () => { if (has(m) && !m.claimed && !(await askConfirm('附件還沒領取，丟掉就沒了，確定？', { danger: true }))) return; del([m.id]); });
+  async function claim(id) {
+    try { const r = await call('POST', '/api/mailclaim', { charId: CHAR.id, mailId: id }); mails = r.mails; showChar(r.char); openMail(false);
+      toast(r.claimed ? `領取了 ${r.claimed} 封信的附件${r.full ? '（背包滿了，有些沒領）' : ''}` : r.full ? '背包滿了' : '沒有可以領的附件'); } catch (e) { toast(e.message); }
+  }
+  async function del(ids) { if (!ids.length) return toast('沒有可以丟的'); try { mails = (await call('POST', '/api/maildel', { charId: CHAR.id, mailIds: ids })).mails; mSel = null; openMail(false); } catch (e) { toast(e.message); } }
+}
+
+// ===== 項目 18：倉庫管理員（帳號共用倉庫：分頁 1～6、分類、搜尋、排序；點背包＝存入、點倉庫＝取回）=====
+let stash = null, sPage = 0, sCat = 'all', sQ = '', sSort = 'rarity';
+async function openStash(refetch = true) {
+  if (refetch || !stash) { try { stash = await call('GET', '/api/stash'); } catch (e) { return toast(e.message); } }
+  const c = CHAR, S = stash, locked = sPage >= S.unlocked;
+  const ok = it => (sCat === 'all' || it.slot === sCat) && (!sQ || itemName(it).includes(sQ) || RARITY[it.rarity].name.includes(sQ));
+  const sorter = { rarity: (a, b) => b.rarity - a.rarity || b.refine - a.refine, refine: (a, b) => b.refine - a.refine || b.rarity - a.rarity, slot: (a, b) => a.slot.localeCompare(b.slot) || b.rarity - a.rarity, new: (a, b) => b.id - a.id }[sSort];
+  const bag = (c.items || []).filter(ok).sort(sorter), page = S.items.filter(i => i.page === sPage), shown = page.filter(ok).sort(sorter);
+  const cell = (it, attr) => `<div class="cell ${it.equipped ? 'eqd' : ''}" ${attr}="${it.id}" style="border-color:${RARITY[it.rarity].color}" title="${RARITY[it.rarity].name} ${itemName(it)}${it.equipped ? '（穿著中，不能存）' : ''}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`;
+  const html = `<div class="tabs2" style="flex-wrap:wrap">${S.names.map((n, i) => `<button class="btn ${sPage === i ? 'primary' : ''}" data-sp="${i}">${i < S.unlocked ? n : `🔒 ${i + 1}`}</button>`).join('')}</div>
+    ${locked ? `<p>這一頁還沒解鎖。${sPage === S.unlocked ? `<button class="btn primary" id="sUnlock" ${c.gold < S.cost[sPage] ? 'disabled' : ''}>花 ${S.cost[sPage]} 金幣解鎖</button>` : `<small>要先解鎖前面的分頁</small>`}</p>` : `
+    <div class="tabs2" style="flex-wrap:wrap;align-items:center">${[['all', '全部'], ...Object.entries(SLOTS)].map(([k, v]) => `<button class="btn ${sCat === k ? 'primary' : ''}" data-sc="${k}">${v}</button>`).join('')}
+      <input id="sQ" placeholder="搜尋名稱或品質" value="${sQ.replace(/"/g, '')}" style="width:130px">
+      <select id="sSort">${[['rarity', '品質'], ['refine', '精煉'], ['slot', '部位'], ['new', '最新']].map(([k, v]) => `<option value="${k}" ${sSort === k ? 'selected' : ''}>排序：${v}</option>`).join('')}</select>
+      <button class="btn" id="sRename">改名</button></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px"><b>背包</b> <small>${(c.items || []).length}/40・點一下＝存入</small><div class="bag">${bag.map(it => cell(it, 'data-sput')).join('') || '<small>沒有</small>'}</div>
+        <button class="btn" id="sPutAll">存入全部沒穿的</button></div>
+      <div style="flex:1;min-width:220px"><b>${S.names[sPage]}</b> <small>${page.length}/${S.size}・點一下＝取回</small><div class="bag">${shown.map(it => cell(it, 'data-stake')).join('') || '<small>空的</small>'}</div>
+        <button class="btn" id="sTakePage">取出這一頁</button><button class="btn" id="sTakeAll">全部取出</button></div>
+    </div>`}
+    <p><small>倉庫是整個帳號共用的，換角色也拿得到。穿著中的裝備不能存。</small></p>`;
+  openDlg(`倉庫管理員（${S.items.length} 件）`, html, [], true);
+  const b = $('#dlgBody');
+  const put = async ids => { if (!ids.length) return toast('沒有可以存的'); try { const r = await call('POST', '/api/stashput', { charId: CHAR.id, itemIds: ids, page: sPage }); stash = r.stash; showChar(r.char); openStash(false); } catch (e) { toast(e.message); } };
+  const take = async ids => { if (!ids.length) return toast('沒有可以取的'); try { const r = await call('POST', '/api/stashtake', { charId: CHAR.id, itemIds: ids }); stash = r.stash; showChar(r.char); openStash(false); if (r.left) toast(`背包滿了，還有 ${r.left} 件沒取`); } catch (e) { toast(e.message); } };
+  b.querySelectorAll('[data-sp]').forEach(x => x.onclick = () => { sPage = +x.dataset.sp; openStash(false); });
+  b.querySelectorAll('[data-sc]').forEach(x => x.onclick = () => { sCat = x.dataset.sc; openStash(false); });
+  b.querySelectorAll('[data-sput]').forEach(x => x.onclick = () => { const it = CHAR.items.find(i => i.id === +x.dataset.sput); if (it?.equipped) return toast('穿著中的裝備不能存'); put([+x.dataset.sput]); });
+  b.querySelectorAll('[data-stake]').forEach(x => x.onclick = () => take([+x.dataset.stake]));
+  $('#sPutAll')?.addEventListener('click', () => put((CHAR.items || []).filter(i => !i.equipped).map(i => i.id).slice(0, S.size - page.length)));
+  $('#sTakePage')?.addEventListener('click', () => take(page.map(i => i.id)));
+  $('#sTakeAll')?.addEventListener('click', () => take(S.items.map(i => i.id)));
+  $('#sSort')?.addEventListener('change', e => { sSort = e.target.value; openStash(false); });
+  const q = $('#sQ'); q?.addEventListener('input', () => { sQ = q.value.trim(); const pos = q.selectionStart; openStash(false); const q2 = $('#sQ'); q2.focus(); q2.setSelectionRange(pos, pos); });
+  $('#sUnlock')?.addEventListener('click', async () => { try { const r = await call('POST', '/api/stashunlock', { charId: CHAR.id }); stash = r.stash; showChar(r.char); openStash(false); toast('解鎖了新的倉庫分頁'); } catch (e) { toast(e.message); } });
+  $('#sRename')?.addEventListener('click', async () => { const n = await askText('新的分頁名稱（1～10 個字）', S.names[sPage], { max: 10 }); if (!n) return; try { stash = await call('POST', '/api/stashname', { page: sPage, name: n }); openStash(false); } catch (e) { toast(e.message); } });
+}
+
+// ===== 項目 28：寶石收藏家 扎羅（分解裝備→鑲嵌石材料、閃亮粉末換閃亮結晶）=====
+let zMarked = new Set();
+function openZaro() {
+  const c = CHAR, M = c.mats || {}, pool = (c.items || []).filter(i => !i.equipped);
+  const html = `<p>「不要的裝備交給我分解，可以拿到鑲嵌石的材料。閃亮粉末 ${DUST_PER_CRYSTAL} 個可以跟我換 1 個閃亮結晶。」</p>
+    <p>持有：<img src="assets/items/4244.png" alt="" style="width:24px;vertical-align:middle">閃亮粉末 <b>${M.dust || 0}</b>　<img src="assets/items/4245.png" alt="" style="width:24px;vertical-align:middle">閃亮結晶 <b>${M.crystal || 0}</b>　<img src="assets/items/4246.png" alt="" style="width:24px;vertical-align:middle">七彩粉末 <b>${M.rainbow || 0}</b>
+      <button class="btn" data-dx="1" ${(M.dust || 0) >= DUST_PER_CRYSTAL ? '' : 'disabled'}>換 1 個（${DUST_PER_CRYSTAL} 粉末）</button><button class="btn" data-dx="10" ${(M.dust || 0) >= DUST_PER_CRYSTAL * 10 ? '' : 'disabled'}>換 10 個</button></p>
+    <div class="tabs2" style="flex-wrap:wrap"><small style="align-self:center">快速選：</small>${RARITY.map((r, i) => `<button class="btn" data-zr="${i}" style="color:${r.color}">${r.name}</button>`).join('')}<button class="btn" data-zr="-1">清除</button></div>
+    <div class="bag">${pool.map(it => `<div class="cell ${zMarked.has(it.id) ? 'sel' : ''}" data-zk="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('') || '<small>沒有可以分解的裝備（穿著的不行）</small>'}</div>
+    <div class="detail">已選 <b>${zMarked.size}</b> 件　<button class="btn primary" data-zgo ${zMarked.size ? '' : 'disabled'}>分解</button><br>
+      <small>每件可得（照原版合成寶石分解表）：${RARITY.map((r, i) => `${r.name}＝粉末 ${DECOMPOSE[i].dust.join('～')}、結晶 ${+(DECOMPOSE[i].crystal * 100).toFixed(2)}%、七彩 ${+(DECOMPOSE[i].rainbow * 100).toFixed(2)}%`).join('；')}</small></div>`;
+  openDlg('寶石收藏家 扎羅', html, [], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-zk]').forEach(x => x.onclick = () => { const id = +x.dataset.zk; zMarked.has(id) ? zMarked.delete(id) : zMarked.add(id); openZaro(); });
+  b.querySelectorAll('[data-zr]').forEach(x => x.onclick = () => { const r = +x.dataset.zr; if (r < 0) zMarked.clear(); else pool.filter(i => i.rarity === r).forEach(i => zMarked.add(i.id)); openZaro(); });
+  b.querySelectorAll('[data-dx]').forEach(x => x.onclick = async () => { try { showChar(await call('POST', '/api/dustex', { charId: CHAR.id, n: +x.dataset.dx })); openZaro(); toast('換好了'); } catch (e) { toast(e.message); } });
+  b.querySelector('[data-zgo]')?.addEventListener('click', async () => {
+    const ids = [...zMarked], refined = (CHAR.items || []).filter(i => zMarked.has(i.id) && (i.refine || i.ident)).length;
+    if (!(await askConfirm(`分解 ${ids.length} 件裝備？${refined ? `（其中 ${refined} 件有精煉或鑑定）` : ''}分解後裝備會消失。`, { danger: true }))) return;
+    try { const r = await call('POST', '/api/decompose', { charId: CHAR.id, itemIds: ids }); showChar(r.char); zMarked.clear(); openZaro();
+      toast(`得到 閃亮粉末 ${r.got.dust}${r.got.crystal ? `、閃亮結晶 ${r.got.crystal}` : ''}${r.got.rainbow ? `、七彩粉末 ${r.got.rainbow}` : ''}`); } catch (e) { toast(e.message); }
+  });
+}
+
+// ===== 項目 28：技能鑑定師 魯魯（照 PC 原版技能屬性鑑定）=====
+let idTab = 'weapon', idSel = null, idJob = null;
+async function openIdent() {
+  const [T, D] = await DATA; const c = CHAR; idJob ??= c.job;
+  const items = (c.items || []).filter(i => i.slot === idTab), it = items.find(i => i.id === idSel);
+  const cost = IDENT_COST[idTab] + (idJob !== c.job ? IDENT_PICK_COST : 0), scrolls = c.mats?.reset || 0;
+  let html = `<p>「把武器或防具交給我，我能看出它藏著哪一招的力量。每次一定會出現 <b>1 種技能屬性</b>（某技能 Lv+1～+5），不會超過技能上限；沒學過的技能不會提升。」</p>
+    <div class="tabs2">${IDENT_SLOTS.map(k => `<button class="btn ${idTab === k ? 'primary' : ''}" data-it="${k}">${SLOTS[k]}</button>`).join('')}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>
+    <div class="bag">${items.map(i => `<div class="cell ${i.equipped ? 'eqd' : ''} ${idSel === i.id ? 'sel' : ''}" data-ids="${i.id}" style="border-color:${RARITY[i.rarity].color}"><img src="${itemIcon(i)}" alt="">${i.ident ? '<b>✦</b>' : ''}</div>`).join('') || `<small>背包裡沒有${SLOTS[idTab]}</small>`}</div>
+    <div class="detail">`;
+  if (!it) html += '<small>點一件裝備。✦＝已鑑定。</small>';
+  else {
+    html += `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b><br>${identLine(it)}<div class="acts">`;
+    if (!it.ident) html += `範圍：<select id="idJob">${Object.keys(T.jobs).map(j => `<option value="${j}" ${j === idJob ? 'selected' : ''}>${j === c.job ? `${j}（自己的職業）` : `${j}（選擇職業 +${IDENT_PICK_COST}）`}</option>`).join('')}</select>
+      <button class="btn primary" id="idGo" ${c.gold < cost ? 'disabled' : ''}>鑑定（${cost} 金幣）</button>`;
+    else html += `<button class="btn" id="idReset" ${scrolls ? '' : 'disabled'}>重置鑑定（用 1 張技能屬性初始化卷軸，持有 ${scrolls}）</button>`;
+    html += '</div>';
+  }
+  html += `</div><p><small>範圍＝該職業一轉＋兩條二轉的所有技能。提升等級機率（依技能可提升的最高等級）：${Object.entries(IDENT_PROB).map(([m, p]) => `最高 +${m}：${p.map((v, i) => `+${i + 1} ${Math.round(v * 100)}%`).join('、')}`).join('；')}。卷軸在裝備商人「購買」分頁。</small></p>`;
+  openDlg('技能鑑定師 魯魯', html, [], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-it]').forEach(x => x.onclick = () => { idTab = x.dataset.it; idSel = null; openIdent(); });
+  b.querySelectorAll('[data-ids]').forEach(x => x.onclick = () => { idSel = +x.dataset.ids; openIdent(); });
+  $('#idJob')?.addEventListener('change', e => { idJob = e.target.value; openIdent(); });
+  $('#idGo')?.addEventListener('click', async () => {
+    try { const r = await call('POST', '/api/identify', { itemId: idSel, job: idJob }); showChar(r.char); openIdent();
+      const n = identNode(T, r.ident); toast(`鑑定出「${n.name} Lv+${r.ident.lv}」！`); } catch (e) { toast(e.message); }
+  });
+  $('#idReset')?.addEventListener('click', async () => {
+    if (!(await askConfirm('用 1 張卷軸把技能屬性重置成「尚未鑑定」？'))) return;
+    try { showChar(await call('POST', '/api/identreset', { itemId: idSel })); openIdent(); toast('已重置，可以再鑑定一次'); } catch (e) { toast(e.message); }
+  });
+}
+
+// ===== 遠征 =====
+const thumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); thumbR.setSize(128, 128);
+const thumbScene = new THREE.Scene(); thumbScene.add(new THREE.HemisphereLight(0xffffff, 0x667788, 1.8));
+{ const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(3, 5, 4); thumbScene.add(dl); }
+const thumbCam = new THREE.PerspectiveCamera(30, 1, 0.1, 100); thumbCam.position.set(0, 1.1, 4.4); thumbCam.lookAt(0, 0.85, 0);
+const thumbs = new Map();
+function monThumb(name) {
+  if (!thumbs.has(name)) thumbs.set(name, (async () => {
+    const m = await sealModel(MONSTER_MODELS[name] || name, 1.7); m.rotation.y = Math.PI * 0.85 + Math.PI;
+    thumbScene.add(m); thumbR.render(thumbScene, thumbCam); thumbScene.remove(m); return thumbR.domElement.toDataURL();
+  })().catch(() => ''));
+  return thumbs.get(name);
+}
+async function fillThumbs(root) { for (const img of root.querySelectorAll('img[data-mon]')) img.src = await monThumb(img.dataset.mon); }
+let expSel = 0;
+const fmtT = s => `${String(s / 60 | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+function openExpedition() {
+  const cl = CHAR.cleared || [];
+  if (!stageUnlocked(expSel, cl)) expSel = 0;
+  const S = STAGES[expSel], unlocked = stageUnlocked(expSel, cl);
+  const hex = n => '#' + n.toString(16).padStart(6, '0');
+  const list = STAGES.map((st, i) => { const un = stageUnlocked(i, cl), done = cl.includes(st.key), mvp = st.bosses[st.bosses.length - 1][1];
+    return `<div class="st ${i === expSel ? 'on' : ''} ${un ? '' : 'lock'}" data-st="${i}"><img data-mon="${mvp}" alt=""><div><b>${st.name}</b><small>MVP ${mvp}　Lv ${st.lv}</small>
+      <span class="tag ${done ? 'done' : un ? 'ok' : 'lock'}">${done ? '已通關' : un ? '可挑戰' : '未解鎖'}</span></div></div>`; }).join('');
+  const info = `<div class="hero" style="background:${S.banner ? `linear-gradient(90deg,#0009,#0000 70%),url(${S.banner}) 22% 78%/175% auto no-repeat,` : ''}linear-gradient(135deg,${hex(S.ground)},${hex(S.fog)})"><span class="lv">Lv ${S.lv}</span><b>${S.name}</b><small>${S.sub}・MVP ${S.bosses[S.bosses.length - 1][1]}</small></div>
+    <div class="sec"><h4>頭目</h4><div class="row">${S.bosses.map(([sec, n, k]) => `<div class="mon ${k}"><img data-mon="${n}" alt="">${n}<small>${k === 'mvp' ? 'MVP' : '小王'}・${fmtT(sec)}</small></div>`).join('')}</div></div>
+    <div class="sec"><h4>怪物</h4><div class="row">${S.monsters.map(n => `<div class="mon"><img data-mon="${n}" alt="">${n}</div>`).join('')}</div></div>
+    <div class="sec"><h4>獎勵</h4>經驗、金幣 ×${S.reward}　・　打倒小王和 MVP 必掉首領寶箱（至少精良）<br>精英怪 40% 掉寶箱　・　打倒 MVP 通關，獎勵再 ×1.5${STAGES[expSel + 1] ? `，並解鎖「${STAGES[expSel + 1].name}」` : ''}</div>`;
+  // 項目 41：難度滑桿（存 localStorage ss_diff_saved，出發時寫進 sessionStorage ss_diff 給遊戲用）
+  // v1.1（使用者：同一關、自己調難度、照 PC 數值）：怪物等級＝地圖本身等級～Lv200，HP／攻擊照 PC 一般野外怪等級曲線
+  const BASE = stageBaseLv(S); let DF = cleanDiff(null, BASE); try { DF = cleanDiff(JSON.parse(localStorage.getItem('ss_diff_saved')), BASE); } catch {}
+  const diffTxt = () => { const m = diffMods(DF, BASE), L = diffLoot(DF, BASE), lr = legendRate(lootBonus(L.gear, 0.3) + expSel * 0.4), lrb = legendRate(lootBonus(L.boss, 2) + expSel * 0.4), R = pcRef(DF.monLv);
+    return `PC Lv${DF.monLv} 一般怪：HP ${R.hp.toLocaleString()}・攻擊 ${R.atk}　→ 這張地圖的怪 HP ×${+m.hp.toFixed(2)}・攻擊 ×${+m.dmg.toFixed(2)}・生怪 ×${m.spawn}・精英 ×${m.event}<br><b>裝備 ×${L.gear}</b>（一般寶箱品質）・<b>掉寶 ×${L.boss}</b>（首領寶箱品質）・傳說率 一般 ${(lr * 100).toFixed(2)}%／首領 ${(lrb * 100).toFixed(2)}%<br><small>經驗與金幣不受難度影響</small>`; };
+  const diffHtml = `<div class="sec"><h4>難度（同一張地圖，怪物強度照 PC 等級）</h4>${[['monLv', '怪物等級'], ...DIFF_KEYS].map(([k, n]) => `<div style="display:flex;align-items:center;gap:8px;margin:2px 0"><small style="width:64px">${n}</small><input type="range" data-df="${k}" min="${k === 'monLv' ? BASE : 1}" max="${k === 'monLv' ? LV_MAX : DIFF_MAX}" value="${DF[k]}" style="flex:1"><b data-dfv="${k}" style="width:52px;text-align:right">${k === 'monLv' ? 'Lv' : '×'}${DF[k]}</b></div>`).join('')}
+    <div id="dfTxt" style="font-size:12px;line-height:1.6;margin-top:4px">${diffTxt()}</div><button class="btn" id="dfReset" style="margin-top:4px;padding:4px 10px">恢復預設</button></div>`;
+  openDlg('遠征', `<div class="exp"><div class="list">${list}</div><div class="info">${info}${diffHtml}</div></div>`,
+    [...(unlocked ? [['出發', () => { try { sessionStorage.setItem('ss_stage', String(expSel)); sessionStorage.setItem('ss_diff', JSON.stringify(DF)); } catch {} location.href = 'game.html'; }, true]] : []), [`🗼 ${TOWER_NAME}`, () => openTower()]], true);
+  $('#dlgBody').querySelectorAll('[data-st]').forEach(el => el.onclick = () => { const i = +el.dataset.st; if (!stageUnlocked(i, cl)) return toast('先通關前一張地圖才會解鎖'); expSel = i; openExpedition(); });
+  const saveDF = () => { try { localStorage.setItem('ss_diff_saved', JSON.stringify(DF)); } catch {} $('#dfTxt').innerHTML = diffTxt(); };
+  $('#dlgBody').querySelectorAll('[data-df]').forEach(el => el.oninput = () => { const k = el.dataset.df; DF[k] = +el.value; $(`[data-dfv="${k}"]`).textContent = (k === 'monLv' ? 'Lv' : '×') + DF[k]; saveDF(); });
+  $('#dfReset').onclick = () => { DF = cleanDiff(null, BASE); $('#dlgBody').querySelectorAll('[data-df]').forEach(el => { el.value = DF[el.dataset.df]; $(`[data-dfv="${el.dataset.df}"]`).textContent = (el.dataset.df === 'monLv' ? 'Lv' : '×') + DF[el.dataset.df]; }); saveDF(); };
+  fillThumbs($('#dlgBody'));
+}
+
+// ===== 項目 22：賢者之塔（開打前：選 4 招＋塔點數強化＋塔之詛咒）=====
+let twSet = null;
+async function openTower() {
+  const [T, D] = await DATA, c = CHAR, tw = c.tower || { floor: 0, score: 0, month: 0, points: 0, open: false };
+  if (!tw.open) {
+    const row = (ok, txt) => `<div>${ok ? '<b style="color:#2e8b57">✔</b>' : '<b style="color:#c0392b">✘</b>'} ${txt}</div>`;
+    return openDlg(TOWER_NAME, `<p>「無止境的塔，每一分鐘往上一層，越上面越強。」</p><p><b>開放條件</b></p>${row(!!c.job2, '完成二轉（百業宗師）')}${STAGES.map(st => row((c.cleared || []).includes(st.key), `通關 ${st.name}`)).join('')}`, [['← 遠征', () => openExpedition()]]);
+  }
+  const J = D.jobs[c.job], B = c.job2 && T.jobs[c.job].branches.find(b => b.key === c.job2), allowed = [...J.pool, ...(B?.skills || [])];
+  twSet ??= (() => { try { return JSON.parse(sessionStorage.getItem('ss_tower')); } catch { return null; } })() || { skills: allowed.slice(0, PICK), boost: {}, curse: 'none' };
+  twSet.skills = twSet.skills.filter(k => allowed.includes(k));
+  for (const k in twSet.boost) if (!twSet.skills.includes(k)) delete twSet.boost[k];
+  if (!CURSES[twSet.curse]) twSet.curse = 'none';
+  const used = Object.values(twSet.boost).reduce((a, b) => a + b, 0), err = checkTowerSetup(twSet, allowed, tw.points);
+  const ico = k => { const [f, x, y] = D.skills[k].icon; return `<i style="display:inline-block;width:32px;height:32px;vertical-align:middle;background:url(assets/skill/${f}) -${x}px -${y}px no-repeat"></i>`; };
+  const html = `<p>每 1 分鐘上一層：1～10 層平原、11～20 森林、21～30 墓地、31 層以上紅土；每 5 層小王、每 10 層 MVP。倒下就結束，分數＝樓層 ×1000＋擊殺，乘詛咒倍率。</p>
+    <p>最高樓層 <b>${tw.floor}</b>　最高分 <b>${tw.score.toLocaleString()}</b>　本月最高 <b>${tw.month.toLocaleString()}</b>　塔點數 <b>${tw.points}</b>（最高樓層每 5 層 1 點）</p>
+    <div class="sec"><b>① 選 ${PICK} 招技能（這一局只會出這幾招）</b>　<small>${twSet.skills.length}/${PICK}</small><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${allowed.map(k => { const on = twSet.skills.includes(k);
+      return `<div class="eq" data-tk="${k}" style="cursor:pointer;${on ? 'border-color:#3a7bff;background:#eaf1ff' : 'opacity:.7'}">${ico(k)}<div><b>${D.skills[k].name}</b>${on ? `<small style="display:flex;align-items:center;gap:4px;white-space:nowrap">起始 Lv ${1 + (twSet.boost[k] || 0)}<button class="btn" style="padding:0 8px;min-width:0" data-tb="${k}" data-d="-1">－</button><button class="btn" style="padding:0 8px;min-width:0" data-tb="${k}" data-d="1">＋</button></small>` : ''}</div></div>`; }).join('')}</div>
+      <small>② 塔點數：每 1 點讓一招起始等級 +1（最高 Lv5）。已用 ${used} / ${tw.points}</small></div>
+    <div class="sec"><b>③ 塔之詛咒（可不選）</b><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${Object.entries(CURSES).map(([k, cu]) => `<button class="btn ${twSet.curse === k ? 'primary' : ''}" data-tc="${k}">${cu.name}<br><small>${cu.desc}・分數 ×${cu.mult}</small></button>`).join('')}</div></div>
+    ${err ? `<p style="color:#c0392b">${err}</p>` : ''}`;
+  openDlg(`🗼 ${TOWER_NAME}`, html, [...(err ? [] : [['進塔', () => { try { sessionStorage.setItem('ss_tower', JSON.stringify(twSet)); } catch {} location.href = 'game.html?tower=1'; }, true]]), ['← 遠征', () => openExpedition()]], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-tk]').forEach(x => x.onclick = e => { if (e.target.closest('[data-tb]')) return; const k = x.dataset.tk;
+    if (twSet.skills.includes(k)) { twSet.skills = twSet.skills.filter(y => y !== k); delete twSet.boost[k]; } else if (twSet.skills.length < PICK) twSet.skills.push(k); else return toast(`最多選 ${PICK} 招`);
+    openTower(); });
+  b.querySelectorAll('[data-tb]').forEach(x => x.onclick = () => { const k = x.dataset.tb, v = (twSet.boost[k] || 0) + +x.dataset.d;
+    if (v < 0 || v > 4) return; if (+x.dataset.d > 0 && used >= tw.points) return toast('塔點數用完了'); twSet.boost[k] = v; if (!v) delete twSet.boost[k]; openTower(); });
+  b.querySelectorAll('[data-tc]').forEach(x => x.onclick = () => { twSet.curse = x.dataset.tc; openTower(); });
+}
+
+// ===== 拍賣所 =====
+let aTab = 'browse', aQ = '', aSlot = 'all', aRar = -1, aSort = 'asc', aSel = null, aData = null;
+const left = ms => { const m = Math.max(0, Math.floor(ms / 60000)); return `${Math.floor(m / 60)} 小時 ${m % 60} 分`; };
+const myEq = slot => (CHAR.items || []).find(i => i.equipped && i.slot === slot);
+const score = it => it ? Math.round(Object.entries(itemStats(it)).reduce((a, [k, v]) => a + (k === 'hp' ? v : k === 'armor' ? v * 8 : v * 400), 0)) : 0;
+async function openAuction(tab) {
+  aTab = tab || aTab;
+  try {
+    if (aTab === 'browse') aData = await call('GET', '/api/auctions');
+    if (aTab === 'mine') aData = await call('GET', '/api/myauctions/' + CHAR.id);
+  } catch (e) { return toast(e.message); }
+  const c = CHAR;
+  let html = `<div class="tabs2">${[['browse', '瀏覽'], ['sell', '上架'], ['mine', '我的拍賣']].map(([k, v]) => `<button class="btn ${aTab === k ? 'primary' : ''}" data-at="${k}">${v}</button>`).join('')}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
+  if (aTab === 'browse') {
+    let rows = aData.rows.filter(r => (aSlot === 'all' || r.slot === aSlot) && (aRar < 0 || r.rarity === aRar) && (!aQ || itemName(r).includes(aQ)));
+    rows.sort((x, y) => aSort === 'asc' ? x.price - y.price : y.price - x.price);
+    html += `<div class="tabs2"><input id="aq" placeholder="搜尋名稱…" value="${esc(aQ)}" style="flex:1"><button class="btn primary" id="aqBtn">搜尋</button></div>
+      <div class="tabs2" style="flex-wrap:wrap">${[['all', '全部'], ...Object.entries(SLOTS)].map(([k, v]) => `<button class="btn ${aSlot === k ? 'primary' : ''}" data-as="${k}">${v}</button>`).join('')}
+      <select id="asort" style="font:inherit;border-radius:8px"><option value="asc" ${aSort === 'asc' ? 'selected' : ''}>價格低→高</option><option value="desc" ${aSort === 'desc' ? 'selected' : ''}>價格高→低</option></select></div>
+      <div class="tabs2" style="flex-wrap:wrap">${RARITY.map((r, i) => `<button class="btn ${aRar === i ? 'primary' : ''}" data-ar="${i}" style="color:${aRar === i ? '' : r.color}">● ${r.name}</button>`).join('')}</div>
+      <p><small>分數 = 裝備強度，▲▼ = 和身上同部位比較</small></p>` +
+      (rows.map(r => { const d = score(r) - score(myEq(r.slot)), mine = r.sellerChar === c.id;
+        return `<div class="eq" style="cursor:default;margin-bottom:6px"><img src="${itemIcon(r)}" alt=""><div style="flex:1"><b style="color:${RARITY[r.rarity].color}">${itemName(r)}</b>
+        <small>${RARITY[r.rarity].name}・${statLine(r)}</small><small>分數 ${score(r)} <b style="color:${d >= 0 ? '#2e7d32' : '#c0392b'}">${d >= 0 ? '▲' : '▼'}${Math.abs(d)}</b>・剩 ${left(r.expires - Date.now())}・販售者：${esc(r.seller)}</small></div>
+        <div style="text-align:right"><b class="gold">${r.price.toLocaleString()}</b><br><button class="btn primary" data-buyauc="${r.id}" ${mine ? 'disabled' : ''}>${mine ? '自己的' : '購買'}</button></div></div>`; }).join('') || '<p>目前沒有符合的拍賣品。</p>') +
+      `<p><small>${aData.rows.length} 件拍賣中・成交收 5% 手續費（從賣家拿到的金幣扣）</small></p>`;
+  } else if (aTab === 'sell') {
+    const pool = (c.items || []).filter(i => !i.equipped && !i.bound), it = pool.find(i => i.id === aSel);
+    html += `<p><small>選一件裝備、定價後上架 24 小時；最多同時 10 件，過期沒賣掉會自動退回背包。</small></p>
+      <div class="bag">${pool.map(i => `<div class="cell ${aSel === i.id ? 'sel' : ''}" data-asel="${i.id}" style="border-color:${RARITY[i.rarity].color}"><img src="${itemIcon(i)}" alt="">${i.refine ? `<b>+${i.refine}</b>` : ''}</div>`).join('') || '<small>背包裡沒有可以上架的裝備</small>'}</div>
+      <div class="detail">${it ? `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b><br>${statLine(it)}<div class="acts">價格 <input id="aprice" type="number" min="10" value="${sellPrice(it) * 4}" style="width:140px"> 金幣 <button class="btn primary" id="alist">上架</button><small>（賣給商人只有 ${sellPrice(it)}）</small></div>` : '<small>點一件裝備</small>'}</div>`;
+  } else {
+    html += `<p>上架中 <b>${aData.rows.length} / ${aData.max}</b> 件</p>` + (aData.rows.map(r => `<div class="eq" style="cursor:default;margin-bottom:6px"><img src="${itemIcon(r)}" alt=""><div style="flex:1"><b style="color:${RARITY[r.rarity].color}">${itemName(r)}</b><small>剩 ${left(r.expires - Date.now())}</small></div><b class="gold">${r.price.toLocaleString()}</b> <button class="btn" data-cancel="${r.id}">下架</button></div>`).join('') || '<p>你還沒有上架任何東西。</p>');
+  }
+  openDlg('拍賣所', html, [], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-at]').forEach(x => x.onclick = () => openAuction(x.dataset.at));
+  b.querySelectorAll('[data-as]').forEach(x => x.onclick = () => { aSlot = x.dataset.as; openAuction(); });
+  b.querySelectorAll('[data-ar]').forEach(x => x.onclick = () => { aRar = aRar === +x.dataset.ar ? -1 : +x.dataset.ar; openAuction(); });
+  const doQ = () => { aQ = $('#aq').value.trim(); openAuction(); };
+  b.querySelector('#aqBtn')?.addEventListener('click', doQ); b.querySelector('#aq')?.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') doQ(); });
+  b.querySelector('#asort')?.addEventListener('change', e => { aSort = e.target.value; openAuction(); });
+  b.querySelectorAll('[data-asel]').forEach(x => x.onclick = () => { aSel = +x.dataset.asel; openAuction(); });
+  b.querySelector('#aprice')?.addEventListener('keydown', e => e.stopPropagation());
+  b.querySelector('#alist')?.addEventListener('click', async () => { try { showChar(await call('POST', '/api/auclist', { itemId: aSel, price: Math.floor(+$('#aprice').value) })); aSel = null; toast('上架了！'); openAuction('mine'); } catch (e) { toast(e.message); } });
+  b.querySelectorAll('[data-cancel]').forEach(x => x.onclick = async () => { try { showChar(await call('POST', '/api/auccancel', { aucId: +x.dataset.cancel })); toast('已下架，裝備回到背包'); openAuction('mine'); } catch (e) { toast(e.message); } });
+  b.querySelectorAll('[data-buyauc]').forEach(x => x.onclick = async () => { if (!(await askConfirm('確定購買？'))) return; try { showChar(await call('POST', '/api/aucbuy', { charId: CHAR.id, aucId: +x.dataset.buyauc })); toast('買到了！已放進背包'); openAuction('browse'); } catch (e) { toast(e.message); openAuction('browse'); } });
+}
+
+// ===== 怪物圖鑑（資料：2u 希望資料站，轉成繁體） =====
+let bData = null, bRange = null, bSel = null, bQ = '';
+async function openBestiary() {
+  if (!bData) { try { bData = await (await fetch('assets/data/bestiary.json')).json(); } catch { return toast('圖鑑資料讀取失敗'); } }
+  const ranges = [...new Set(bData.map(m => m.range))];
+  bRange ??= ranges[0];
+  const list = bQ ? bData.filter(m => m.name.includes(bQ)) : bRange === '首領' ? bData.filter(m => m.boss) : bData.filter(m => m.range === bRange);
+  const sel = bData[bSel];
+  const elemColor = { 水: '#3f8fe0', 火: '#e05a3f', 木: '#3fae5a', 金: '#c9a227', 土: '#8a6a3a' };
+  const det = sel ? `<div class="mdet">${MONSTER_MODELS[sel.base] ? `<img data-mon="${sel.base}" alt="">` : `<div style="width:120px;height:120px;border-radius:10px;background:#dfe7fb;display:flex;align-items:center;justify-content:center;color:#6b7896;flex:0 0 auto">尚無模型</div>`}
+    <div style="flex:1"><b style="font-size:17px">Lv${sel.lv} ${esc(sel.name)}</b>${sel.boss ? ' <span class="tag lock">首領</span>' : ''}
+    <table><tr><td>HP</td><td><b>${Number(sel.hp).toLocaleString()}</b></td><td>攻擊</td><td><b>${sel.atk}</b></td><td>防禦</td><td><b>${sel.def}</b></td></tr>
+    <tr><td>屬性</td><td><b style="color:${elemColor[sel.elem] || 'inherit'}">${sel.elem}</b></td><td>經驗</td><td colspan="3"><b>${Number(sel.exp || 0).toLocaleString()}</b></td></tr></table>
+    ${sel.feat ? `<div>${esc(sel.feat)}</div>` : ''}${sel.maps ? `<div><b>出現地圖：</b>${esc(sel.maps)}</div>` : ''}${sel.drops ? `<div><b>掉落：</b>${esc(sel.drops)}</div>` : ''}</div></div>` : '<div class="mdet">點一隻怪物看詳細資料</div>';
+  const html = `<div class="tabs2"><input id="bq" placeholder="搜尋怪物名稱…" value="${esc(bQ)}" style="flex:1"><button class="btn primary" id="bqBtn">搜尋</button>${bQ ? '<button class="btn" id="bqClr">清除</button>' : ''}</div>
+    <div class="bst"><div class="rng">${['首領', ...ranges].map(r => `<button class="btn ${!bQ && r === bRange ? 'primary' : ''}" data-rng="${r}">${r}</button>`).join('')}</div>
+    <div class="main">${det}<div class="mlist">${list.map(m => { const i = bData.indexOf(m);
+      return `<div class="mi ${m.boss ? 'boss' : ''} ${i === bSel ? 'on' : ''}" data-mi="${i}"><b>Lv${m.lv} ${esc(m.name)}</b><small>HP ${Number(m.hp).toLocaleString()}・${m.elem === '-' ? '無屬性' : m.elem + '屬性'}${MONSTER_MODELS[m.base] ? '・🧊' : ''}</small></div>`; }).join('') || '<p>找不到</p>'}</div></div></div>
+    <p><small>共 ${bData.length} 筆・🧊 = 遊戲裡已經有原版模型・資料來源：2u 希望資料站（台服）</small></p>`;
+  openDlg('怪物圖鑑', html, [['← 新手指南', () => openGuide()]], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-rng]').forEach(x => x.onclick = () => { bRange = x.dataset.rng; bQ = ''; bSel = null; openBestiary(); });
+  b.querySelectorAll('[data-mi]').forEach(x => x.onclick = () => { bSel = +x.dataset.mi; openBestiary(); });
+  const doQ = () => { bQ = $('#bq').value.trim(); bSel = null; openBestiary(); };
+  b.querySelector('#bqBtn').onclick = doQ; b.querySelector('#bq').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') doQ(); });
+  b.querySelector('#bqClr')?.addEventListener('click', () => { bQ = ''; openBestiary(); });
+  fillThumbs(b);
+}
+
+// ===== 項目 24：圖書館員＝新手指南（分類＋搜尋；怪物圖鑑是其中一個分類）=====
+let gCat = GUIDE_CATS[0], gQ = '', gSel = null, gData = null;
+async function openGuide() {
+  if (!gData) { const [T, D] = await DATA; gData = buildGuide({ JOBS, SKILLS: D, TALENTS: T, STAGES, NPCS }); }
+  const plain = h => h.replace(/<[^>]+>/g, '');
+  const list = gQ ? gData.filter(a => (a.title + plain(a.body)).includes(gQ)) : gData.filter(a => a.cat === gCat);
+  const a = list.find(x => x.title === gSel) || (gQ ? null : list[0]);
+  const hl = t => gQ ? t.split(gQ).join(`<mark>${esc(gQ)}</mark>`) : t;
+  const html = `<div class="tabs2"><input id="gq" placeholder="搜尋指南…（例如：精煉、二轉、碎冰）" value="${esc(gQ)}" style="flex:1"><button class="btn primary" id="gqBtn">搜尋</button>${gQ ? '<button class="btn" id="gqClr">清除</button>' : ''}</div>
+    <div class="bst"><div class="rng">${GUIDE_CATS.map(c => `<button class="btn ${!gQ && c === gCat ? 'primary' : ''}" data-gc="${c}">${c}</button>`).join('')}<button class="btn" id="gBest">怪物圖鑑</button></div>
+    <div class="main"><div class="mdet" style="display:block;line-height:1.7">${a ? `<b style="font-size:17px">${esc(a.title)}</b>　<small style="color:#6b7896">${a.cat}</small><div>${gQ ? hl(plain(a.body)) : a.body}</div>` : gQ ? `<small>找到 ${list.length} 篇，點一篇來看</small>` : ''}</div>
+      <div class="mlist">${list.map(x => `<div class="mi ${a && x.title === a.title ? 'on' : ''}" data-gt="${esc(x.title)}"><b>${esc(x.title)}</b>${gQ ? `<small>${x.cat}</small>` : ''}</div>`).join('') || '<small>找不到相關的指南</small>'}</div></div></div>`;
+  openDlg('圖書館員・新手指南', html, [], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-gc]').forEach(x => x.onclick = () => { gCat = x.dataset.gc; gQ = ''; gSel = null; openGuide(); });
+  b.querySelectorAll('[data-gt]').forEach(x => x.onclick = () => { gSel = x.dataset.gt; openGuide(); });
+  const doQ = () => { gQ = $('#gq').value.trim(); gSel = null; openGuide(); };
+  $('#gqBtn').onclick = doQ; $('#gq').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') doQ(); });
+  $('#gqClr')?.addEventListener('click', () => { gQ = ''; openGuide(); });
+  $('#gBest').onclick = () => openBestiary();
+  // 項目 38：素質計算機（係數跟 game.js reset() 一樣；不含裝備、天賦、寶石）
+  const gc = $('#gcalc'); if (gc && a?.kind === 'calc' && !gQ) {
+    const v = { ...Object.fromEntries(Object.keys(STATS).map(k => [k, CHAR.stats?.[k] ?? 1])) };
+    const calc = () => { const J = JOBS[CHAR.job] || {};
+      return `物理傷害 ×${(1 + v.str * 0.03).toFixed(2)}・魔法傷害 ×${(1 + v.int * 0.03).toFixed(2)}・最大 HP ${Math.round((J.hp || 100) + v.vit * 6)}<br>
+        爆擊率 ${(v.agi * 1 + v.luk * 0.3).toFixed(1)}%・迴避 ${Math.min(40, v.agi * 0.5).toFixed(1)}%・受到傷害 −${Math.min(30, v.vit * 0.3).toFixed(1)}%・冷卻 −${Math.min(50, v.wis).toFixed(0)}%`; };
+    gc.innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0">${Object.entries(STATS).map(([k, d]) => `<label style="font-size:13px">${d.name}<input type="number" min="1" max="200" value="${v[k]}" data-gk="${k}" style="width:60px;margin-left:4px"></label>`).join('')}</div><div id="gcOut" style="background:#fff;border-radius:8px;padding:6px 8px;font-size:13px">${calc()}</div><small style="color:#6b7896">預設是目前角色的素質（${esc(CHAR.name)}，${esc(CHAR.job)}）。</small>`;
+    gc.querySelectorAll('[data-gk]').forEach(i => { i.addEventListener('keydown', e => e.stopPropagation()); i.oninput = () => { v[i.dataset.gk] = Math.max(1, +i.value || 1); $('#gcOut').innerHTML = calc(); }; });
+  }
+}
+
+// ===== 坐騎 =====
+// ===== 項目 48：釣魚（src/1_data/fishing.js；API /api/fishbuy、/api/fish、/api/fishsell）=====
+// 拋竿 → 等 1.2～3.5 秒浮標下沉「❗ 上鉤了」→ 1.2 秒內按「拉竿」才釣得到（沒拉到只用掉魚餌）
+let fishT = null;
+function openFishing() {
+  clearTimeout(fishT); const F = CHAR.fishing || { rod: 0, bait: 0, fish: {} }, rod = RODS[F.rod];
+  const bag = CATCH.filter(c => !c.mat && F.fish?.[c.key]).map(c => `<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0"><img src="assets/items/${c.icon}.png" style="width:28px;height:28px" alt="">${c.name} ×${F.fish[c.key]}</span>`).join('') || '<small>還沒有魚</small>';
+  const worth = CATCH.reduce((a, c) => a + (c.sell || 0) * (F.fish?.[c.key] || 0), 0);
+  const html = `<p>「水池裡有銅魚、銀魚、金魚，運氣好還有<b>白金金魚、鯉魚</b>，偶爾會勾到<b>紅寶石、鑽石</b>喔。釣竿越好，稀有的越容易上鉤。」</p>
+    <p>釣竿：<b>${rod ? rod.name : '沒有'}</b>　・　魚餌 <b>${F.bait || 0}</b>　・　💰 ${CHAR.gold}</p>
+    <div style="background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:8px">${bag}${worth ? `<div><small>可賣 ${worth} 金幣</small></div>` : ''}</div>
+    <div id="fishSpot" style="text-align:center;font-size:22px;font-weight:800;min-height:36px;color:#3a5bbf"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${RODS.map((r, i) => r && i > F.rod ? `<button class="btn" data-rod="${i}">買${r.name}（${r.price}）</button>` : '').join('')}
+      <button class="btn" data-bait="10">魚餌 ×10（${BAIT.price * 10}）</button><button class="btn" data-bait="50">魚餌 ×50（${BAIT.price * 50}）</button></div>`;
+  openDlg('釣魚老人', html, [['🎣 拋竿', castLine, true], ['全部賣掉', async () => { try { const r = await call('POST', '/api/fishsell', { charId: CHAR.id }); showChar(r.char); toast(`賣了 ${r.gold} 金幣`); openFishing(); } catch (e) { toast(e.message); } }]]);
+  $('#dlgBody').querySelectorAll('[data-rod]').forEach(b => b.onclick = () => fishBuy('rod' + b.dataset.rod, 1));
+  $('#dlgBody').querySelectorAll('[data-bait]').forEach(b => b.onclick = () => fishBuy('bait', +b.dataset.bait));
+}
+async function fishBuy(what, n) { try { showChar(await call('POST', '/api/fishbuy', { charId: CHAR.id, what, n })); openFishing(); } catch (e) { toast(e.message); } }
+function castLine() {
+  const F = CHAR.fishing || {}; if (!F.rod) return toast('先買一支釣竿'); if (!(F.bait > 0)) return toast('沒有魚餌了');
+  const spot = $('#fishSpot'); if (!spot) return; spot.textContent = '🎣 等待中…'; clearTimeout(fishT);
+  const pull = $('#dlgOpts').querySelector('button'); let biting = false, done = false;
+  const finish = async hit => { if (done) return; done = true; clearTimeout(fishT);
+    try { const r = await call('POST', '/api/fish', { charId: CHAR.id, hit }); showChar(r.char);
+      if (r.got) toast(`${r.got.rare ? '✨ ' : ''}釣到了 ${r.got.name}！`); else toast('魚跑掉了…'); } catch (e) { toast(e.message); }
+    openFishing(); };
+  pull.textContent = '拉竿'; pull.onclick = () => finish(biting);
+  fishT = setTimeout(() => { biting = true; spot.textContent = '❗ 上鉤了！快拉竿'; spot.style.color = '#c0392b';
+    fishT = setTimeout(() => { biting = false; finish(false); }, 1200); }, 1200 + Math.random() * 2300);
+}
+function openMount() {
+  const J = JOBS[CHAR.job], mname = MOUNT_NAMES[J.mount], until = CHAR.mountUntil || 0, on = until > Date.now();
+  const left = on ? (() => { const ms = until - Date.now(), h = Math.floor(ms / 3600000); return `${Math.floor(h / 24)} 天 ${h % 24} 小時`; })() : '';
+  const html = `<div style="display:flex;gap:10px;justify-content:center;background:linear-gradient(#dfe7fb,#fff);border-radius:12px;padding:8px"><img data-mon="${J.mount}" style="width:140px;height:140px" alt=""></div>
+    <p>想騎坐騎嗎？<b>${esc(CHAR.name)}</b> 可以租一隻 <b style="color:#3f63c4">${mname}</b>。</p>
+    <ul style="padding-left:20px;margin:0">
+      <li>租一次 <b class="gold">${MOUNT.price}</b> 金幣，可以騎 <b>${MOUNT.hours} 小時</b>，時間到自動歸還</li>
+      <li>租約期間：五項素質各 <b>+${MOUNT.stat}</b>（遠征都有效）</li>
+      <li>遠征時按 <b>R</b> 或右下角按鈕上下坐騎：上坐騎移動速度 <b>+${MOUNT.speed * 100}%</b>，但<b style="color:#c0392b">不能攻擊</b>；切換要等 ${MOUNT.cd} 秒</li>
+      <li>在主城也可以按 R 上下坐騎（只是外觀）</li>
+      <li>每種職業的坐騎長得不一樣，能力完全相同</li>
+      <li>還沒到期就續租，時間會接在後面（最多累積 ${MOUNT.maxDays} 天）</li>
+    </ul>
+    <p>目前狀態：${on ? `<b style="color:#2e7d32">租用中，剩 ${left}</b>` : '<b>還沒有租坐騎</b>'}　・　你有 <b class="gold">${CHAR.gold}</b> 金幣</p>`;
+  openDlg('坐騎管理員', html, [[on ? `續租 ${MOUNT.hours} 小時` : `租用 ${MOUNT.hours} 小時`, async () => {
+    try { showChar(await call('POST', '/api/mount', { charId: CHAR.id })); loadTownMount(); openMount(); toast('租好了！按 R 上坐騎'); } catch (e) { toast(e.message); }
+  }, true]], true);
+  fillThumbs($('#dlgBody'));
+}
+// ===== 造型師：髮型／髮色／服裝配色，免費隨時改；左邊 3D 預覽可以拖曳旋轉 =====
+let sty = null;
+function openStylist(keep) {
+  const saved = { hair: CHAR.hair ?? 0, hairColor: CHAR.hairColor ?? 0, outfit: CHAR.outfit ?? 0 };
+  const st = keep || { ...saved };
+  openDlg('造型師', `<p style="margin:0 0 8px">「想換個樣子嗎？在我這裡改造型<b>免費</b>，隨時都可以再來。」</p>
+    <div style="display:flex;gap:14px;flex-wrap:wrap"><div id="styPv" style="flex:0 0 220px;height:280px;max-width:100%;background:radial-gradient(#fff,#c9d6f3);border-radius:12px;position:relative;touch-action:none;cursor:grab">
+      <div id="styLoad" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#5a6a90">載入中…</div>
+      <div style="position:absolute;bottom:6px;left:0;right:0;display:flex;justify-content:center;gap:6px"><button class="btn" data-rot="-1">⟲</button><button class="btn" data-rot="1">⟳</button></div></div>
+    <div style="flex:1;min-width:240px"><div id="styLook"></div><small style="color:#5a6a90">轉職後髮型和配色會保留。上鎖的配色之後開放。</small></div></div>`, [
+    ['復原', () => openStylist()],
+    ['套用', async () => {
+      try { showChar(await call('POST', '/api/look', { charId: CHAR.id, ...st })); loadPlayer(); toast('造型換好了！'); closeDlg(); } catch (e) { toast(e.message); }
+    }, true]], true);
+  const changed = () => { const dirty = st.hair !== saved.hair || st.hairColor !== saved.hairColor || st.outfit !== saved.outfit; $('#dlgOpts').children[1].disabled = !dirty; $('#dlgOpts').children[0].disabled = !dirty; styShow(st); };
+  // 預覽（同一個 renderer 重複用；對話框關掉就停止繪圖）
+  if (!sty) {
+    const r = new THREE.WebGLRenderer({ antialias: true, alpha: true }); r.setPixelRatio(Math.min(devicePixelRatio, 2));
+    const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(2, 4, 3); sc.add(sun);
+    const cam = new THREE.PerspectiveCamera(30, 220 / 280, 0.1, 50); cam.position.set(0, 1.25, 4.6); cam.lookAt(0, 0.85, 0);
+    sty = { r, sc, cam, cache: new Map(), cur: null, key: '', rot: 0.4, raf: 0, last: 0 };
+    sty.loop = now => { sty.raf = 0; if (!dlgOpen || !sty.r.domElement.isConnected) return; const dt = Math.min(0.05, (now - sty.last) / 1000 || 0); sty.last = now;
+      if (sty.cur) { sty.cur.rotation.y = sty.rot; sty.cur.userData.actor.update(dt, false); } sty.r.render(sty.sc, sty.cam); sty.raf = requestAnimationFrame(sty.loop); };
+  }
+  const box = $('#styPv'); box.prepend(sty.r.domElement); sty.r.setSize(box.clientWidth, box.clientHeight); sty.cam.aspect = box.clientWidth / box.clientHeight; sty.cam.updateProjectionMatrix();
+  box.querySelectorAll('[data-rot]').forEach(b => b.onclick = () => sty.rot += 0.6 * b.dataset.rot);
+  let drag = null; box.onpointerdown = e => { if (e.target.closest('button')) return; drag = e.clientX; box.setPointerCapture(e.pointerId); };
+  box.onpointermove = e => { if (drag == null) return; sty.rot += (e.clientX - drag) * 0.012; drag = e.clientX; }; box.onpointerup = box.onpointercancel = () => drag = null;
+  if (!sty.raf) { sty.last = performance.now(); sty.raf = requestAnimationFrame(sty.loop); }
+  renderLook($('#styLook'), st, CHAR.job, changed); changed();
+}
+async function styShow(st) {
+  const key = [st.hair, st.hairColor, st.outfit].join(); sty.key = key; const L = playerLook(CHAR.job, CHAR.gender, st.hair, st.hairColor, st.outfit);
+  if (!sty.cache.has(key)) { $('#styLoad').style.display = 'flex'; sty.cache.set(key, sealActor(playerModelId(CHAR.job, CHAR.gender), playerAnimSet(CHAR.job, CHAR.gender), 1.7, L.gear, L.opts).then(m => { m.children[0].rotation.y = Math.PI; return m; })); }
+  const m = await sty.cache.get(key).catch(() => null); if (sty.key !== key) return;
+  if (sty.cur) sty.sc.remove(sty.cur); sty.cur = m; if (m) sty.sc.add(m); const ld = $('#styLoad'); if (ld) { ld.style.display = m ? 'none' : 'flex'; ld.textContent = m ? '' : '模型載入失敗'; }
+}
+// 主城坐騎外觀（R 切換）
+let townMount = null, townRiding = false, townRider = null;
+function loadTownMount() {
+  if (townMount || !((CHAR.mountUntil || 0) > Date.now())) return;
+  sealModel(JOBS[CHAR.job].mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; player.add(m); townMount = m; }).catch(() => {});
+}
+addEventListener('keydown', e => {
+  if (e.code !== 'KeyR' || dlgOpen || !townMount) return;
+  townRiding = !townRiding; townMount.visible = townRiding;
+  for (const ch of player.children) if (ch !== townMount) ch.position.y = townRiding ? 0.85 : 0;
+});
+
+// ===== 裝備商人：販賣／購買／裝備 =====
+let mTab = 'sell', mMarked = new Set(), mSlot = 'all', mRar = -1, stockData = null, stockTimer = 0;
+const fmtCd = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+const quick = { r: new Set([0]), refined: false };
+async function openMerchant(tab) {
+  mTab = tab || mTab; if (mTab === 'stock' && !stockData) { try { stockData = await call('GET', '/api/stock/' + CHAR.id); } catch (e) { toast(e.message); } }
+  const c = CHAR, items = c.items || [];
+  let html = `<div class="tabs2">${[['sell', '販賣'], ['ore', '購買'], ['stock', '裝備']].map(([k, v]) => `<button class="btn ${mTab === k ? 'primary' : ''}" data-mt="${k}">${v}</button>`).join('')}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
+  if (mTab === 'sell') {
+    const pool = items.filter(i => !i.equipped);
+    const shown = pool.filter(i => (mSlot === 'all' || i.slot === mSlot) && (mRar < 0 || i.rarity === mRar));
+    html += `<div class="tabs2" style="flex-wrap:wrap">${[['all', '全部'], ...Object.entries(SLOTS)].map(([k, v]) => `<button class="btn ${mSlot === k ? 'primary' : ''}" data-ms="${k}">${v} ${k === 'all' ? pool.length : pool.filter(i => i.slot === k).length}</button>`).join('')}</div>
+      <div class="tabs2" style="flex-wrap:wrap"><small style="align-self:center">品質：</small>${RARITY.map((r, i) => `<button class="btn ${mRar === i ? 'primary' : ''}" data-mr="${i}" style="color:${mRar === i ? '' : r.color}">${r.name} ${pool.filter(x => x.rarity === i).length}</button>`).join('')}</div>
+      <div class="sec" style="font-size:13px">一鍵販賣：${RARITY.map((r, i) => `<label style="display:inline;color:${r.color}"><input type="checkbox" data-q="${i}" ${quick.r.has(i) ? 'checked' : ''}> ${r.name}</label>`).join('　')}　<label style="display:inline"><input type="checkbox" data-qref ${quick.refined ? 'checked' : ''}> 包含已精煉</label>　<button class="btn" data-quick>一鍵販賣</button></div>
+      <div class="bag">${shown.map(it => `<div class="cell ${mMarked.has(it.id) ? 'sel' : ''}" data-mk="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('') || '<small>沒有可以賣的裝備（穿著的不能賣）</small>'}</div>
+      <div class="detail">點裝備標記要賣的。已標記 <b>${mMarked.size}</b> 件，共 <b class="gold">${items.filter(i => mMarked.has(i.id)).reduce((a, i) => a + sellPrice(i), 0)}</b> 金幣　<button class="btn primary" data-sellmarked ${mMarked.size ? '' : 'disabled'}>販賣</button></div>`;
+  } else if (mTab === 'ore') {
+    html += Object.entries(ORES).map(([k, o]) => `<div class="eq" style="cursor:default;margin-bottom:6px"><img src="assets/items/${o.icon}.png" alt=""><div style="flex:1"><b>${o.name}</b><small>${o.desc}</small></div><small>持有 ${c.mats?.[k] || 0}</small>
+      <button class="btn" data-ore="${k}" data-n="1">×1・${o.price}</button><button class="btn" data-ore="${k}" data-n="10">×10・${o.price * 10}</button></div>`).join('') + '<p><small>精煉用的礦石。要精煉的話，請找廣場上的強化師。</small></p>';
+  } else if (stockData) {
+    stockData.at ??= Date.now();
+    html += `<p>今天還能買 <b>${stockData.left} / ${STOCK_DAILY}</b> 件・每小時整點換貨，換貨倒數 <b id="stockCd">${fmtCd(stockData.nextIn - (Date.now() - stockData.at))}</b><br><small>🔒 這裡買的裝備<b>綁定帳號，不能交易</b>（不能上架拍賣），可以穿、精煉、賣回給商人。</small></p>` +
+      stockData.items.map((it, i) => `<div class="eq" style="cursor:default;margin-bottom:6px;${it.sold ? 'opacity:.4' : ''}"><img src="${itemIcon(it)}" alt=""><div style="flex:1"><b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${RARITY[it.rarity].name}・${statLine(it)}</small></div><b class="gold">${it.price}</b>
+        <button class="btn" data-stock="${i}" ${it.sold || !stockData.left ? 'disabled' : ''}>${it.sold ? '已售出' : '購買'}</button></div>`).join('');
+  }
+  openDlg('裝備商人', html, [], true);
+  // 換貨倒數：每秒更新，整點到了自動換下一批
+  clearInterval(stockTimer);
+  if (mTab === 'stock' && stockData) stockTimer = setInterval(() => {
+    const el = $('#stockCd'); if (!el || !dlgOpen) return clearInterval(stockTimer);
+    const left = stockData.nextIn - (Date.now() - stockData.at);
+    if (left <= 0) { clearInterval(stockTimer); stockData = null; openMerchant('stock'); } else el.textContent = fmtCd(left);
+  }, 1000);
+  const body = $('#dlgBody');
+  body.querySelectorAll('[data-mt]').forEach(b => b.onclick = () => { stockData = null; openMerchant(b.dataset.mt); });
+  body.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { mSlot = b.dataset.ms; openMerchant(); });
+  body.querySelectorAll('[data-mr]').forEach(b => b.onclick = () => { mRar = mRar === +b.dataset.mr ? -1 : +b.dataset.mr; openMerchant(); });
+  body.querySelectorAll('[data-mk]').forEach(b => b.onclick = () => { const id = +b.dataset.mk; mMarked.has(id) ? mMarked.delete(id) : mMarked.add(id); openMerchant(); });
+  body.querySelectorAll('[data-q]').forEach(b => b.onchange = () => { b.checked ? quick.r.add(+b.dataset.q) : quick.r.delete(+b.dataset.q); });
+  body.querySelector('[data-qref]')?.addEventListener('change', e => quick.refined = e.target.checked);
+  body.querySelector('[data-quick]')?.addEventListener('click', async () => {
+    const ids = items.filter(i => !i.equipped && quick.r.has(i.rarity) && (quick.refined || !i.refine)).map(i => i.id);
+    if (!ids.length) return toast('沒有符合條件的裝備');
+    if (await askConfirm(`一鍵販賣 ${ids.length} 件？`)) sellIds(ids);
+  });
+  body.querySelector('[data-sellmarked]')?.addEventListener('click', () => sellIds([...mMarked]));
+  body.querySelectorAll('[data-ore]').forEach(b => b.onclick = async () => { try { showChar(await call('POST', '/api/buyore', { charId: CHAR.id, ore: b.dataset.ore, n: +b.dataset.n })); openMerchant(); toast('買好了'); } catch (e) { toast(e.message); } });
+  body.querySelectorAll('[data-stock]').forEach(b => b.onclick = async () => { try { const r = await call('POST', '/api/buystock', { charId: CHAR.id, idx: +b.dataset.stock }); showChar(r.char); stockData = null; openMerchant('stock'); toast(`買到 ${itemName(r.item)}`); } catch (e) { toast(e.message); } });
+}
+async function sellIds(ids) {
+  try { const r = await call('POST', '/api/sellmany', { charId: CHAR.id, itemIds: ids }); showChar(r.char); mMarked.clear(); openMerchant(); toast(`賣了 ${r.n} 件，得到 ${r.total} 金幣`); } catch (e) { toast(e.message); }
+}
+
+// ===== 背包／商店／強化／素質 =====
+let bagMode = 'bag', bagTab = 'items', selItem = null, smithTab = 'weapon'; // smithTab：強化師分頁（武器／防具，項目 29）
+const smithOk = it => smithTab === 'weapon' ? it.slot === 'weapon' : it.slot !== 'weapon';
+$('#bagBtn').onclick = () => openBag('bag');
+const statLine = it => Object.entries(itemStats(it)).map(([k, v]) => `${STAT_NAMES[k]} ${fmtStat(k, v)}`).join('　');
+function openBag(mode) { bagMode = mode; bagTab = 'items'; selItem = null; renderBag(); }
+function renderBag() {
+  const c = CHAR, items = c.items || [];
+  const title = bagMode === 'bag' && bagTab === 'stats' ? '角色' : { bag: '背包', shop: '裝備商人', smith: '強化師' }[bagMode];
+  const intro = { bag: '', shop: '<p>「看看我的貨吧！每件 <b class="gold">150</b> 金幣，品質是普通到精良。不要的裝備也可以賣給我。」</p>',
+    smith: `<p>「選一件裝備精煉，每次用掉 1 個礦石；也可以用寶石 <b>G 化</b>（一般 → G → DG → XG，紅寶石／鑽石／粉紅鑽）。+6 以上失敗可是會<b style="color:#c0392b">碎掉</b>的喔。」<br><small>持有：${Object.entries(ORES).filter(([, o]) => !o.scroll).map(([k, o]) => `${o.name} ${c.mats?.[k] || 0}`).join('　')}</small></p>` }[bagMode];
+  let html = intro + `<div class="tabs2"><button class="btn ${bagTab === 'items' ? 'primary' : ''}" data-tab="items">裝備</button>${bagMode === 'smith' ? ['weapon', 'armor'].map(k => `<button class="btn ${smithTab === k ? 'primary' : ''}" data-smt="${k}">${k === 'weapon' ? '武器' : '防具'}</button>`).join('') : ''}${bagMode === 'bag' ? `<button class="btn ${bagTab === 'stats' ? 'primary' : ''}" data-tab="stats">素質${c.points ? `（${c.points}）` : ''}</button>` : ''}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
+  if (bagTab === 'stats') {
+    const jp = c.jobNeed ? `${c.jobExp ?? 0} / ${c.jobNeed}` : 'MAX';
+    html += `<div style="margin-bottom:6px">Base Lv <b>${c.baseLv}</b>（${c.exp} / ${c.need}）　Job Lv <b>${c.jobLv}</b> / ${c.jobMax ?? 50}（${jp}）<br><small>Job 等級是天賦點數的來源：每 1 Job Lv＝1 點天賦。Job 經驗跟 Base 經驗一起拿。</small></div>`;
+    html += `<div>剩餘素質點：<b>${c.points}</b>　<small>（角色每升 1 級 +3 點${c.rebirth ? `；已轉生 ${c.rebirth} 次` : ''}）</small></div>` + Object.entries(STATS).map(([k, d]) =>
+      `<div class="strow"><b>${d.name}</b><span>${c.stats[k]}</span><button class="btn" data-stat="${k}" ${c.points ? '' : 'disabled'}>＋</button><small>${d.desc}</small></div>`).join('');
+    // 項目 47：名聲與稱號（名聲等級照原版 fame.scr）
+    const fk = Object.entries(c.bossKills || {}).sort((a, b) => b[1] - a[1]);
+    html += `<div style="margin-top:12px;background:#fff;border-radius:12px;padding:10px 12px"><b style="font-size:15px">🏅 名聲 Lv ${c.fameLv ?? 0}</b>　<small>名聲 ${(c.fame || 0).toLocaleString()}${c.fameNext ? `／下一級 ${c.fameNext.toLocaleString()}` : '（滿級）'}</small>
+      <div class="bar" style="margin:4px 0 6px"><i style="width:${c.fameNext ? Math.min(100, (c.fame || 0) / c.fameNext * 100) : 100}%"></i></div>
+      <small style="color:#6b7896">打倒小王、MVP、第一次通關、賢者之塔樓層都會拿到名聲。名聲裝備：${FAME_GEAR.map(([l, , , n]) => `Lv${l}「${n}」`).join('、')}（到了會寄到信箱）</small>
+      ${fk.length ? `<div style="margin-top:4px"><small>首領擊殺：${fk.map(([n, v]) => `${esc(n)} ×${v}`).join('、')}</small></div>` : ''}
+      <div style="margin-top:8px"><b>稱號</b>　<small>目前：${titleOf(c.title)?.name || '無'}${c.title ? `　<button class="btn" data-title="">卸下</button>` : ''}</small></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${TITLES.map(t => { const has = (c.titles || []).includes(t.id), on = c.title === t.id;
+        return `<div style="flex:1 1 180px;border:2px solid ${on ? '#e0a826' : has ? '#9db4ee' : '#e0e4ee'};border-radius:10px;padding:6px 8px;${has ? '' : 'opacity:.55'}"><b>【${t.name}】</b>${on ? ' <small style="color:#c8901a">★ 裝備中</small>' : ''}<br><small>${t.desc}・${bonusText(t.bonus)}</small>${has && !on ? `<br><button class="btn" style="margin-top:4px;padding:4px 10px" data-title="${t.id}">裝上</button>` : ''}</div>`; }).join('')}</div></div>`;
+  } else {
+    if (bagMode === 'shop') html += `<div class="acts" style="display:flex;gap:6px;margin-bottom:10px">${Object.entries(SLOTS).map(([k, v]) => `<button class="btn primary" data-buy="${k}">買${v}（150）</button>`).join('')}</div>`;
+    html += `<div class="slots">${Object.entries(SLOTS).filter(([k]) => bagMode !== 'smith' || smithOk({ slot: k })).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
+      return `<div class="eq" data-id="${it?.id || ''}">${it ? `<img src="${itemIcon(it)}" alt=""><div><b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small></div>` : `<div><b>${v}</b><small>沒有裝備</small></div>`}</div>`; }).join('')}</div>`;
+    html += `<div class="bag">${items.filter(it => bagMode !== 'smith' || smithOk(it)).map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('') || '<small>背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
+    const it = items.find(i => i.id === selItem);
+    html += `<div class="detail">${it ? itemDetail(it) : '<small>點一件裝備看詳細</small>'}</div>`;
+  }
+  openDlg(title, html, [], true);
+  const body = $('#dlgBody');
+  body.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bagTab = b.dataset.tab; renderBag(); });
+  body.querySelectorAll('[data-smt]').forEach(b => b.onclick = () => { smithTab = b.dataset.smt; selItem = null; renderBag(); });
+  body.querySelectorAll('.cell,.eq[data-id]').forEach(el => el.onclick = () => { if (el.dataset.id) { selItem = +el.dataset.id; renderBag(); } });
+  body.querySelectorAll('[data-stat]').forEach(b => b.onclick = () => act('/api/statup', { charId: c.id, stat: b.dataset.stat }));
+  body.querySelectorAll('[data-title]').forEach(b => b.onclick = async () => { try { const c2 = await call('POST', '/api/title', { charId: c.id, title: b.dataset.title || null }); showChar(c2); refreshChar(); renderBag(); toast(b.dataset.title ? `裝上稱號【${titleOf(b.dataset.title).name}】` : '卸下稱號'); } catch (e) { toast(e.message); } });
+  body.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => act('/api/buy', { charId: c.id, slot: b.dataset.buy }, r => { selItem = r.item.id; return `買到 ${RARITY[r.item.rarity].name} ${itemName(r.item)}`; }));
+  body.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
+    const id = +b.dataset.item, a = b.dataset.act;
+    if (a === 'equip') act('/api/equip', { itemId: id });
+    if (a === 'unequip') act('/api/unequip', { itemId: id });
+    if (a === 'sell') act('/api/sell', { itemId: id }, r => { selItem = null; return `賣得 ${r.price} 金幣`; });
+    if (a === 'refine') {
+      const cur = (CHAR.items || []).find(i => i.id === id);
+      if (refineBreaks(cur.refine) && !(await askConfirm(`+${cur.refine} → +${cur.refine + 1} 失敗會碎掉，確定要強化？`, { danger: true }))) return;
+      act('/api/refine', { itemId: id }, r => { if (r.result === 'broken') selItem = null; return { ok: '強化成功！', down: '強化失敗，降了一級…', broken: '強化失敗，裝備碎掉了！' }[r.result]; });
+    }
+    if (a === 'gup') act('/api/gup', { itemId: id, box: b.dataset.box }, r => r.result === 'ok' ? `G 化成功！變成 ${r.tag}` : 'G 化失敗，材料用掉了…');
+  });
+}
+// 項目 28：裝備上的技能屬性
+function identLine(it) {
+  if (!IDENT_SLOTS.includes(it.slot)) return '';
+  if (!it.ident) return '<small style="color:#8a94a8">技能屬性：尚未鑑定（找廣場的技能鑑定師 魯魯）</small><br>';
+  const n = TAL && identNode(TAL, it.ident); if (!n) return '';
+  const own = it.ident.job === CHAR.job, br = it.ident.tree === 0 ? '' : TAL.jobs[it.ident.job]?.branches.find(b => b.key === it.ident.tree)?.name;
+  const learned = own && (it.ident.tree === 0 ? CHAR.talents : it.ident.tree === CHAR.job2 ? CHAR.talents2 : null)?.[n.id] > 0;
+  return `<small style="color:#2b6fd6"><b>技能屬性：${n.name} Lv+${it.ident.lv}</b>（${it.ident.job}${br ? '・' + br : ''}）${learned ? '' : '<span style="color:#c0392b">　目前沒有生效：要點過這個天賦才會提升</span>'}</small><br>`;
+}
+function itemDetail(it) {
+  let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${statLine(it)}<div class="acts">`;
+  if (bagMode === 'smith') {
+    if (it.refine >= REFINE_MAX) h += '<small>已經強化到最高了</small>';
+    else h += `<button class="btn primary" data-act="refine" data-item="${it.id}">精煉 +${it.refine} → +${it.refine + 1}（${Math.round(REFINE_RATE[it.refine] * 100)}%，用 1 個${ORES[oreFor(it)].name}，持有 ${CHAR.mats?.[oreFor(it)] || 0}）</button>${refineBreaks(it.refine) ? '<small style="color:#c0392b">失敗會碎</small>' : it.refine >= 3 ? '<small>失敗會降一級</small>' : ''}`;
+    // 項目 46：G 化（一般 → G → DG → XG），寶石在裝備商人「購買」分頁；有 G 化工具箱可以一起用
+    if ((it.gup || 0) >= GUP_MAX) h += '<small>已經是 XG（最高）</small>';
+    else { const nx = GUP[(it.gup || 0) + 1], have = CHAR.mats?.[nx.gem] || 0, pct = Math.round(gupRate(it) * 100);
+      h += `<button class="btn" data-act="gup" data-item="${it.id}" style="border-color:#${nx.glow.toString(16)}">G 化 → ${nx.tag}（${pct}%，用 1 個${ORES[nx.gem].name}，持有 ${have}）</button>`;
+      for (const bx of ['gbox80', 'gbox100']) if (CHAR.mats?.[bx] > 0) h += `<button class="btn" data-act="gup" data-box="${bx}" data-item="${it.id}">＋${ORES[bx].name}（持有 ${CHAR.mats[bx]}）</button>`;
+      h += '<small>失敗只會用掉材料，裝備不變</small>'; }
+  } else {
+    h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
+    if (!it.equipped) h += `<button class="btn" data-act="sell" data-item="${it.id}">賣出（${sellPrice(it)} 金幣）</button>`;
+  }
+  return h + '</div>';
+}
+async function act(url, data, msg) {
+  try {
+    const r = await call('POST', url, data); const c = r.char || r; showChar(c);
+    const m = msg ? msg(r) : null; renderBag(); if (m) toast(m);
+  } catch (e) { toast(e.message); }
+}
+function toast(m) {
+  const el = document.createElement('div'); el.textContent = m;
+  el.style.cssText = 'position:fixed;left:50%;top:20%;transform:translateX(-50%);background:#26324dee;color:#fff;padding:10px 18px;border-radius:10px;font-weight:700;z-index:99;pointer-events:none';
+  document.body.appendChild(el); setTimeout(() => el.remove(), 1800);
+}
+
+// ===== 主迴圈 =====
+const v = new THREE.Vector3(); let last = performance.now(), raf, townMoving = false;
+// 看門狗（?debug=1 顯示面板）：主城邊界、穿模、動作卡住、模型載入失敗
+const wd = createWatchdog({ page: '主城', renderer, scene, counts: () => ({ NPC: NPCS.length }), player, home: START,
+  bounds: { minX: TC.x - TOWN, maxX: TC.x + TOWN, minZ: TC.z - TOWN, maxZ: TC.z + TOWN }, actor: () => pActor, moving: () => townMoving });
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  for (const A of npcActors) A.update(dt);
+  if (dlgOpen) { pActor?.update(dt, false); townMoving = false; }
+  if (!dlgOpen) {
+    let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.dx;
+    let mz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + joy.dy;
+    { const c = Math.cos(view.yaw), sn = Math.sin(view.yaw), x = mx * c + mz * sn; mz = -mx * sn + mz * c; mx = x; } // 方向跟著視角
+    if (Math.hypot(mx, mz) > 0.05) click.on = false;
+    else if (click.on) { const dx = click.x - player.position.x, dz = click.z - player.position.z, d = Math.hypot(dx, dz); if (d < 0.35) click.on = false; else { mx = dx / d; mz = dz / d; } }
+    const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
+    pActor?.update(dt, ml > 0.05); townMoving = ml > 0.05;
+    if (ml > 0.05) {
+      const p = player.position; if (!walkMove(TMAP, p, p.x + mx * 7 * dt, p.z + mz * 7 * dt)) click.on = false; { let d = Math.atan2(mx, mz) - player.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); player.rotation.y += d * Math.min(1, dt * 14); } // 平滑轉身
+      for (const s of solids) { const dx = p.x - s.x, dz = p.z - s.z, d = Math.hypot(dx, dz), r = s.r + 0.45; if (d < r && d > 0.001) { p.x = s.x + dx / d * r; p.z = s.z + dz / d * r; } }
+    }
+  }
+  const p = player.position;
+  // 最近的 NPC
+  let best = null, bd = 3.2;
+  for (const n of NPCS) { const d = Math.hypot(n.x - p.x, n.z - p.z); if (d < bd) { bd = d; best = n; } }
+  if (best !== nearNpc) { nearNpc = best; const t = $('#talk'); t.style.display = best ? 'block' : 'none'; if (best) t.innerHTML = `與${esc(best.name)}交談<kbd>空白鍵</kbd>`; }
+  // 鏡頭
+  { const gy = TMAP.heightAt(p.x, p.z), z = view.zoom, sy = Math.sin(view.yaw), cy = Math.cos(view.yaw);
+    camera.position.set(p.x + sy * 12 * z, gy + 14 * z * view.pitch, p.z + cy * 12 * z); camera.lookAt(p.x, gy + 0.6, p.z);
+    sun.position.set(p.x - 14, gy + 26, p.z + 10); sun.target.position.set(p.x, gy, p.z); sun.target.updateMatrixWorld(); }
+  { const restore = liftScene(scene, TMAP.heightAt); renderer.render(scene, camera); restore(); } // 畫面抬到地面高度
+  // 名牌
+  const place = (obj, el, h) => { v.copy(obj.position); v.y += h + TMAP.heightAt(obj.position.x, obj.position.z); v.project(camera); el.style.display = v.z < 1 ? 'block' : 'none'; el.style.left = (v.x * 0.5 + 0.5) * innerWidth + 'px'; el.style.top = (-v.y * 0.5 + 0.5) * innerHeight + 'px'; };
+  for (const n of NPCS) { place(n.obj, n.el, 2.6); n.el.classList.toggle('near', n === nearNpc); }
+  place(player, meLbl, 2.6);
+  wd.tick(dt);
+  tickTownMap(now); // PC 小地圖（每 0.2 秒）
+  raf = requestAnimationFrame(loop);
+}
+raf = requestAnimationFrame(loop);
+window.__town = { player, map: TMAP, center: TC }; // 測試用（無頭截圖）
+moduleReady();
+// 切到背景就停
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(loop); } });
+</script>
+</body>
+</html>

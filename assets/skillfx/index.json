@@ -1,0 +1,1337 @@
+{
+ "liuyun": {
+  "script": "SkillGgang",
+  "guess": true,
+  "cast": [
+   {
+    "mesh": "Musa_1_Ggang_s",
+    "time": 1.3
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "musa_1_ggang.wav"
+  }
+ },
+ "xuanfeng": {
+  "script": "SkillGiantSwing",
+  "guess": true,
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "GiantSwing",
+    "time": 1.5,
+    "billboard": 1
+   }
+  ],
+  "sound": {
+   "cast": "skil6114.wav"
+  }
+ },
+ "jifeng": {
+  "script": "SkillSplashSword",
+  "guess": true,
+  "cast": [
+   {
+    "mesh": "Musa_11_SplashSword_s",
+    "time": 1.3
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "musa_11_splashsword.wav"
+  }
+ },
+ "guangsu": {
+  "script": "SkillLightingSlash",
+  "cast": [
+   {
+    "mesh": "wa_onecut",
+    "time": 1.7
+   }
+  ],
+  "fly": [],
+  "hit": []
+ },
+ "shizi": {
+  "script": "SkillGrandSword",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "kn_grandsword",
+    "time": 1,
+    "delay": 1
+   }
+  ],
+  "sound": {
+   "cast": "skil6094.wav"
+  }
+ },
+ "bafang": {
+  "script": "SkillDotImpact",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "kn_dotimpact",
+    "time": 1,
+    "delay": 1
+   }
+  ],
+  "sound": {
+   "cast": "skil6121.wav"
+  }
+ },
+ "dunpai": {
+  "script": "SkillThrowShield",
+  "cast": [
+   {
+    "mesh": "Knight_2_ThrowShield",
+    "time": 2
+   }
+  ],
+  "fly": [
+   {
+    "mesh": "Knight_2_ThrowShield_missile",
+    "time": 1,
+    "delay": 0.5,
+    "y": 1
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "Knight_2_ThrowShield_hit",
+    "time": 1
+   }
+  ],
+  "sound": {
+   "cast": "knight_2_throwshield.wav"
+  }
+ },
+ "shenjian": {
+  "script": "SkillSouthernCross",
+  "cast": [
+   {
+    "mesh": "s_cross_effect",
+    "time": 2.9,
+    "delay": 0.1
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skil6092.wav"
+  }
+ },
+ "renyi": {
+  "script": "SkillAnyThrow",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "E_random_c",
+    "time": 0.7,
+    "delay": 1,
+    "y": 0.6
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "billboard_eff_shock",
+    "time": 0.5
+   }
+  ]
+ },
+ "suiyi": {
+  "script": "SkillJumpDeager",
+  "guess": true,
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "Masshf_c02",
+    "time": 0.7,
+    "delay": 0.8,
+    "y": 1.5
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "billboard_eff_shock",
+    "time": 0.5
+   }
+  ],
+  "sound": {
+   "fly": "skil6036.wav"
+  }
+ },
+ "duzhi": {
+  "script": "SkillPoisonDagger",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "je_poisondagger",
+    "time": 0.7,
+    "delay": 1,
+    "y": 1.8
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "billboard_eff_shock",
+    "time": 0.2
+   }
+  ],
+  "sound": {
+   "cast": "skil6113.wav"
+  }
+ },
+ "cuimian": {
+  "script": "SkillConfusion",
+  "guess": true,
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Am_chaos[mon]_ef",
+    "time": 2.4,
+    "delay": 0.4,
+    "y": -2
+   }
+  ],
+  "sound": {
+   "cast": "skil6327.wav",
+   "hit": "skil6327_exp.wav"
+  }
+ },
+ "bingjian": {
+  "script": "SkillIceEger",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "SFX_IE_2",
+    "time": 0.7,
+    "y": 1
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "SFX_IE_3",
+    "time": 0.6
+   }
+  ],
+  "sound": {
+   "cast": "skil6014.wav"
+  }
+ },
+ "huofeng": {
+  "script": "SkillFireStorm",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "SFX_FA_2",
+    "time": 1
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "SFX_FA_3",
+    "time": 0.7
+   }
+  ],
+  "sound": {
+   "cast": "skil6010.wav",
+   "hit": "skil6122.wav"
+  }
+ },
+ "bingzhu": {
+  "script": "SkillIceDrill",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "SFX_ID_2",
+    "time": 1,
+    "y": 1
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "SFX_IE_3",
+    "time": 0.6
+   }
+  ],
+  "sound": {
+   "cast": "skil6016.wav"
+  }
+ },
+ "huojing": {
+  "script": "SkillDancingflame",
+  "guess": true,
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Magic_24_Dancingflame_1",
+    "time": 0.8
+   },
+   {
+    "mesh": "Magic_24_Dancingflame_2",
+    "time": 1.1
+   },
+   {
+    "mesh": "Magic_24_Dancingflame_3",
+    "time": 1.2
+   }
+  ]
+ },
+ "qianze": {
+  "script": "SkillBlessSwing",
+  "guess": true,
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "BlessSwing",
+    "time": 1.5,
+    "billboard": 1
+   }
+  ],
+  "sound": {
+   "cast": "skil6112.wav"
+  }
+ },
+ "shengguang": {
+  "script": "SkillBless",
+  "guess": true,
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Bless",
+    "time": 0.6
+   }
+  ]
+ },
+ "shenpan": {
+  "script": "SkillMight",
+  "guess": true,
+  "cast": [
+   {
+    "mesh": "might",
+    "time": 1.8
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skil6089.wav"
+  }
+ },
+ "tianqian": {
+  "script": "SkillStunSword",
+  "guess": true,
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "SFX_CS",
+    "time": 1,
+    "delay": 1
+   }
+  ],
+  "sound": {
+   "cast": "skil6006.wav"
+  }
+ },
+ "zhiming": {
+  "script": "SkillStrike",
+  "cast": [
+   {
+    "mesh": "Eff_smith_strike",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skil6074.wav"
+  }
+ },
+ "zhadan": {
+  "script": "SkillBombing",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "smith_bomb_1_skill",
+    "time": 1,
+    "delay": 0.8
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "bomb_bngin_skill",
+    "time": 1.4
+   }
+  ],
+  "sound": {
+   "hit": "skil6069.wav"
+  }
+ },
+ "duozhong": {
+  "script": "SkillMultyGrinding",
+  "cast": [
+   {
+    "mesh": "cr_multygrind",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skil6118.wav"
+  }
+ },
+ "huimie": {
+  "script": "SkillABlowDestroy",
+  "cast": [
+   {
+    "mesh": "cr_destroy",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skil6120.wav"
+  }
+ },
+ "jianwu": {
+  "script": "SkillBladedance",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "M2B_01_SwordDance_boom",
+    "time": 1,
+    "delay": 0.3
+   }
+  ],
+  "sound": {
+   "cast": "skil6120.wav"
+  }
+ },
+ "shenhan": {
+  "script": "SkillShockwave",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "K2B_02_ShockWave_boom",
+    "time": 2.3,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6093.wav"
+  }
+ },
+ "tiannv": {
+  "script": "SkillCardtrick",
+  "cast": [
+   {
+    "mesh": "CL2B_04_CardTrick",
+    "time": 0.3
+   }
+  ],
+  "fly": [],
+  "hit": []
+ },
+ "hanbing": {
+  "script": "SkillIcecannon",
+  "cast": [
+   {
+    "mesh": "MG2A_01_IceCannon_m",
+    "time": 1.3
+   }
+  ],
+  "fly": [
+   {
+    "mesh": "MG2A_01_IceCannon_Fly",
+    "time": 0.65,
+    "delay": 0.5,
+    "y": 0.5
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "MG2A_01_IceCannon_Boom",
+    "time": 1,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6021.wav",
+   "hit": "ak3.wav"
+  }
+ },
+ "shenpan2": {
+  "script": "SkillJudgement",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "C2A_02_Judgrment_Boom",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6120.wav"
+  }
+ },
+ "quanmian": {
+  "script": "SkillFullsmash",
+  "cast": [
+   {
+    "mesh": "Fullsmash_1",
+    "time": 0.5
+   }
+  ],
+  "fly": [
+   {
+    "mesh": "Fullsmash_2",
+    "time": 0.4,
+    "billboard": 1
+   },
+   {
+    "mesh": "Fullsmash_2",
+    "time": 0.4,
+    "billboard": 1
+   },
+   {
+    "mesh": "Fullsmash_2",
+    "time": 0.4,
+    "billboard": 1
+   },
+   {
+    "mesh": "Fullsmash_2",
+    "time": 0.4,
+    "billboard": 1
+   },
+   {
+    "mesh": "Fullsmash_2",
+    "time": 0.5,
+    "billboard": 1
+   }
+  ],
+  "hit": [],
+  "sound": {
+   "cast": "ak2.wav",
+   "fly": "ak3.wav"
+  }
+ },
+ "k2_yiwang": {
+  "script": "SkillIlmang",
+  "cast": [
+   {
+    "mesh": "Musa_11_Ilmang",
+    "time": 2.5
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "musa_11_ilmang.wav"
+  }
+ },
+ "k2_fennu": {
+  "script": "SkillMadness",
+  "cast": [
+   {
+    "mesh": "M2A_A04_LightingRage",
+    "time": 0.5
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skil6088.wav"
+  }
+ },
+ "k2_tuji": {
+  "script": "SkillCharge",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "M2B_02_Rush_boom",
+    "time": 1
+   }
+  ],
+  "sound": {
+   "cast": "skil6120.wav"
+  }
+ },
+ "k2_xixue": {
+  "script": "SkillBloodSucking",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Musa21_Bloodsuck_S",
+    "time": 1.1,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "musa21_bloodsuck.wav"
+  }
+ },
+ "k2_chongji": {
+  "script": "SkillShockimpact",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "K2A_03_ShockImpact_boom",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6120.wav"
+  }
+ },
+ "k2_quanli": {
+  "script": "SkillDeathcrash",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "K2A_04_DeathCrash_boom",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6120.wav"
+  }
+ },
+ "k2_baofeng": {
+  "script": "SkillTornado",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "K2B_01_Tornado_boom",
+    "time": 2.3,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6093.wav"
+  }
+ },
+ "k2_tianbeng": {
+  "script": "SkillCrusade",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "K2B_03_Crusader_boom",
+    "time": 2.3,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6093.wav"
+  }
+ },
+ "k2_anying": {
+  "script": "SkillSlug",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "CL2A_03_HeavyBlow_Fly",
+    "time": 0.65
+   },
+   {
+    "mesh": "CL2A_03_HeavyBlow_Boom",
+    "time": 1,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6021.wav"
+  }
+ },
+ "k2_judu": {
+  "script": "SkillPoisonCrush",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "CL2A_08_PoisonCrush1",
+    "time": 2.05,
+    "delay": 0.3
+   }
+  ],
+  "sound": {
+   "cast": "poisoncrash.wav"
+  }
+ },
+ "k2_fenli": {
+  "script": "SkillAllin",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "CL2B_01_Allin_fly",
+    "time": 0.65,
+    "y": 0.5
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "CL2B_01_Allin_boom",
+    "time": 1,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6021.wav",
+   "hit": "ak3.wav"
+  }
+ },
+ "k2_heijieke": {
+  "script": "SkillBlackjack",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "CL2B_02_BlackJack_fly",
+    "time": 0.11,
+    "y": 0.5
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "CL2B_02_BlackJack_boom",
+    "time": 1,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6021.wav",
+   "hit": "ak3.wav"
+  }
+ },
+ "k2_bingfeng": {
+  "script": "SkillMegafreeze",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "MG2A_02_MegaFreeze_Fly",
+    "time": 0.65,
+    "y": 0.5
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "MG2A_02_MegaFreeze_Boom",
+    "time": 1,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6106.wav",
+   "hit": "ak3.wav"
+  }
+ },
+ "k2_qixuan": {
+  "script": "SkillIcecoil",
+  "cast": [
+   {
+    "mesh": "MG2A_04_IceCoil_m",
+    "time": 1
+   }
+  ],
+  "fly": [
+   {
+    "mesh": "MG2A_04_IceCoil_Fly",
+    "time": 0.65,
+    "y": 0.5
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "MG2A_04_IceCoil_Boom",
+    "time": 1,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6021.wav",
+   "hit": "ak3.wav"
+  }
+ },
+ "k2_huochong": {
+  "script": "SkillGigaflame",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "MG2B_01_GigaFlame_Fly",
+    "time": 0.65,
+    "y": 0.5
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "MG2B_01_GigaFlame_Boom",
+    "time": 1,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6021.wav",
+   "hit": "ak3.wav"
+  }
+ },
+ "k2_dihuo": {
+  "script": "SkillEarthquake",
+  "cast": [
+   {
+    "mesh": "MG2B_03_Earthquake_m"
+   }
+  ],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "MG2B_03_Earthquake_Boom",
+    "time": 2.1
+   },
+   {
+    "mesh": "MG2B_03_Earthquake_Boom",
+    "time": 0.9
+   }
+  ],
+  "sound": {
+   "cast": "skil6012.wav"
+  }
+ },
+ "k2_chanhui": {
+  "script": "SkillRepentance",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "C2A_01_Repentance_Boom",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6120.wav"
+  }
+ },
+ "k2_shangdi": {
+  "script": "SkillHandOfGod",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "K2A_03_ShockImpact_boom",
+    "time": 1.1,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6072.wav"
+  }
+ },
+ "k2_qumo": {
+  "script": "SkillExorcism",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "kn_dotimpact",
+    "time": 1,
+    "delay": 1
+   }
+  ],
+  "sound": {
+   "cast": "mg2a_03_grlesiear_m.wav"
+  }
+ },
+ "k2_tianshi": {
+  "script": "SkillAngelsWhisper",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "C2A_02_Judgrment_Boom",
+    "time": 1.5,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "k2b_03_crusader_m.wav"
+  }
+ },
+ "k2_dingshi": {
+  "script": "SkillTimebomb",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "S2A_03_TimeBomb_Boom",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6120.wav"
+  }
+ },
+ "k2_zhiming2": {
+  "script": "SkillMortalstrike",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "S2A_01_Fatal_Boom",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6094.wav"
+  }
+ },
+ "k2_jiangchui": {
+  "script": "SkillHammerpolishing",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "S2B_01_HammerMaster_Boom",
+    "time": 2.05,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6120.wav"
+  }
+ },
+ "k2_zhilian": {
+  "script": "SkillImprovedweapon",
+  "guess": true,
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "S2B_A02_WeaponUpgrade",
+    "time": 1.8
+   }
+  ],
+  "sound": {
+   "cast": "skil6088.wav"
+  }
+ },
+ "k3_yuanhua": {
+  "script": "SkillBladerondo",
+  "cast": [
+   {
+    "mesh": "Bladerondo_1",
+    "time": 2
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skil6096.wav"
+  }
+ },
+ "k3_bingleng": {
+  "script": "SkillFrozengale",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Magic14_coldstormgale_1",
+    "time": 2.5
+   }
+  ]
+ },
+ "k3_huoyan": {
+  "script": "SkillFlamegale",
+  "cast": [
+   {
+    "mesh": "Magic14_flamegale_1",
+    "time": 1.4
+   }
+  ],
+  "fly": [
+   {
+    "mesh": "Magic14_flamegale_2",
+    "time": 2
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "Magic14_flamegale_3",
+    "time": 1.5
+   }
+  ]
+ },
+ "k3_shengyu": {
+  "script": "SkillSanctuary",
+  "cast": [
+   {
+    "mesh": "Sanctuary_1",
+    "time": 2
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skil6096.wav"
+  }
+ },
+ "k3_weixie": {
+  "script": "SkillMenacingdraw",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "Menacingdraw_1",
+    "time": 1.8,
+    "delay": 0.3
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "Menacingdraw_2",
+    "time": 1
+   }
+  ]
+ },
+ "k3_heizhou": {
+  "script": "SkillDamnation",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Damnation_1",
+    "time": 2
+   }
+  ]
+ },
+ "k3_duanjue": {
+  "script": "SkillMutilate",
+  "cast": [
+   {
+    "mesh": "Mutilate_1",
+    "time": 1.5
+   }
+  ],
+  "fly": [],
+  "hit": []
+ },
+ "k3_renjian": {
+  "script": "SkillTranscendentblades",
+  "guess": true,
+  "cast": [
+   {
+    "mesh": "Transcendentblades_1",
+    "time": 1.8
+   }
+  ],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Transcendentblades_2",
+    "time": 2.5
+   }
+  ]
+ },
+ "k3_tianfa": {
+  "script": "SkillScourge",
+  "guess": true,
+  "cast": [
+   {
+    "mesh": "Scourge_1",
+    "time": 1.3
+   }
+  ],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Scourge_2",
+    "time": 1.3
+   }
+  ]
+ },
+ "b_hunter": {
+  "script": "Hunter_Attack_00",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "hm_stone[basic]_ef",
+    "time": 0.4,
+    "delay": 0.4,
+    "y": 0.6
+   }
+  ],
+  "hit": [],
+  "sound": {
+   "fly": "hm_attack1.wav"
+  }
+ },
+ "luanshe": {
+  "script": "SkillMultiShot",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "hm_multishot[mon]_ef",
+    "time": 1.1,
+    "delay": 1
+   }
+  ],
+  "sound": {
+   "cast": "skil6309.wav"
+  }
+ },
+ "shuangzi": {
+  "script": "SkillDoubleshot",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "hm_stone[BLUE]_ef",
+    "time": 0.2,
+    "delay": 0.3,
+    "y": 0.6
+   },
+   {
+    "mesh": "hm_stone[BLUE]_ef",
+    "time": 0.2,
+    "y": 0.6
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "hm_dubleshot[mon]_ef",
+    "time": 2,
+    "delay": 0.5
+   }
+  ],
+  "sound": {
+   "cast": "skil6308.wav"
+  }
+ },
+ "baodan": {
+  "script": "SkillBuckshot",
+  "guess": true,
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "hm_stone[BLUE]_ef",
+    "time": 0.3,
+    "delay": 0.1,
+    "y": 0.6
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "hm_santanshot[mon]_ef",
+    "time": 2
+   }
+  ],
+  "sound": {
+   "cast": "skil6305.wav"
+  }
+ },
+ "hongxin": {
+  "script": "SkillPowershot",
+  "guess": true,
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "hm_stone[RED]_ef",
+    "time": 0.3,
+    "delay": 0.6,
+    "y": 0.6
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "e_skillshock_ef",
+    "time": 0.25
+   }
+  ],
+  "sound": {
+   "cast": "skil6304.wav"
+  }
+ },
+ "k2_guanchuan": {
+  "script": "SkillPiercingArrow",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "e_skillshock_ef",
+    "time": 0.25,
+    "delay": 0.3
+   }
+  ],
+  "sound": {
+   "cast": "skil6322.wav"
+  }
+ },
+ "k2_baoyu": {
+  "script": "SkillBombArrow",
+  "guess": true,
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "Am_arrow[S-bomb]_ef",
+    "time": 0.3,
+    "delay": 0.2,
+    "y": 1.5
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "Am_bomb[mon]_ef",
+    "time": 2
+   }
+  ],
+  "sound": {
+   "cast": "skil6323.wav"
+  }
+ },
+ "k3_jianshi": {
+  "script": "SkillArrowsquall",
+  "cast": [
+   {
+    "mesh": "ArrowScoll_1",
+    "time": 2.2
+   }
+  ],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "ArrowScoll_2",
+    "time": 2
+   }
+  ]
+ },
+ "k2_zhimiao": {
+  "script": "SkillAimingShot",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "E_gunshock_ef",
+    "time": 0.25,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6315.wav"
+  }
+ },
+ "k2_hunxuan": {
+  "script": "SkillChargeShot",
+  "guess": true,
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "am_bomb[mon]_ef",
+    "time": 2,
+    "delay": 0.1
+   }
+  ],
+  "sound": {
+   "cast": "skil6316.wav"
+  }
+ },
+ "k3_huoli": {
+  "script": "SkillHeadShot",
+  "guess": true,
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "am_bomb[mon]_ef",
+    "time": 2,
+    "delay": 0.8
+   }
+  ],
+  "sound": {
+   "cast": "skil6317.wav"
+  }
+ },
+ "levelup": {
+  "script": "LevelUP",
+  "cast": [
+   {
+    "mesh": "levelUP",
+    "time": 2,
+    "y": 0.3,
+    "billboard": 1
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "levelup.wav"
+  }
+ },
+ "monrejen": {
+  "script": "MonReJen",
+  "cast": [
+   {
+    "mesh": "SFX_MoR",
+    "y": 0.3
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "ak10.wav"
+  }
+ },
+ "bigkill": {
+  "script": "BigKill",
+  "cast": [
+   {
+    "mesh": "bigpot_1",
+    "time": 2,
+    "y": 0.3,
+    "billboard": 1
+   }
+  ],
+  "fly": [],
+  "hit": []
+ },
+ "bigitem": {
+  "script": "BigItem",
+  "cast": [
+   {
+    "mesh": "bigpot_2",
+    "time": 2,
+    "y": 0.3,
+    "billboard": 1
+   }
+  ],
+  "fly": [],
+  "hit": []
+ }
+}

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>模型檢視</title>
+<style>html,body{margin:0;height:100%;background:#9fb6ea;font-family:system-ui,sans-serif}#n{position:fixed;left:10px;top:10px;background:#fffc;padding:6px 10px;border-radius:8px}</style>
+</head><body><div id="n"></div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { sealModel } from './src/2_core/seal-model.js';
+const names = (new URLSearchParams(location.search).get('m') || 'T_babydragon').split(',');
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(innerWidth, innerHeight); document.body.appendChild(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x9fb6ea);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x667788, 1.6)); const d = new THREE.DirectionalLight(0xffffff, 1.2); d.position.set(3, 5, 4); scene.add(d);
+const cam = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 100);
+const n = names.length, gap = 2.2;
+names.forEach(async (nm, i) => { try { const m = await sealModel(nm, 1.8); m.position.x = (i - (n - 1) / 2) * gap; scene.add(m); } catch (e) { document.getElementById('n').textContent += ' ' + e.message; } });
+document.getElementById('n').textContent = names.join(' / ');
+cam.position.set(0, 1.2, Math.max(4, n * 1.6)); cam.lookAt(0, 0.9, 0);
+let a = 0; (function loop() { a += 0.01; scene.children.forEach(c => { if (c.isGroup) c.rotation.y = location.search.includes('spin') ? a : 0; }); r.render(scene, cam); requestAnimationFrame(loop); })();
+</script></body></html>
