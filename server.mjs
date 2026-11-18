@@ -15,7 +15,7 @@ import { towerFloor, towerSeg, towerScore, towerPoints, towerOpen, CURSES, TOWER
 import { parseGm } from './src/1_data/gm.js';
 import { fameLevel, runFame, earnedTitles, titleOf, FAME_GEAR } from './src/1_data/fame.js';
 import { cleanDiff, diffLoot, lootBonus, stageBaseLv } from './src/1_data/difficulty.js';
-import { PETS, PET_MAX, EGG_PRICE, MVP_EGG_RATE, FEED_EXP, addPetExp } from './src/1_data/pets.js';
+import { PETS, PET_MAX, EGG_PRICE, MVP_EGG_RATE, FEED_EXP, addPetExp, petNeed } from './src/1_data/pets.js';
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from './src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from './src/1_data/talents.js';
 import { RODS, BAIT, CATCH, rollCatch } from './src/1_data/fishing.js';
@@ -841,10 +841,33 @@ const api = {
     db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
     send(res, 200, { exp, ups, pet: p, char: fullChar(ownChar(uid, c.id)) });
   },
+  // 指令 4-2 寵物冶煉：把另一隻寵物冶煉進目標（被冶煉的消失），目標得到牠累積經驗的 60%；500 希幣
+  'POST /api/petsmelt': async (req, res, _, uid) => {
+    const { charId, petId, fromId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'), p = (d.pets || []).find(x => x.id === petId), f = (d.pets || []).find(x => x.id === fromId);
+    if (!p || !f || p === f) return send(res, 404, { error: '找不到寵物' }); if (d.pet === f.id || f.sit) return send(res, 400, { error: '出戰中或代養中的寵物不能拿去冶煉' });
+    if ((c.gold ?? 0) < 500) return send(res, 400, { error: '希幣不夠（要 500）' });
+    let total = f.exp || 0; for (let l = 1; l < f.lv; l++) total += petNeed(l); const exp = Math.round(total * 0.6) + 50;
+    d.pets = d.pets.filter(x => x !== f); const ups = addPetExp(p, exp);
+    db.prepare('UPDATE characters SET gold=gold-500, data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    send(res, 200, { exp, ups, char: fullChar(ownChar(uid, c.id)) });
+  },
+  // 指令 4-2 寵物代養：把沒出戰的寵物交給飼育員，每小時 +80 經驗（最多算 24 小時），領回時結算
+  'POST /api/petsit': async (req, res, _, uid) => {
+    const { charId, petId, op } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'), p = (d.pets || []).find(x => x.id === petId); if (!p) return send(res, 404, { error: '找不到寵物' });
+    let exp = 0, ups = 0;
+    if (op === 'start') { if (d.pet === p.id) return send(res, 400, { error: '出戰中的寵物要先收回' }); if (p.sit) return send(res, 400, { error: '已經在代養了' }); p.sit = Date.now(); }
+    else if (op === 'claim') { if (!p.sit) return send(res, 400, { error: '沒有在代養' }); exp = Math.floor(Math.min(24, (Date.now() - p.sit) / 3600e3) * 80); delete p.sit; ups = addPetExp(p, exp); }
+    else return send(res, 400, { error: '沒有這個動作' });
+    db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    send(res, 200, { exp, ups, char: fullChar(ownChar(uid, c.id)) });
+  },
   'POST /api/petactive': async (req, res, _, uid) => {
     const { charId, petId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}');
     if (petId != null && !(d.pets || []).some(x => x.id === petId)) return send(res, 404, { error: '找不到寵物' });
+    if (petId != null && d.pets.find(x => x.id === petId)?.sit) return send(res, 400, { error: '代養中的寵物要先領回' });
     d.pet = petId ?? null; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
