@@ -162,59 +162,97 @@ function triggerMountDash() {
 addEventListener('keydown', e => { if (e.code === 'KeyR') triggerMountDash(); });
 document.getElementById('mountBtn').onclick = () => triggerMountDash();
 { let rd = null; renderer.domElement.addEventListener('pointerdown', e => { if (e.button === 2) rd = { x: e.clientX, y: e.clientY, t: performance.now() }; });
-  addEventListener('pointerup', e => { if (e.button !== 2 || !rd) return; const moved = Math.hypot(e.clientX - rd.x, e.clientY - rd.y), dt = performance.now() - rd.t; rd = null; if (moved < 6 && dt < 350 && MOUNT_ON) triggerMountDash(); }); }
+  addEventListener('pointerup', e => { if (e.button !== 2 || !rd) return; const moved = Math.hypot(e.clientX - rd.x, e.clientY - rd.y), dt = performance.now() - rd.t; rd = null; if (moved < 6 && dt < 350) { if (CB.st === 'ready') cbTrigger(); else if (MOUNT_ON) triggerMountDash(); } }); }
 const input = createInput(renderer.domElement, document.getElementById('joy'), { camera, scene, target: () => player.position, groundY: () => groundY() });
 enableOrbit(renderer.domElement); // 右鍵拖曳轉視角
 rig.walk = (p, nx, nz) => walkMove(MAP, p, nx, nz); // 原版可走區（水、懸崖、建築擋路）
-// ===== 項目 52：A → S → D 連續技（第八批藍圖）=====
-// 氣條：時間＋移動累積（約 15～20 秒滿）；滿了腳下出現收縮光圈＋提示
-//   A＝放開手指／放開滑鼠／放開方向鍵（急停）：無敵 2.5 秒＋第一段（身邊 5 公尺）
-//   S＝輕點畫面／點一下滑鼠／空白鍵：第二段範圍技（8 公尺）
-//   D＝長按拖曳（手機、滑鼠）／按方向鍵：終結清屏大招（18 公尺，高傷＋掉屬性寶石），同時恢復走位
-// S、D 各有 2.5 秒的時間窗，沒接上就結束；A 之後直接移動＝中斷
-const CB = { g: 0, st: 0, t: 0, still: 0, ring: null };
-const cbHud = document.createElement('div'); cbHud.id = 'comboHud';
-cbHud.innerHTML = '<div class="cg"><i></i></div><div class="ch"></div>'; document.body.appendChild(cbHud);
-const cbStyle = document.createElement('style'); cbStyle.textContent = `#comboHud{position:fixed;left:50%;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 118px);transform:translateX(-50%);z-index:6;pointer-events:none;text-align:center}
-#comboHud .cg{width:150px;height:8px;border-radius:5px;background:#0006;border:1px solid #fff6;overflow:hidden;margin:0 auto}#comboHud .cg i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd36b,#ff7a3d)}
-#comboHud.full .cg{box-shadow:0 0 10px #ffb84a}#comboHud .ch{margin-top:4px;font-weight:900;font-size:15px;color:#fff;text-shadow:0 2px 4px #000;letter-spacing:1px;white-space:nowrap}#comboHud .ch b{color:#ffd36b}`;
+// ===== 項目 52 v2：A → S → D 連續技 × 技能寶石 QTE（使用者企劃 asd_combo_design_v2，雙平台）=====
+// 1 充能：普攻打中怪累積大招圓鈕的能量（0～100）
+// 2 發動：點發亮的大招鈕／空白鍵／滑鼠右鍵 → 全場時間暫停 1.8 秒（真實時間）
+// 3 集氣：手指或滑鼠滑過 10 顆屬性能量球（鍵盤 A／S／D 也能收）；球的排列照屬性：火＝垂直、水＝橫排、木＝正弦波、金土＝Z 字、光暗無＝中心螺旋
+//   收 0～3 顆 Nice ×1.0、4～7 Great ×1.5＋爆擊 +20%、8～10 Excellent ×2.2＋必定爆擊＋屬性全屏終結技＋職業台詞
+// 4 爆發：時間恢復、全程無敵、可以自由走位；跑馬燈依序點亮 A → S → AS…，每段自動放出身上的技能；最後一段是終結技
+// 屬性＝局內等級最高的屬性寶石（沒有＝無屬性）；連段長度基本 3 段，升級卡「連段擴充」每張 +2（最多 12）
+const CB = { g: 0, st: 'charge', done: 0 };
+const SEG = ['A', 'S', 'AS', 'D', 'AD', 'SD', 'ASD', 'SA', 'DA', 'DS', 'DSA', 'ASDA'];
+const JOB_LINE = { 劍士: '劍隨我心！', 騎士: '以盾為誓！', 法師: '元素聽我號令！', 祭司: '聖光審判！', 小丑: '表演開始～', 鐵匠: '全力打鐵！', 獵人: '百步穿楊！', 初心者: '別小看初心者！' };
+const cbStyle = document.createElement('style'); cbStyle.textContent = `#ultBtn{position:fixed;right:calc(50% - 215px);bottom:calc(max(10px,env(safe-area-inset-bottom)) + 18px);z-index:7;width:64px;height:64px;border-radius:50%;border:3px solid #fff8;--p:0;
+  background:conic-gradient(#ffb84a calc(var(--p)*1%),#0007 0);box-shadow:0 2px 8px #0008;color:#fff;font-weight:900;font-size:13px;text-shadow:0 1px 3px #000;pointer-events:auto;padding:0}
+#ultBtn span{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:radial-gradient(#1a2340,#0b1430cc)}
+#ultBtn.full{animation:ultP 0.9s ease-in-out infinite alternate;border-color:#ffe28a}#ultBtn.full span{background:radial-gradient(var(--ec,#ffd36b),#7a3a00)}
+@keyframes ultP{from{box-shadow:0 0 6px #ffd36b}to{box-shadow:0 0 22px #ffd36b,0 0 4px #fff}}
+@media (max-width:600px){#ultBtn{right:12px;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 108px);width:70px;height:70px}}
+#qte{position:fixed;inset:0;z-index:30;display:none;touch-action:none;background:radial-gradient(#0000,#0b1430aa)}
+#qte .orb{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:radial-gradient(#fff,var(--ec) 45%,#0000 72%);box-shadow:0 0 14px var(--ec);transition:transform .12s,opacity .12s}
+#qte .orb.got{transform:scale(1.8);opacity:0}#qte .bar{position:absolute;left:50%;top:14%;transform:translateX(-50%);width:200px;height:8px;border-radius:5px;background:#0008;overflow:hidden}#qte .bar i{display:block;height:100%;background:#ffd36b}
+#qte .tip{position:absolute;left:0;right:0;top:9%;text-align:center;color:#fff;font-weight:900;font-size:16px;text-shadow:0 2px 4px #000}
+#cbMarq{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 64px);transform:translateX(-50%);z-index:8;display:none;gap:5px;pointer-events:none}
+#cbMarq b{min-width:30px;padding:3px 7px;border-radius:8px;background:#0b1430cc;border:2px solid #fff4;color:#9aa6c8;font-size:15px;text-align:center}#cbMarq b.on{background:linear-gradient(#ffe28a,#ff9d3d);color:#3a1d00;border-color:#fff;transform:scale(1.15)}`;
 document.head.appendChild(cbStyle);
-const cbHint = h => { cbHud.querySelector('.ch').innerHTML = h; };
-function cbStage(n) {
-  const pp = player.position, J = SKD.jobs[CHAR.job], pool = J?.pool || [], lvK = 1 + 0.12 * P.lv, base = 10 * lvK; // 暫定：Lv1 三段 30／50／100
-  const R = [5, 8, 18][n], dmg = base * [3, 5, 10][n], key = pool[[0, 2, 3][n]];
-  // 原版特效：這職業的技能（第一段第 1 招、第二段第 3 招、第三段第 4 招＋首領倒地特效）；初心者沒有就用衝擊波
-  const pc = key && (PCFX.play(key, 'hit', pp, P.face, { fit: R * 0.6 }) || PCFX.play(key, 'cast', pp, P.face, { fit: R * 0.6, follow: player }));
-  if (!pc) spawnFx('shock', pp, { flat: true, scale: R * 2, life: 0.5, grow: 1.5, color: [0x9fe0ff, 0xffd36b, 0xff7a3d][n] });
-  if (n === 2) { PCFX.play('bigkill', 'cast', pp, 0, { y: 0.3, scale: 1.4 }); bossFx.shake = Math.max(bossFx.shake, 0.8); }
-  rig.swing(P.face, 'p' + (n + 1)); play(n === 2 ? 'boom' : 'hit', 0.7, 0);
-  // 指令 3：終結技（D）爆發屬性：用局內等級最高的屬性寶石（相剋照 element.scr），顏色特效＋相剋增傷
-  const top = n === 2 ? Object.values(P.egem || {}).sort((a, b) => b.lv - a.lv)[0] : null; if (top) { P.egem.combo = { e: top.e, lv: top.lv }; spawnFx('shock', pp, { flat: true, scale: R * 1.6, life: 0.6, grow: 1.5, color: new THREE.Color(ELEM_COLOR[top.e]).getHex() }); }
-  for (const e of enemies) { if (e.dead) continue; const dx = e.mesh.position.x - pp.x, dz = e.mesh.position.z - pp.z; if (dx * dx + dz * dz > R * R) continue; hurt(e, dmg, pp, 'phys', 'combo', { tags: n === 2 ? ['heavy'] : [] }); }
-  if (top) delete P.egem.combo; if (n === 2) CB.done = (CB.done || 0) + 1; // 完整打完一套 → 結算時技能寶石融合經驗
-  showBanner(`<small>連續技 ${'ASD'[n]}</small><b>${['第一段', '第二段', '終結技'][n]}</b>`, 700);
-  if (n === 2) maybeElemGem(true);
+const ultBtn = document.createElement('button'); ultBtn.id = 'ultBtn'; ultBtn.title = '連續技（空白鍵／滑鼠右鍵）'; ultBtn.innerHTML = '<span>ASD</span>'; document.body.appendChild(ultBtn);
+const qteEl = document.createElement('div'); qteEl.id = 'qte'; document.body.appendChild(qteEl);
+const marq = document.createElement('div'); marq.id = 'cbMarq'; document.body.appendChild(marq);
+const cbElem = () => { const top = Object.entries(P.egem || {}).filter(([k]) => k !== 'combo').map(([, g]) => g).sort((a, b) => b.lv - a.lv)[0]; return top ? top.e : 0; };
+function cbCharge(n) { if (CB.st !== 'charge') return; CB.g = Math.min(100, CB.g + n); if (CB.g >= 100) { CB.st = 'ready'; ultBtn.classList.add('full'); ultBtn.style.setProperty('--ec', ELEM_COLOR[cbElem()] || '#ffd36b'); } }
+// 屬性軌跡：回傳 10 個畫面位置（比例）
+function orbPattern(e) {
+  const P10 = [...Array(10).keys()];
+  if (e === 1) return P10.map(i => [0.5 + (i % 2 ? 0.04 : -0.04), 0.8 - i * 0.065]);                       // 火：由下往上垂直
+  if (e === 2) return P10.map(i => [0.25 + (i % 5) * 0.125, i < 5 ? 0.44 : 0.58]);                         // 水：兩條橫排
+  if (e === 3) return P10.map(i => [0.14 + i * 0.08, 0.5 + 0.13 * Math.sin(i / 9 * Math.PI * 2)]);        // 木：正弦波
+  if (e === 4 || e === 5) return [[0.3, 0.32], [0.45, 0.32], [0.6, 0.32], [0.55, 0.42], [0.48, 0.5], [0.41, 0.58], [0.35, 0.66], [0.45, 0.68], [0.58, 0.68], [0.7, 0.68]]; // 金土：Z 字
+  return P10.map(i => { const a = i / 10 * Math.PI * 3, r = 0.05 + i * 0.016; return [0.5 + Math.cos(a) * r * innerHeight / innerWidth, 0.5 + Math.sin(a) * r]; }); // 光暗無：中心螺旋
 }
-function cbEnd() { CB.st = 0; CB.g = 0; CB.t = 0; cbHud.classList.remove('full'); cbHint(''); if (CB.ring) CB.ring.visible = false; }
-{ let pd = null; // 輕點（S）／長按拖曳（D）判斷
-  renderer.domElement.addEventListener('pointerdown', e => { if (e.button === 0) pd = { x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; });
-  addEventListener('pointermove', e => { if (!pd || pd.fired || CB.st !== 3) return; if (performance.now() - pd.t > 220 && Math.hypot(e.clientX - pd.x, e.clientY - pd.y) > 15) { pd.fired = true; cbStage(2); cbEnd(); } });
-  addEventListener('pointerup', e => { if (!pd) return; const quick = performance.now() - pd.t < 260 && Math.hypot(e.clientX - pd.x, e.clientY - pd.y) < 12, was = pd; pd = null;
-    if (!was.fired && quick && CB.st === 2 && state === 'play') { input.cancelClick(); cbStage(1); CB.st = 3; CB.t = 2.5; cbHint('長按拖曳 <b>[D]</b>（或方向鍵）→ 終結技'); } });
-  addEventListener('keydown', e => { if (state !== 'play') return;
-    if (e.code === 'Space' && CB.st === 2) { e.preventDefault(); cbStage(1); CB.st = 3; CB.t = 2.5; cbHint('長按拖曳 <b>[D]</b>（或方向鍵）→ 終結技'); }
-    else if (CB.st === 3 && /^(Key[WASD]|Arrow)/.test(e.code)) { cbStage(2); cbEnd(); } }); }
-function comboUpdate(dt, mv) {
-  const moving = mv.ml > 0.05 || input.joy.on || input.click.held;
-  if (CB.st === 0) { CB.g = Math.min(100, CB.g + dt * (5 + (moving ? 2.5 : 0))); if (CB.g >= 100) { CB.st = 1; cbHud.classList.add('full'); cbHint('放開 <b>[A]</b> → 輕點 <b>[S]</b> → 長按拖曳 <b>[D]</b>'); } }
-  else if (CB.st === 1) { CB.still = moving ? 0 : CB.still + dt; if (CB.still > 0.12) { P.inv = Math.max(P.inv, 2.5); cbStage(0); CB.st = 2; CB.t = 2.5; cbHint('輕點 <b>[S]</b>（或空白鍵）→ 第二段'); } }
-  else if (CB.st === 2) { CB.t -= dt; if (CB.t <= 0 || mv.ml > 0.05) cbEnd(); }
-  else if (CB.st === 3) { CB.t -= dt; if (CB.t <= 0) cbEnd(); }
-  cbHud.querySelector('.cg i').style.width = (CB.st ? 100 : CB.g) + '%';
-  // 腳下收縮光圈（氣條滿、等放開時）
-  if (!CB.ring) { CB.ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.1, 40), new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })); CB.ring.rotation.x = -Math.PI / 2; scene.add(CB.ring); }
-  CB.ring.visible = CB.st >= 1; if (CB.ring.visible) { const k = 2.2 - ((t * 1.4) % 1) * 1.4; CB.ring.scale.setScalar(k); CB.ring.position.set(player.position.x, 0.08, player.position.z); }
+function cbTrigger() {
+  if (CB.st !== 'ready' || state !== 'play') return;
+  CB.st = 'qte'; state = 'qte'; const e = cbElem(), col = ELEM_COLOR[e] || '#ffd36b', pts = orbPattern(e), T0 = performance.now(), DUR = 1800;
+  const how = e === 1 ? '上下推拉' : e === 2 ? '左右橫掃' : e === 3 ? '順著波浪擺動' : e === 4 || e === 5 ? '斜線 Z 字切' : '在中間畫圈';
+  qteEl.style.setProperty('--ec', col); qteEl.innerHTML = `<div class="tip">${ELEMS[e]}屬性・${how}收集能量球（A／S／D 鍵也可以）</div><div class="bar"><i></i></div>` + pts.map(([x, y], i) => `<div class="orb" data-i="${i}" style="left:${x * 100}%;top:${y * 100}%"></div>`).join('');
+  qteEl.style.display = 'block'; let got = 0, over = false; const orbs = [...qteEl.querySelectorAll('.orb')];
+  const take = o => { if (!o || o.classList.contains('got')) return; o.classList.add('got'); got++; play('gem', 0.4, 0); if (got >= 10) finish(); };
+  const sweep = ev => { for (const o of orbs) { if (o.classList.contains('got')) continue; const r = o.getBoundingClientRect(); if (Math.hypot(ev.clientX - r.left - r.width / 2, ev.clientY - r.top - r.height / 2) < 42) take(o); } };
+  const key = ev => { if (/^Key[ASDJKL]$/.test(ev.code)) { ev.preventDefault(); take(orbs.find(o => !o.classList.contains('got'))); } };
+  qteEl.onpointermove = sweep; qteEl.onpointerdown = sweep; addEventListener('keydown', key);
+  const tick = () => { if (over) return; const k = (performance.now() - T0) / DUR; qteEl.querySelector('.bar i').style.width = Math.max(0, 100 - k * 100) + '%'; if (k >= 1) finish(); else requestAnimationFrame(tick); };
+  function finish() { if (over) return; over = true; removeEventListener('keydown', key); qteEl.style.display = 'none'; qteEl.onpointermove = qteEl.onpointerdown = null; state = 'play'; last = performance.now(); cbUnleash(got, e); }
+  requestAnimationFrame(tick);
 }
+function cbUnleash(got, e) {
+  const grade = got >= 8 ? 2 : got >= 4 ? 1 : 0, mult = [1, 1.5, 2.2][grade], n = Math.min(12, P.comboLen || 3);
+  CB.st = 'unleash'; ultBtn.classList.remove('full'); ultBtn.style.setProperty('--p', 0);
+  P.inv = Math.max(P.inv, n * 0.35 + 0.6); // 全程無敵，可以走位
+  showBanner(`<small>${['Nice', 'Great', 'Excellent'][grade]}！（${got}/10）</small><b>${grade === 2 ? (JOB_LINE[CHAR.job] || '連續技！') : '連續技'}</b><span>傷害 ×${mult}${grade === 2 ? '・必定爆擊' : grade ? '・爆擊 +20%' : ''}</span>`, 1300);
+  marq.innerHTML = SEG.slice(0, n).map(x => `<b>${x}</b>`).join(''); marq.style.display = 'flex';
+  const owned = Object.keys(SM.skills).filter(k => !SKD.skills[k]?.basic), base = 10 * (1 + 0.12 * P.lv);
+  for (let i = 0; i < n; i++) setTimeout(() => {
+    if (state === 'over') return; const last = i === n - 1, pp = player.position, k = owned.length ? owned[i % owned.length] : SKD.jobs[CHAR.job]?.basic;
+    marq.children[i]?.classList.add('on'); play(last ? 'boom' : 'hit', 0.6, 0);
+    const R = last ? (grade === 2 ? 18 : 9) : 6, crit = grade === 2 || (grade === 1 && Math.random() < 0.2), dmg = base * (last ? 4 : 1.5 + 0.3 * i) * mult * (crit ? 1.6 : 1) * (last && grade === 2 && e === 0 ? 1.5 : 1);
+    const pc = k && (PCFX.play(SKD.skills[k]?.pcfx || k, 'hit', pp, P.face, { fit: R * 0.6 }) || PCFX.play(SKD.skills[k]?.pcfx || k, 'cast', pp, P.face, { fit: R * 0.6, follow: player }));
+    if (!pc || last) spawnFx('shock', pp, { flat: true, scale: R * 2, life: 0.5, grow: 1.5, color: new THREE.Color(last ? (ELEM_COLOR[e] || '#ff7a3d') : '#ffd36b').getHex() });
+    if (last) { PCFX.play('bigkill', 'cast', pp, 0, { y: 0.3, scale: 1.4 }); bossFx.shake = Math.max(bossFx.shake, 0.8); if (e) P.egem.combo = { e, lv: 5 }; }
+    rig.swing(P.face, 'p' + (1 + i % 4));
+    let hits = 0;
+    for (const en of enemies) { if (en.dead) continue; const dx = en.mesh.position.x - pp.x, dz = en.mesh.position.z - pp.z; if (dx * dx + dz * dz > R * R) continue; hits++;
+      hurt(en, dmg, pp, 'phys', 'combo', { tags: last ? ['heavy'] : [] });
+      if (last && grade === 2) { if (e === 2) { en.slowK = 0.6; en.slowT = 4; } if ((e === 4 || e === 5) && !en.ai) en.stunT = 1.2; if (e === 7 && !en.boss && !en.dead && en.hp < en.maxHp * 0.25) hurt(en, en.hp + 1, pp, 'phys', 'combo'); } }
+    if (last) { delete P.egem.combo;
+      if (grade === 2) { // Excellent 屬性追加效果
+        if (e === 1) P.tmp.dmg = Math.max(P.tmp.dmg, 8);                                   // 火：灼燒破甲 → 8 秒傷害 +20%
+        if (e === 3) { P.tmp.speed = 6; P.tmp.haste = 6; }                                  // 木：攻速、移速暴增
+        if (e === 4 || e === 5) P.shield = Math.round(P.maxHp * 0.3);                       // 金土：臨時護盾（30% 最大 HP）
+        if (e === 6) { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.3); P.inv += 1.5; }      // 光：回血＋無敵延長
+        if (e === 7) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * Math.min(0.3, hits * 0.02)); // 暗：吸血
+        if (e === 0) showBanner(`<b>${JOB_LINE[CHAR.job] || '喝啊！'}</b>`, 900); }
+      CB.done++; maybeElemGem(false); setTimeout(cbEnd, 400); }
+  }, 300 + i * 350);
+}
+function cbEnd() { CB.st = 'charge'; CB.g = 0; marq.style.display = 'none'; ultBtn.classList.remove('full'); ultBtn.style.setProperty('--p', 0); }
+function cbReset() { cbEnd(); CB.done = 0; }
+// 大招鈕：只有「在按鈕上按下又放開」才算（拖曳搖桿經過不會誤觸）
+ultBtn.addEventListener('click', e => { e.stopPropagation(); cbTrigger(); });
+addEventListener('keydown', e => { if (e.code === 'Space' && state === 'play' && CB.st === 'ready') { e.preventDefault(); cbTrigger(); } });
+function comboUpdate() { ultBtn.style.setProperty('--p', CB.st === 'charge' ? CB.g : 100); }
 // ===== 項目 53：地圖動態事件 × MVP 護盾（第八批藍圖）=====
 // 依「事件數量」出事件（同時只有 1 個）：淨化嚕啦族祭壇（光圈內累積站 5 秒）、追擊黃金大盜（限時打倒會逃跑的金色精英）、守護希爾特商隊（咕咕撐 30 秒不被打倒）
 // 每完成 1 個：結算寶箱品質提升、MVP 減傷護盾少一層（3 層、每層 HP ＋10%）；一個都沒完成：MVP 狂暴（HP ×1.3、攻擊 ×1.3）
@@ -267,7 +305,7 @@ function autoMount(dt, mv) {
   if (!getSettings().autoMount || !MOUNT_ON || state !== 'play') return;
   if (mv.ml > 0.5) { const d = Math.atan2(mv.mz, mv.mx); if (AM.dir != null && Math.abs(Math.atan2(Math.sin(d - AM.dir), Math.cos(d - AM.dir))) < 0.5) AM.t += dt; else { AM.dir = d; AM.t = 0; }
     if (AM.t > 2 && !rig.mounted) setMounted(true); }
-  else { AM.t = 0; AM.dir = null; if (rig.mounted && CB.st === 1) setMounted(false); }
+  else { AM.t = 0; AM.dir = null; if (rig.mounted && CB.st === 'ready') setMounted(false); }
 }
 // 視角切換：V 鍵或右下按鈕
 function switchView() { const n = cycleView(); showBanner(`<small>視角</small><b>${n}</b>`, 700); }
@@ -368,6 +406,7 @@ const PASSIVES = {
   run: { name: '快跑', img: FX.gem, desc: () => '移動速度 +10%、經驗吸取範圍 +20%', apply: () => { P.speed *= 1.1; P.magnet *= 1.2; } },
   aid: { name: '緊急治療', img: FX.hit, desc: () => '每 10 秒自動回復 6% 最大 HP（可疊加）', apply: () => { P.aid = (P.aid || 0) + 1; } },
   feign: { name: '裝死', img: FX.hit, desc: () => 'HP 低於 25% 時倒地裝死：2 秒無敵（冷卻 60 秒，每多一級 −10 秒）', apply: () => { P.feign = (P.feign || 0) + 1; } },
+  comboExt: { name: '連段擴充', img: FX.lightning, desc: () => `A→S→D 連續技 +2 段（現在 ${Math.min(12, P.comboLen || 3)} 段，最多 12 段）`, apply: () => { P.comboLen = Math.min(12, (P.comboLen || 3) + 2); } },
   cheer: { name: '初心者鼓舞', img: FX.lightning, desc: () => '所有傷害 +10%、經驗 +10%', apply: () => { P.might *= 1.1; P.expMul = (P.expMul || 1) + 0.1; } },
 };
 
@@ -407,7 +446,7 @@ function reset() {
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
-  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } if (typeof cbEnd === 'function' && CB.ring !== undefined) { cbEnd(); CB.done = 0; }
+  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
   enemies = []; gems = []; t = 0; kills = 0; spawner.reset();
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
@@ -517,6 +556,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   if (st.poison) { e.poison = { dps: st.poison[0], t: st.poison[1], tick: 0.5 }; }
   if (st.stun && !e.ai && Math.random() < st.stun[0]) e.stunT = st.stun[1];
   // 連擊無雙已取消（使用者 11/18：怪一多隨便就能達成）
+  if (SKD.skills[src]?.basic) cbCharge(4); // 連續技 v2：普攻打中累積大招能量（約 25 下滿）
   e.hp -= amt; trackDmg(src, amt); dmgNum(e.mesh.position, amt, crit, e.hgt || 1.2); e.flash = crit ? 0.18 : 0.1; if (crit) { e.mesh.userData.actor?.act('ms'); mobSound(e, 'ms', 0.18, 150); }
   if (from) { e.kb.subVectors(e.mesh.position, from).setY(0).normalize().multiplyScalar(e.boss ? 0.3 : e.elite ? 2 : 6); }
   play('hit', 0.25, 60);
@@ -549,7 +589,8 @@ function hitPlayer(dmg) {
   if (P.inv > 0) return;
   if (Math.random() < (P.dodge || 0)) { P.inv = 0.25; dmgNum(player.position, 0, false, 2, true, 'MISS'); return; } // 項目 35：敏捷迴避
   // 項目 34：受傷＝max(1,(攻擊−護甲)×(1−減傷，所有減傷加總上限 60%))；迴避先判定（上面）。護甲維持 ×2（我們的護甲數字小）
-  const taken = Math.max(1, Math.round((dmg - P.armor * 2) * (1 - Math.min(0.6, (P.dr || 0) + (P.vitDr || 0))) * (NOVICE_RUN && t < 20 ? 0.5 : 1))); // 初心者前 20 秒受傷減半 P.hp -= taken; P.inv = NOVICE_RUN ? 0.8 : 0.5;
+  const taken = Math.max(1, Math.round((dmg - P.armor * 2) * (1 - Math.min(0.6, (P.dr || 0) + (P.vitDr || 0))) * (NOVICE_RUN && t < 20 ? 0.5 : 1))); // 初心者前 20 秒受傷減半 if (P.shield > 0) { const ab = Math.min(P.shield, taken); P.shield -= ab; P.hp += ab; } // 連續技金土 Excellent：臨時護盾先吃傷害
+  P.hp -= taken; P.inv = NOVICE_RUN ? 0.8 : 0.5;
   if (P.feign && P.hp > 0 && P.hp < P.maxHp * 0.25 && !(P.feignCd > 0)) { P.inv = 2; P.feignCd = Math.max(20, 60 - 10 * (P.feign - 1)); showBanner('<small>裝死</small><b>…（不動）</b><span>2 秒無敵</span>', 900); } // 裝死 play('hurt', 0.5, 200); dmgNum(player.position, taken, false, 2, true);
   bossFx.shake = Math.max(bossFx.shake, 0.25);
 }
@@ -746,7 +787,7 @@ function towerFloorUp() {
 function update(dt) {
   t += dt;
   // 移動（player.js）
-  rig.move(dt, input.read(), P); comboUpdate(dt, input.read()); eventsUpdate(dt);
+  rig.move(dt, input.read(), P); comboUpdate(); eventsUpdate(dt);
   autoMount(dt, input.read()); // 第八批 54 選配：趕路自動上馬 // 項目 52 連續技、53 地圖事件
   const pp = player.position;
   // 換區域：跳區域名
