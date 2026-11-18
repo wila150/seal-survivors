@@ -1,6 +1,7 @@
 // 希望倖存者 出征：只負責組裝（場景、介面、傷害、升級），各模組在 src/
 //   玩家 src/2_core/player.js、攝影機 camera.js、流程／首領／結算 game-manager.js、物件池 pool.js、技能 src/3_skills/skills.js
 import { pcLoading } from './src/2_core/pc-loading.js';
+import { askConfirm } from './src/2_core/ask.js';
 import * as THREE from 'three';
 import { JOBS, defaultStats, MOUNT } from './src/1_data/jobs.js';
 import { sealModel, sealMob, sealModelData } from './src/2_core/seal-model.js';
@@ -204,8 +205,24 @@ spawner.countMul = DM.spawn; spawner.eventMul = DM.event;
 Promise.all([rig.actorReady.finally(loadTick), rig.mountReady.finally(loadTick), modelsReady, pcfxReady]).then(() => {
   GLOAD.done(); document.getElementById('gload').style.display = 'none'; const go = document.getElementById('go'); go.disabled = false; go.textContent = '開始';
   // 11/18 使用者：不用按開始 → 載完後標題（希望倖存者＋地圖名＋等級）顯示 1.8 秒就直接開打
-  if (!/auto|resume/.test(location.search)) setTimeout(() => { if (state === 'start') start(); }, 1800);
+  if (!/auto|resume/.test(location.search)) setTimeout(async () => { if (state !== 'start') return; if (!(await askResume())) start(); }, 1800);
 });
+// 11/19 使用者：「按到重整就要重新開始，沒有問我要不要回去上一局」→ 戰場頁重新整理／重開時也問（以前只有回主城才問）
+async function askResume() {
+  let snap = null; try { snap = JSON.parse(localStorage.getItem(RUN_KEY)); } catch {}
+  if (!snap || TOWER || Date.now() - snap.saved > 24 * 3600e3) return false;
+  const tm = `${snap.t / 60 | 0}:${String(snap.t % 60 | 0).padStart(2, '0')}`;
+  const yes = await askConfirm(`上一局還沒打完：${snap.stageName} 第 ${tm} 分、Lv ${snap.lv}、擊殺 ${snap.kills}。\n要接著打嗎？（放棄的話先結算已拿到的經驗與金幣）`, { title: '未完成的一局', ok: '繼續', cancel: '放棄' });
+  if (yes) {
+    if (snap.stage !== STAGE_IDX) { location.href = `game.html?resume&stage=${snap.stage}`; return true; }
+    await start(); resumeRun(snap); return true;
+  }
+  clearRun();
+  let token = null; try { token = localStorage.getItem('ss_token'); } catch {}
+  if (token && CHAR.id) submitRun(token, { charId: CHAR.id, secs: Math.floor(snap.t), kills: snap.kills | 0, lv: snap.lv | 0, cleared: false, chests: snap.chests | 0, bossChests: snap.bossChests | 0, stage: snap.stageKey })
+    .then(j => showBanner(`<small>上一局已結算</small><b>經驗 +${j.gain}　金幣 +${j.gold}</b>`, 2200)).catch(() => {});
+  return false;
+}
 // 瀏覽器不讓沒點過的頁面自動放音樂 → 第一次按鍵／點畫面時補播
 const kickBgm = () => { if (!muted && state !== 'start' && bgm.paused) bgm.play().catch(() => {}); };
 addEventListener('pointerdown', kickBgm, { once: true }); addEventListener('keydown', kickBgm, { once: true });
