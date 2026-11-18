@@ -70,7 +70,7 @@
   .cgrid{display:grid;grid-template-columns:260px 1fr;gap:16px;overflow:auto;flex:1;min-height:0}
   /* 建角視窗：標題＋可捲動內容＋固定在底部的按鈕列（11/18：素質改 6 項後內容變長，底部按鈕被切掉） */
   #createDlg[open]{display:flex;flex-direction:column}#createDlg>header{flex:none}#createDlg #createForm{flex:1;min-height:0}#createDlg .bar{flex:none;margin-top:4px}
-  @media (max-width:700px){.cgrid{grid-template-columns:1fr}}
+  @media (max-width:700px){.cgrid{grid-template-columns:1fr}.cgrid .preview{aspect-ratio:auto;height:min(62vw,300px);flex:none}} /* 手機：預覽固定高度，不然被壓成一條 */
   .preview{background:linear-gradient(#cfdcf8,#9fb6ea);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
   .preview canvas{width:100%!important;height:100%!important;display:block}
   .pvload{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a5bbf;font-weight:700;pointer-events:none}
