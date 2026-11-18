@@ -103,7 +103,7 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
   rig.resetMount = () => { rig.mounted = false; rig.mountCd = 0; if (rig.mountObj) rig.mountObj.visible = false; if (group.userData.model) group.userData.model.position.y = 0; };
   // XZ 移動＋面向移動方向＋站／跑動作；騎乘移速 +15%
   rig.move = (dt, inp, P) => {
-    rig.mountCd -= dt; const spd = P.speed * (rig.mounted ? 1 + MOUNT.speed : 1) * (P.tmp?.speed > 0 ? 1.2 : 1); // 項目 37 祝福
+    rig.mountCd -= dt; const spd = P.speed * (rig.mounted ? 1 + MOUNT.speed : 1) * (P.tmp?.speed > 0 ? 1.2 : 1) * (P.tmp?.dash > 0 ? 1.6 : 1); // 項目 37 祝福、54 衝鋒加速
     rig.moving = inp.ml > 0.05; rig.swingCd -= dt;
     if (rig.moving) { const nx = group.position.x + inp.mx * spd * dt, nz = group.position.z + inp.mz * spd * dt;
       if (rig.walk) rig.walk(group.position, nx, nz); else { group.position.x = nx; group.position.z = nz; } P.face = Math.atan2(inp.mz, inp.mx); rig.yaw = -P.face + Math.PI / 2; }

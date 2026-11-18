@@ -134,8 +134,21 @@ function setMounted(on) {
   const b = document.getElementById('mountBtn'); if (b) b.textContent = on ? '下坐騎 (R)' : '上坐騎 (R)';
   spawnFx('shock', player.position, { flat: true, scale: 3, life: 0.4, grow: 1.4, color: 0xffe9a8 }); play('gem', 0.5, 0);
 }
-addEventListener('keydown', e => { if (e.code === 'KeyR') setMounted(!rig.mounted); });
-document.getElementById('mountBtn').onclick = () => setMounted(!rig.mounted);
+// 項目 54：坐騎衝鋒 triggerMountDash()：切換上下坐騎；上坐騎那一下（冷卻 15 秒）撞飛身邊的怪＋傷害＋1.5 秒加速
+// 綁定：R 鍵、戰場滑鼠右鍵「點一下」（右鍵拖曳照舊轉視角）、手機右側馬頭鈕
+const DASH_CD = 15; let dashCd = 0;
+function triggerMountDash() {
+  if (state !== 'play') return; const on = !rig.mounted; setMounted(on);
+  if (!on || dashCd > 0 || !rig.mounted) return;
+  dashCd = DASH_CD; P.tmp.dash = 1.5; const pp = player.position, R2 = 4.5 * 4.5;
+  for (const e of enemies) { if (e.dead) continue; const dx = e.mesh.position.x - pp.x, dz = e.mesh.position.z - pp.z; if (dx * dx + dz * dz > R2) continue;
+    hurt(e, 15 * (1 + P.lv * 0.15), pp, 'phys', 'mount', { tags: ['heavy'] }); if (!e.boss) e.kb.set(dx, 0, dz).normalize().multiplyScalar(14); }
+  spawnFx('shock', pp, { flat: true, scale: 9, life: 0.5, grow: 1.6, color: 0xffd36b }); play('boom', 0.6, 0); bossFx.shake = Math.max(bossFx.shake, 0.3);
+}
+addEventListener('keydown', e => { if (e.code === 'KeyR') triggerMountDash(); });
+document.getElementById('mountBtn').onclick = () => triggerMountDash();
+{ let rd = null; renderer.domElement.addEventListener('pointerdown', e => { if (e.button === 2) rd = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  addEventListener('pointerup', e => { if (e.button !== 2 || !rd) return; const moved = Math.hypot(e.clientX - rd.x, e.clientY - rd.y), dt = performance.now() - rd.t; rd = null; if (moved < 6 && dt < 350 && MOUNT_ON) triggerMountDash(); }); }
 const input = createInput(renderer.domElement, document.getElementById('joy'), { camera, scene, target: () => player.position, groundY: () => groundY() });
 enableOrbit(renderer.domElement); // 右鍵拖曳轉視角
 rig.walk = (p, nx, nz) => walkMove(MAP, p, nx, nz); // 原版可走區（水、懸崖、建築擋路）
@@ -252,7 +265,7 @@ function reset() {
         armor: JOB.armor + (B.armor || 0), regen: JOB.regen || 0, magnet: 2.5 * (1 + (B.magnet || 0)), hasteV: (ST.wis || 1) + (B.haste || 0) * 100, lv: 1, xp: 0, need: 5, inv: 0, face: 0 };
   // 項目 34 遞減收益：急速值 → 冷卻倍率＝1／(1＋急速／100)（急速 100＝冷卻剩 50%；精神 1 點＝急速 1、裝備／天賦／石頭／稱號的冷卻 % 換成急速值）
   Object.defineProperty(P, 'haste', { get() { return 1 / (1 + Math.max(0, this.hasteV + (this.tmp.haste > 0 ? 30 : 0)) / 100); } });
-  P.tmp = { dmg: 0, haste: 0, speed: 0 }; // 項目 37：菁英寶箱的局內道具（剩餘秒數）
+  P.tmp = { dmg: 0, haste: 0, speed: 0, dash: 0 }; // 項目 37：菁英寶箱的局內道具（剩餘秒數）
   P.might *= 1 + (B.atk || 0); P.crit += B.crit || 0; P.speed *= 1 + (B.speed || 0);
   const TE = TAL ? talentEffects(TAL, CHAR.job, ...(([a1, a2]) => [a1, CHAR.job2, a2])(boostedAlloc(TAL, CHAR.job, CHAR.talents, CHAR.job2, CHAR.talents2, CHAR.items))) : { stat: {}, skill: {}, tag: {} }, ts = TE.stat;
   P.might *= 1 + (ts.atk || 0); P.phys += ts.phys || 0; P.magic += ts.magic || 0; P.crit += ts.crit || 0; P.speed *= 1 + (ts.speed || 0);
@@ -272,7 +285,7 @@ function reset() {
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
-  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0;
+  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0;
   enemies = []; gems = []; t = 0; kills = 0; spawner.reset();
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
@@ -617,6 +630,7 @@ function update(dt) {
   spawner.tick(dt * (CURSE.spawn || 1), t, () => enemies.length, spawnEnemy, enterBoss);
   if (!CURSE.noRegen) P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   for (const k in P.tmp) if (P.tmp[k] > 0) P.tmp[k] -= dt; // 局內道具倒數
+  if (dashCd > 0) { dashCd -= dt; const mb = document.getElementById('mountBtn'); if (mb) { mb.style.setProperty('--cd', Math.max(0, dashCd / DASH_CD)); mb.classList.toggle('ready', dashCd <= 0); } }
 
   SM.update(dt, !rig.mounted); // 騎乘時不能攻擊
   petTick(dt); // 項目 30 寵物
