@@ -6,7 +6,7 @@
 //   .ms1 檔頭：u32 版本, u32 材質數 M；材質記錄 587 bytes（第一筆從 0x0a 起）：貼圖檔名（256）、材質名 +256（128）、套用的材質腳本名 +384
 //   部位檔頭（頂點前）：u32 材質編號、u32 −1、f32、接著 4×4 放置矩陣（D3D 列優先，THREE.fromArray 直接用）；頂點是世界座標
 //   .an1：節點名＝部位名（大小寫不同），位置／旋轉／縮放是絕對值（沒有父節點）
-//   材質腳本 skill/*.shader、sfx/*.shader（Quake 風格）：map／animmap、blendfunc、rgbGen、alphaGen、tcMod
+//   材質腳本 skill/*.shader、sfx/*.shader（Quake 風格）：map／animmap、blendfunc（bf＝原始兩個係數，11/19 起照原版混色）、rgbGen、alphaGen、tcMod scroll／rotate／scale／stretch
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 import { parseMs1, texToPng, png } from './seal-model.mjs';
 import { parseAn1 } from './seal-anim.mjs';
@@ -81,13 +81,14 @@ for (const dir of ['skill', 'sfx']) for (const f of fs.readdirSync(path.join(CLI
     let x;
     if ((x = g(/\banimmap\s+([\d.]+)\s+([^\n]+)/i))) { sh.fps = +x[1]; sh.frames = x[2].trim().split(/\s+/).map(s => s.replace(/\.\w+$/, '').split(/[\\/]/).pop()); }
     else if ((x = g(/\b(?:clamp)?map\s+([^\s]+)/i))) sh.map = x[1].replace(/\.\w+$/, '').split(/[\\/]/).pop();
-    if ((x = g(/\bblendfunc\s+([^\n]+)/i))) { const b = x[1].trim().toLowerCase(); sh.blend = /^(add|gl_one gl_one|gl_src_alpha gl_one|gl_src_color gl_one)/.test(b) ? 'add' : /^(blend|gl_src_alpha gl_one_minus_src_alpha)/.test(b) ? 'blend' : /filter|gl_dst_color|gl_zero gl_src_color/.test(b) ? 'mul' : 'add'; }
+    if ((x = g(/\bblendfunc\s+([^\n]+)/i))) { const b = x[1].trim().toLowerCase(); sh.blend = /^(add|gl_one gl_one|gl_src_alpha gl_one|gl_src_color gl_one)/.test(b) ? 'add' : /^(blend|gl_src_alpha gl_one_minus_src_alpha)/.test(b) ? 'blend' : /filter|gl_dst_color|gl_zero gl_src_color/.test(b) ? 'mul' : 'add'; sh.bf = b.replace(/\s+/g, ' ').split(' ').slice(0, 2).join(' '); }
     if ((x = g(/\brgbGen\s+const\s*\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/i))) sh.color = [+x[1], +x[2], +x[3]];
     if ((x = g(/\brgbGen\s+wave\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)/i))) sh.rgbWave = [x[1].toLowerCase(), +x[2], +x[3], +x[4], +x[5]];
     if ((x = g(/\balphaGen\s+wave\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)/i))) sh.alphaWave = [x[1].toLowerCase(), +x[2], +x[3], +x[4], +x[5]];
     if ((x = g(/\btcMod\s+scroll\s+([-\d.]+)\s+([-\d.]+)/i))) sh.scroll = [+x[1], +x[2]];
     if ((x = g(/\btcMod\s+rotate\s+([-\d.]+)/i))) sh.rotate = +x[1];
     if ((x = g(/\btcMod\s+scale\s+([-\d.]+)\s+([-\d.]+)/i))) sh.tscale = [+x[1], +x[2]];
+    if ((x = g(/\btcMod\s+stretch\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)/i))) sh.stretch = [x[1].toLowerCase(), +x[2], +x[3], +x[4], +x[5]];
     if (/\balphaFunc\b/i.test(body)) sh.cutout = true;
     shaders.set(sh.name.toLowerCase(), sh);
   }
@@ -133,7 +134,7 @@ function material(b, i) {
   const m = { blend: sh.blend || 'add' };
   if (sh.frames) { m.frames = sh.frames.map(texture).filter(Boolean); m.fps = sh.fps; }
   m.tex = texture(sh.map) || texture(tex) || texture(n1) || texture(n2) || m.frames?.[0] || null;
-  for (const k of ['color', 'rgbWave', 'alphaWave', 'scroll', 'rotate', 'tscale', 'cutout']) if (sh[k] !== undefined) m[k] = sh[k];
+  for (const k of ['bf', 'color', 'rgbWave', 'alphaWave', 'scroll', 'rotate', 'tscale', 'stretch', 'cutout']) if (sh[k] !== undefined) m[k] = sh[k];
   return m;
 }
 

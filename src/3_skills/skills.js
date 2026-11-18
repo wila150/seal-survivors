@@ -62,7 +62,7 @@ export class SkillManager {
     // 項目 22：賢者之塔開打前選的 4 招＝這一局唯一的技能池
     if (ctx.pool?.length) this.J = { ...this.J, pool: ctx.pool.filter(k => this.data.skills[k]) };
     this.skills = {}; // key → { lv, cd, ang, tick, orbs:[] }
-    this.shots = []; this.combo = 0; this.comboT = 0; this.bestCombo = 0; this.musouCount = 0; this.musouCd = 0; this.nextMusou = this.data.status.combo.musouEvery;
+    this.shots = []; this.lobs = []; this.combo = 0; this.comboT = 0; this.bestCombo = 0; this.musouCount = 0; this.musouCd = 0; this.nextMusou = this.data.status.combo.musouEvery;
     this.add(this.J.start);
   }
   def(k) { return this.data.skills[k]; }
@@ -77,7 +77,7 @@ export class SkillManager {
   // 第 lv 級的數值
   stat(k, lv) {
     const d = this.def(k), o = {};
-    for (const s in d.base) o[s] = d.base[s] + (d.per?.[s] || 0) * (lv - 1);
+    for (const s in d.base) o[s] = typeof d.base[s] === 'number' ? d.base[s] + (d.per?.[s] || 0) * (lv - 1) : d.base[s]; // at 是文字（self／nearest／random）：以前被加成 'self0' → 自身範圍技一直當隨機打
     if (o.count) o.count = Math.floor(o.count + 1e-6); if (o.bounce) o.bounce = Math.floor(o.bounce + 1e-6); if (o.pierce) o.pierce = Math.floor(o.pierce + 1e-6);
     // 項目 26：局外天賦改造（該招傷害／冷卻＋屬性標籤傷害）
     const T = this.P?.talent;
@@ -137,7 +137,7 @@ export class SkillManager {
       s.cd = ok === false ? 0.2 : st.cd * this.P.haste;
       if (ok !== false) s.cdMax = s.cd; // 技能列冷卻遮罩用（這次冷卻的總長）
     }
-    this.updateShots(dt);
+    this.updateShots(dt); this.updateLobs(dt);
     this.musouCd -= dt;
     if (this.combo && (this.comboT -= dt) <= 0) { this.combo = 0; this.nextMusou = this.data.status.combo.musouEvery; }
   }
@@ -237,12 +237,14 @@ export class SkillManager {
     const pp = this.player.position, n = st.count, R = st.radius, c = new THREE.Color(d.color).getHex();
     while (s.orbs.length < n) { const m = this.fx.get(false); m.material.map = this.fx.tex[d.fx]; m.material.color.set(c); m.material.opacity = 1; m.material.needsUpdate = true; m.scale.setScalar(1.5); s.orbs.push(m); }
     s.ang += dt * st.spin; s.tick -= dt; const doHit = canAttack && s.tick <= 0; if (doHit) s.tick = 0.3;
+    const pcOn = this.pc(k, 'cast') || this.pc(k, 'hit'); // 有原版特效：光球藏起來（照樣算傷害），改成原版特效接著一直播
     s.orbs.forEach((m, i) => {
-      m.visible = canAttack;
+      m.visible = canAttack && !pcOn;
       const a = s.ang + i * 6.283 / n; m.position.set(pp.x + Math.cos(a) * R, 1, pp.z + Math.sin(a) * R); m.material.rotation += dt * 6;
       if (doHit) for (const e of this.enemies()) if (!e.dead && d2(e.mesh.position, m.position) < (0.95 + e.r) ** 2) this.hit(e, k, st.dmg, m.position);
     });
-    if (canAttack && (s.cd -= dt) <= 0) { s.cd = 2.2; this.onCast?.(null, this.motion(k)); this.pcPlay(k, 'cast', pp, this.P.face, { fit: R + 1 }) || this.pcPlay(k, 'hit', pp, this.P.face, { fit: R + 1, follow: this.player }); } // 原版特效：每次繞身時在自己身上播一次
+    if (canAttack && (s.cd -= dt) <= 0) { this.onCast?.(null, this.motion(k)); const g = this.pcPlay(k, 'cast', pp, this.P.face, { fit: R + 1, cap: R + 1.5 }) || this.pcPlay(k, 'hit', pp, this.P.face, { fit: R + 1, cap: R + 1.5, follow: this.player });
+      s.cd = g ? Math.max(0.6, Math.min(3, g.userData.life * 0.9)) : 2.2; } // 原版特效：播完接著再播（看起來一直在轉）
   }
 
   // ----- ZONE_AOE：目標點範圍傷害 -----
@@ -262,13 +264,29 @@ export class SkillManager {
     this.onCast?.(st.at === 'self' ? null : Math.atan2(pts[0].z - pp.z, pts[0].x - pp.x), this.motion(k)); this.castSound(k, 'boom');
     const c = new THREE.Color(d.color).getHex(), R = st.radius, pc = this.pc(k, 'hit');
     this.pcPlay(k, 'cast', pp, Math.atan2(pts[0].z - pp.z, pts[0].x - pp.x), { fit: 2.5 });
+    // 原版這招有飛行段（例：火風暴、冰柱術先射出去再爆）→ 先飛到目標點，到了才爆＋算傷害
+    const fly = st.at !== 'self' && this.pc(k, 'fly');
     for (const p of pts) {
-      if (pc) this.pcPlay(k, 'hit', p, Math.atan2(p.z - pp.z, p.x - pp.x), { fit: R });
-      else this.fx.spawn(d.fx, p, { flat: true, scale: R * 2.3, life: 0.4, grow: 1.25, color: c, spin: 3 });
-      if (!pc && st.at !== 'self') this.fx.spawn(d.fx === 'beam' ? 'beam' : d.fx, p, { scale: R * 1.1, scaleY: d.fx === 'beam' ? 7 : R * 1.6, y: d.fx === 'beam' ? 3.5 : 1, life: 0.35, grow: 1.2, color: c });
-      for (const e of this.enemies()) if (!e.dead && d2(e.mesh.position, p) < (R + e.r) ** 2) this.hit(e, k, st.dmg, p);
+      if (!fly) { this.zoneHit(k, d, st, p, pp, pc, c); continue; }
+      const a = Math.atan2(p.z - pp.z, p.x - pp.x), dist = Math.hypot(p.x - pp.x, p.z - pp.z);
+      const pcm = this.pcPlay(k, 'fly', pp, a, { y: 1, fit: 1.4 });
+      this.lobs.push({ k, d, st, p, from: pp.clone(), pcm, pc, c, t: 0, dur: Math.max(0.12, dist / 22) });
+    }
+  }
+  zoneHit(k, d, st, p, pp, pc, c) {
+    const R = st.radius;
+    if (pc) this.pcPlay(k, 'hit', p, Math.atan2(p.z - pp.z, p.x - pp.x), { fit: R });
+    else this.fx.spawn(d.fx, p, { flat: true, scale: R * 2.3, life: 0.4, grow: 1.25, color: c, spin: 3 });
+    if (!pc && st.at !== 'self') this.fx.spawn(d.fx === 'beam' ? 'beam' : d.fx, p, { scale: R * 1.1, scaleY: d.fx === 'beam' ? 7 : R * 1.6, y: d.fx === 'beam' ? 3.5 : 1, life: 0.35, grow: 1.2, color: c });
+    for (const e of this.enemies()) if (!e.dead && d2(e.mesh.position, p) < (R + e.r) ** 2) this.hit(e, k, st.dmg, p);
+  }
+  updateLobs(dt) {
+    for (let i = this.lobs.length - 1; i >= 0; i--) {
+      const L = this.lobs[i]; L.t += dt; const f = Math.min(1, L.t / L.dur);
+      if (L.pcm) L.pcm.position.set(L.from.x + (L.p.x - L.from.x) * f, 1, L.from.z + (L.p.z - L.from.z) * f);
+      if (f >= 1) { this.pcfx?.stop(L.pcm); this.lobs.splice(i, 1); this.zoneHit(L.k, L.d, L.st, L.p, L.from, L.pc, L.c); }
     }
   }
 
-  clear() { for (const k in this.skills) for (const o of this.skills[k].orbs) this.fx.release(o); for (const s of this.shots) { this.fx.release(s.m); this.pcfx?.stop(s.pcm); } this.shots.length = 0; }
+  clear() { for (const k in this.skills) for (const o of this.skills[k].orbs) this.fx.release(o); for (const s of this.shots) { this.fx.release(s.m); this.pcfx?.stop(s.pcm); } this.shots.length = 0; for (const L of this.lobs) this.pcfx?.stop(L.pcm); this.lobs.length = 0; }
 }

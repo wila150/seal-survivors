@@ -8,15 +8,46 @@ const MAX_EACH = 10, MAX_ALL = 70, SCALE = 1.15, ADD_GAIN = 0.75; // 原版角�
 const texLoader = new THREE.TextureLoader();
 const texCache = new Map();
 function tex(f) {
-  if (!texCache.has(f)) { const t = texLoader.load('assets/skillfx/tex/' + f); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.wrapS = t.wrapT = THREE.RepeatWrapping; texCache.set(f, t); }
+  if (!texCache.has(f)) { const t = texLoader.load('assets/skillfx/tex/' + f, () => { for (const c of t.userData.copies) c.needsUpdate = true; t.userData.copies.length = 0; t.userData.ok = true; });
+    t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.userData.copies = []; texCache.set(f, t); }
   return texCache.get(f);
 }
 // Quake 風格 wave：base + amp × f(phase + t × freq)
-function wave([fn, base, amp, phase, freq], t) {
+function waveRaw([fn, base, amp, phase, freq], t) {
   let x = (phase + t * freq) % 1; if (x < 0) x += 1;
   const f = fn === 'sin' ? Math.sin(x * 6.283) : fn === 'sawtooth' ? x : fn === 'inversesawtooth' ? 1 - x : fn === 'triangle' ? (x < 0.5 ? x * 2 : 2 - x * 2) : fn === 'square' ? (x < 0.5 ? 1 : -1) : 1;
-  return Math.max(0, Math.min(1, base + amp * f));
+  return base + amp * f;
 }
+const wave = (w, t) => Math.max(0, Math.min(1, waveRaw(w, t)));
+
+// 原版混色（材質腳本 blendfunc 的兩個係數）→ WebGL；畫面沒有 alpha 通道 → dst_alpha 當 1
+const BF = { gl_one: THREE.OneFactor, gl_zero: THREE.ZeroFactor, gl_src_color: THREE.SrcColorFactor, gl_one_minus_src_color: THREE.OneMinusSrcColorFactor,
+  gl_src_alpha: THREE.SrcAlphaFactor, gl_one_minus_src_alpha: THREE.OneMinusSrcAlphaFactor, gl_dst_color: THREE.DstColorFactor, gl_one_minus_dst_color: THREE.OneMinusDstColorFactor,
+  gl_dst_alpha: THREE.OneFactor, gl_one_minus_dst_alpha: THREE.ZeroFactor };
+function blendOf(mt, m) {
+  const b = m.bf || (m.blend === 'blend' ? 'blend' : 'add');
+  const [s, d] = b === 'add' ? ['gl_one', 'gl_one'] : b === 'blend' ? ['gl_src_alpha', 'gl_one_minus_src_alpha'] : b === 'filter' ? ['gl_dst_color', 'gl_zero'] : b.split(' ');
+  if (!(s in BF) || !(d in BF)) { mt.blending = THREE.AdditiveBlending; mt.userData.add = true; return; }
+  mt.blending = THREE.CustomBlending; mt.blendEquation = THREE.AddEquation; mt.blendSrc = BF[s]; mt.blendDst = BF[d];
+  mt.userData.add = BF[d] === THREE.OneFactor; // 往上疊亮的（加亮類）
+}
+// 每個材質自己一份貼圖（共用圖片、不重複上傳）→ 各自的 tcMod 捲動／旋轉／縮放／伸縮互不干擾
+function ownTex(f, m) { // 不用 clone()（圖還沒載完就 clone 會一直跳警告）：新貼圖直接指向同一份圖片
+  const o = tex(f), t = new THREE.Texture(); t.source = o.source; t.colorSpace = o.colorSpace; t.flipY = false; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.matrixAutoUpdate = false;
+  if (o.userData.ok) t.needsUpdate = true; else o.userData.copies.push(t); return t; }
+// Quake tcMod：依 scale → stretch → rotate → scroll 算出貼圖座標矩陣（t＝秒）
+const _m = new THREE.Matrix3(), _a = new THREE.Matrix3(), _c = new THREE.Color();
+function tcMatrix(t, def, sec) {
+  _m.identity();
+  if (def.tscale) _m.premultiply(_a.set(def.tscale[0], 0, 0, 0, def.tscale[1], 0, 0, 0, 1));
+  if (def.stretch) { const w = Math.abs(waveRaw(def.stretch, sec)) || 1e-3, p = 1 / w; _m.premultiply(_a.set(p, 0, 0.5 - 0.5 * p, 0, p, 0.5 - 0.5 * p, 0, 0, 1)); }
+  if (def.rotate) { const r = -def.rotate * sec * Math.PI / 180, c = Math.cos(r), s = Math.sin(r); _m.premultiply(_a.set(c, -s, 0.5 - 0.5 * c + 0.5 * s, s, c, 0.5 - 0.5 * s - 0.5 * c, 0, 0, 1)); }
+  if (def.scroll) _m.premultiply(_a.set(1, 0, (def.scroll[0] * sec) % 1, 0, 1, (def.scroll[1] * sec) % 1, 0, 0, 1));
+  t.matrix.copy(_m);
+}
+const animated = d => d.scroll || d.rotate || d.stretch;
+const frameTex = new WeakMap(); // 連續貼圖：每個材質定義一組自己的貼圖（矩陣照全域時間算，所以同一組可以共用）
+const framesOf = def => frameTex.get(def) || frameTex.set(def, def.frames.map(f => ownTex(f, def))).get(def);
 
 export class SealFx {
   constructor(scene, camera) {
@@ -38,10 +69,10 @@ export class SealFx {
   build(d) {
     const mats = d.mats.map(m => {
       if (!m.tex) return null;
-      const mt = new THREE.MeshBasicMaterial({ map: tex(m.tex), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
-        blending: m.blend === 'blend' ? THREE.NormalBlending : THREE.AdditiveBlending, alphaTest: m.cutout ? 0.4 : 0 });
+      const mt = new THREE.MeshBasicMaterial({ map: ownTex(m.tex, m), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, alphaTest: m.cutout ? 0.4 : 0 });
+      blendOf(mt, m);
       if (m.color) mt.color.setRGB(...m.color);
-      if (m.blend !== 'blend') mt.color.multiplyScalar(ADD_GAIN); // 加亮材質疊在一起會白成一團 → 稍微調暗
+      if (mt.userData.add) mt.color.multiplyScalar(ADD_GAIN); // 加亮材質疊在一起會白成一團 → 稍微調暗
       mt.userData.def = m; return mt;
     });
     const parts = [], inv = new THREE.Matrix4(), rest = new THREE.Matrix4(), tracks = [];
@@ -71,7 +102,9 @@ export class SealFx {
     const g = new THREE.Group(); g.userData.T = T;
     for (const p of T.parts) {
       // 有顏色呼吸／連續貼圖的材質每個特效自己一份（時間各自算），其他共用
-      const m = new THREE.Mesh(p.g, T.waves && (p.mat.userData.def.rgbWave || p.mat.userData.def.alphaWave || p.mat.userData.def.frames) ? p.mat.clone() : p.mat);
+      const own = T.waves && (p.mat.userData.def.rgbWave || p.mat.userData.def.alphaWave || p.mat.userData.def.frames), mt = own ? p.mat.clone() : p.mat;
+      if (own) mt.userData.def = p.mat.userData.def; // clone 會把 userData 深拷貝 → 換回同一份定義（連續貼圖共用）
+      const m = new THREE.Mesh(p.g, mt);
       m.userData.shared = p.mat; m.name = p.nm; m.position.copy(p.r.pos); m.quaternion.copy(p.r.q); m.scale.copy(p.r.s); m.frustumCulled = false; m.userData.bb = p.billboard; m.renderOrder = 5;
       g.add(m);
     }
@@ -100,14 +133,16 @@ export class SealFx {
     g.position.set(pos.x, opts.y || 0, pos.z); g.userData.follow = opts.follow || null; g.userData.y = opts.y || 0; // follow：施放特效跟著角色走（原版 TargetType 1）
     g.rotation.set(0, Math.atan2(-Math.cos(face), -Math.sin(face)), 0); // 原版特效朝 −Z → 轉到朝 face 方向
     // 原版大小照播（11/18 使用者：技能要像 PC；之前依招式範圍縮放，大招常被縮到 1/4 → 不像原版）；opts.fit 只用來把太小的特效放大一點
-    const k = opts.fit && T.radius * SCALE < opts.fit * 0.5 ? Math.min(1.6, opts.fit * 0.5 / (T.radius * SCALE)) : 1;
+    // 上限：原版有些特效半徑幾十公尺（例：Dancingflame 106 公尺），我們鏡頭高、整個畫面會被蓋住 → 超過 max(6, 招式範圍×2.5) 才縮；opts.cap 可自己給（繞身技能＝範圍）
+    const r = T.radius * SCALE; let k = 1;
+    if (opts.fit) { if (r < opts.fit * 0.5) k = Math.min(1.6, opts.fit * 0.5 / r); const cap = opts.cap ?? Math.max(6, opts.fit * 2.5); if (r > cap) k = cap / r; }
     g.scale.setScalar(SCALE * k * (opts.scale || 1)); g.visible = g.userData.delay <= 0;
     this.scene.add(g); this.live.push(g);
     return g;
   }
   stop(g) { if (g) g.userData.life = 0; }
   update(dt) {
-    const camQ = this.camera.quaternion, inv = new THREE.Quaternion(), moved = new Set(); // 共用貼圖的捲動／旋轉每幀只算一次
+    const camQ = this.camera.quaternion, inv = new THREE.Quaternion(), moved = new Set(); this.clock = (this.clock || 0) + dt;
     for (let i = this.live.length - 1; i >= 0; i--) {
       const g = this.live[i], u = g.userData;
       u.t += dt;
@@ -119,15 +154,14 @@ export class SealFx {
         const def = m.material.userData.def;
         if (m.userData.bb) { inv.copy(g.quaternion).invert(); m.quaternion.copy(inv).multiply(camQ); } // 看板：永遠面向鏡頭
         if (!def) continue;
-        const t = m.material.map;
-        const once = t && !moved.has(t); if (t) moved.add(t);
-        if (def.scroll && once) { t.offset.x = (t.offset.x + def.scroll[0] * dt) % 1; t.offset.y = (t.offset.y + def.scroll[1] * dt) % 1; }
-        if (def.rotate && once) { t.center.set(0.5, 0.5); t.rotation += def.rotate * dt * Math.PI / 180; }
         if (m.material !== m.userData.shared) {
-          if (def.rgbWave) { const v = wave(def.rgbWave, u.t) * (def.blend !== 'blend' ? ADD_GAIN : 1); m.material.color.setScalar(v); if (def.color) m.material.color.multiply(new THREE.Color(...def.color)); }
+          if (def.rgbWave) { const v = wave(def.rgbWave, u.t) * (m.material.userData.add ? ADD_GAIN : 1); m.material.color.setScalar(v); if (def.color) m.material.color.multiply(_c.setRGB(...def.color)); }
           if (def.alphaWave) m.material.opacity = wave(def.alphaWave, u.t);
-          if (def.frames?.length) { const f = def.frames[Math.floor(u.t * (def.fps || 10)) % def.frames.length]; if (f) m.material.map = tex(f); }
+          if (def.frames?.length) { const fr = framesOf(def), f = fr[Math.floor(u.t * (def.fps || 10)) % fr.length]; if (f) m.material.map = f; }
         }
+        // 貼圖座標動畫（每張貼圖每幀只算一次）
+        const t = m.material.map;
+        if (t && (def.tscale || animated(def)) && !moved.has(t)) { moved.add(t); tcMatrix(t, def, this.clock); }
       }
     }
   }
