@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { JOBS, defaultStats, MOUNT } from './src/1_data/jobs.js';
 import { sealModel, sealMob, sealModelData } from './src/2_core/seal-model.js';
 import { RARITY, itemName, itemIcon } from './src/1_data/items.js';
-import { STAGES } from './src/1_data/stages.js';
+import { STAGES, bossTimes, earlyMul } from './src/1_data/stages.js';
 import { talentEffects, branchOf, boostedAlloc } from './src/1_data/talents.js';
 import { gemEffects } from './src/1_data/gems.js';
 import { stoneEffects } from './src/1_data/stones.js';
@@ -57,7 +57,7 @@ const TOWER = new URLSearchParams(location.search).has('tower');
 let TSET = null; if (TOWER) { try { TSET = JSON.parse(sessionStorage.getItem('ss_tower')); } catch {} }
 const CURSE = CURSES[TSET?.curse || 'none'] || CURSES.none;
 if (TOWER) STAGE_IDX = -1; // 塔不存「未完成的一局」
-const STAGE = TOWER ? { ...STAGES[2], key: 'tower', name: TOWER_NAME, lv: '∞', bosses: [] } : (STAGES[STAGE_IDX] || STAGES[0]);
+const STAGE = TOWER ? { ...STAGES[2], key: 'tower', name: TOWER_NAME, lv: '∞', bosses: [] } : (S0 => ({ ...S0, bosses: bossTimes(S0) }))(STAGES[STAGE_IDX] || STAGES[0]); // 項目 31：首領時間照 Tier 時長換算
 let floor = 1; // 塔的目前樓層
 // 項目 41：難度滑桿（遠征視窗設定，存 sessionStorage ss_diff；塔不套用）
 const DIFF_BASE = stageBaseLv(STAGE); // 地圖本身的怪物等級（難度＝選更高的 PC 怪物等級）
@@ -233,7 +233,7 @@ const PASSIVES = {
   speed: { name: '疾行', img: FX.gem, desc: () => '移動速度 +12%', apply: () => P.speed *= 1.12 },
   vital: { name: '體魄', img: FX.hit, desc: () => '最大 HP +25，並回滿血', apply: () => { P.maxHp += 25; P.hp = P.maxHp; } },
   magnet: { name: '磁力', img: FX.gem, desc: () => '經驗吸取範圍 +40%', apply: () => P.magnet *= 1.4 },
-  haste: { name: '急速', img: FX.lightning, desc: () => '所有冷卻 -10%', apply: () => P.haste *= 0.9 },
+  haste: { name: '急速', img: FX.lightning, desc: () => '急速 +12（冷卻約 -10%，越疊越少）', apply: () => { P.hasteV += 12; } }, // 項目 34 遞減收益
 };
 
 // ===== 物件池（src/2_core/pool.js）=====
@@ -246,26 +246,29 @@ function reset() {
   const B = CHAR.bonus || {};
   const hp = Math.round(JOB.hp + ST.vit * 6 + (B.hp || 0));
   // 項目 35：PC 6 項素質（敏捷＝爆擊＋迴避、精神＝冷卻、體力＝HP＋減傷、感覺＝爆擊微幅；移速不再吃素質）
-  P = { hp, maxHp: hp, speed: JOB.speed, might: 1, phys: 1 + ST.str * 0.03, magic: 1 + ST.int * 0.03, crit: ST.agi * 0.01 + ST.luk * 0.003,
+  // 項目 34：威力 近戰＝力量 3%／點；遠程（獵人）＝力量 1%＋敏捷 3%（PC 沒有 DEX → 用敏捷）；魔法＝智力 3%
+  P = { hp, maxHp: hp, speed: JOB.speed, might: 1, phys: 1 + (CHAR.job === '獵人' ? ST.str * 0.01 + ST.agi * 0.03 : ST.str * 0.03), magic: 1 + ST.int * 0.03, crit: ST.agi * 0.01 + ST.luk * 0.003,
         dodge: Math.min(0.4, ST.agi * 0.005), vitDr: Math.min(0.3, ST.vit * 0.003),
-        armor: JOB.armor + (B.armor || 0), regen: JOB.regen || 0, magnet: 2.5 * (1 + (B.magnet || 0)), haste: (1 - Math.min(0.5, (ST.wis || 1) * 0.01)) * (1 - (B.haste || 0)), lv: 1, xp: 0, need: 5, inv: 0, face: 0 };
+        armor: JOB.armor + (B.armor || 0), regen: JOB.regen || 0, magnet: 2.5 * (1 + (B.magnet || 0)), hasteV: (ST.wis || 1) + (B.haste || 0) * 100, lv: 1, xp: 0, need: 5, inv: 0, face: 0 };
+  // 項目 34 遞減收益：急速值 → 冷卻倍率＝1／(1＋急速／100)（急速 100＝冷卻剩 50%；精神 1 點＝急速 1、裝備／天賦／石頭／稱號的冷卻 % 換成急速值）
+  Object.defineProperty(P, 'haste', { get() { return 1 / (1 + Math.max(0, this.hasteV) / 100); } });
   P.might *= 1 + (B.atk || 0); P.crit += B.crit || 0; P.speed *= 1 + (B.speed || 0);
   const TE = TAL ? talentEffects(TAL, CHAR.job, ...(([a1, a2]) => [a1, CHAR.job2, a2])(boostedAlloc(TAL, CHAR.job, CHAR.talents, CHAR.job2, CHAR.talents2, CHAR.items))) : { stat: {}, skill: {}, tag: {} }, ts = TE.stat;
   P.might *= 1 + (ts.atk || 0); P.phys += ts.phys || 0; P.magic += ts.magic || 0; P.crit += ts.crit || 0; P.speed *= 1 + (ts.speed || 0);
-  P.haste *= 1 - Math.min(0.5, ts.haste || 0); P.armor += ts.armor || 0; P.regen += ts.regen || 0; P.magnet *= 1 + (ts.magnet || 0);
+  P.hasteV += (ts.haste || 0) * 100; P.armor += ts.armor || 0; P.regen += ts.regen || 0; P.magnet *= 1 + (ts.magnet || 0);
   if (ts.hp) { P.maxHp = Math.round(P.maxHp * (1 + ts.hp)); P.hp = P.maxHp; }
   P.talent = TE;
   P.egem = {}; // 項目 23：局內屬性寶石 { 技能: { e 屬性, lv 1～5 } }
   // 項目 28：鑲嵌石（三顆石頭的屬性直接加到角色）
   { const S = stoneEffects(CHAR.stones);
-    P.might *= (1 + (S.atk || 0)) * (1 + (S.dmgUp || 0)); P.magic += S.magic || 0; P.armor += S.armor || 0; P.haste *= 1 - Math.min(0.3, S.haste || 0);
+    P.might *= (1 + (S.atk || 0)) * (1 + (S.dmgUp || 0)); P.magic += S.magic || 0; P.armor += S.armor || 0; P.hasteV += (S.haste || 0) * 100;
     P.speed *= 1 + (S.speed || 0); P.crit += S.crit || 0; P.dr = Math.min(0.5, S.dmgDown || 0);
     if (S.hp) { P.maxHp = Math.round(P.maxHp * (1 + S.hp)); P.hp = P.maxHp; } }
   // 項目 30：出戰寵物的被動加成
   if (PET) { const pb = petBonus(PET); P.might *= 1 + (pb.atk || 0); P.crit += pb.crit || 0; P.regen += pb.regen || 0; if (pb.hp) { P.maxHp = Math.round(P.maxHp * (1 + pb.hp)); P.hp = P.maxHp; } }
   // 項目 47：裝上的稱號加成
   { const tb = titleOf(CHAR.title)?.bonus || {}; P.might *= 1 + (tb.atk || 0); P.magic += tb.magic || 0; P.crit += tb.crit || 0; P.speed *= 1 + (tb.speed || 0);
-    P.haste *= 1 - (tb.haste || 0); P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
+    P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
   chestsArr = []; chests = 0; bossChests = 0; runBosses = [];
@@ -297,8 +300,9 @@ function spawnEnemy(type, elite = false, asBoss = false) {
   });
   mesh.scale.setScalar(s); mesh.rotation.set(0, 0, 0); mesh.userData.actor?.reset();
   mesh.position.set(player.position.x + Math.cos(a) * r, 0, player.position.z + Math.sin(a) * r);
-  const hpMul = (TOWER ? towerHpMul(floor) * (CURSE.hp || 1) : (1 + t / 100) * DM.hp) * (elite ? 12 : 1) * (TOWER ? STAGES[towerSeg(floor)].hp : STAGE.hp) * (asBoss ? 45 : 1);
-  const e = { mesh, type, hp: T.hp * hpMul, maxHp: T.hp * hpMul, speed: T.speed * (0.9 + Math.random() * 0.2) * (CURSE.speed || 1) * DM.speed, dmg: T.dmg * (elite ? 1.5 : 1) * (TOWER ? STAGES[towerSeg(floor)].dmg * towerDmgMul(floor) : STAGE.dmg * DM.dmg) * (asBoss ? 1.6 : 1),
+  const early = TOWER ? 1 : earlyMul(STAGE, t, isBoss || asBoss); // 項目 31：T2／T3 開局 180 秒怪物先削弱，首領全力
+  const hpMul = (TOWER ? towerHpMul(floor) * (CURSE.hp || 1) : (1 + t / 100) * DM.hp) * (elite ? 12 : 1) * (TOWER ? STAGES[towerSeg(floor)].hp : STAGE.hp) * (asBoss ? 45 : 1) * early;
+  const e = { mesh, type, hp: T.hp * hpMul, maxHp: T.hp * hpMul, speed: T.speed * (0.9 + Math.random() * 0.2) * (CURSE.speed || 1) * DM.speed, dmg: T.dmg * (elite ? 1.5 : 1) * (TOWER ? STAGES[towerSeg(floor)].dmg * towerDmgMul(floor) : STAGE.dmg * DM.dmg) * (asBoss ? 1.6 : 1) * early,
     xp: T.xp * (elite ? 10 : 1) * (asBoss ? 25 : 1) * (CURSE.xp || 1), flash: 0, r: 0.5 * sc, kb: new THREE.Vector3(), elite, boss: isBoss, fly: !!T.fly, baseY: 0, s0: mesh.scale.x, ph: Math.random() * 6 };
   enemies.push(e); return e;
 }
@@ -364,7 +368,8 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   // 項目 44：屬性相剋（element.scr）；項目 23：屬性寶石改招式屬性、每級爆擊 +3%
   const em = elemMult(eg ? eg.e : src === 'pet' && PET ? PETS[PET.kind].elem : skillElem(SKD.skills[src]), MONSTER_ELEM[e.type] ?? 0); // 寵物＝自己的屬性
   const crit = weak || Math.random() < P.crit + (gm?.crit || 0) + (eg ? 0.03 * eg.lv : 0);
-  const amt = dmg * P.might * (kind === 'magic' ? P.magic : P.phys) * (crit ? 2 * (1 + (gm?.critDmg || 0)) : 1) * (weak ? SKD.status.shatterMult : 1) * em;
+  // 項目 34：× 0.9～1.1 隨機；爆擊 ×1.6＋額外（技能寶石爆傷）
+  const amt = dmg * P.might * (kind === 'magic' ? P.magic : P.phys) * (crit ? 1.6 + (gm?.critDmg || 0) : 1) * (weak ? SKD.status.shatterMult : 1) * em * (0.9 + Math.random() * 0.2);
   if (em >= 1.2 && elemCd < t) { elemCd = t + 0.5; dmgNum(e.mesh.position, 0, true, 2.4, false, '剋！'); } else if (em <= 0.5 && elemCd < t) { elemCd = t + 0.8; dmgNum(e.mesh.position, 0, false, 2.4, false, '抗'); }
   if (weak && Math.random() < 0.5) { spawnFx('ice', e.mesh.position, { scale: 1.8, life: 0.3, grow: 1.6, color: 0xbfe8ff }); shatterText(e.mesh.position); }
   // 上狀態（首領只吃一半）
@@ -404,7 +409,8 @@ function showBanner(html, ms = 2600, warn = false) {
 function hitPlayer(dmg) {
   if (P.inv > 0) return;
   if (Math.random() < (P.dodge || 0)) { P.inv = 0.25; dmgNum(player.position, 0, false, 2, true, 'MISS'); return; } // 項目 35：敏捷迴避
-  const taken = Math.max(1, Math.round((dmg - P.armor * 2) * (1 - (P.dr || 0)) * (1 - (P.vitDr || 0)))); P.hp -= taken; P.inv = 0.5; play('hurt', 0.5, 200); dmgNum(player.position, taken, false, 2, true);
+  // 項目 34：受傷＝max(1,(攻擊−護甲)×(1−減傷，所有減傷加總上限 60%))；迴避先判定（上面）。護甲維持 ×2（我們的護甲數字小）
+  const taken = Math.max(1, Math.round((dmg - P.armor * 2) * (1 - Math.min(0.6, (P.dr || 0) + (P.vitDr || 0))))); P.hp -= taken; P.inv = 0.5; play('hurt', 0.5, 200); dmgNum(player.position, taken, false, 2, true);
   bossFx.shake = Math.max(bossFx.shake, 0.25);
 }
 // 首領（src/2_core/game-manager.js）

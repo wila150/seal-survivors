@@ -158,7 +158,7 @@ import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
 import { BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 import { STATS } from './src/1_data/jobs.js';
-import { STAGES, stageUnlocked } from './src/1_data/stages.js';
+import { STAGES, stageUnlocked, stageGate, gearScore, stageTime, bossTimes, GS_REQ, EARLY_WEAK } from './src/1_data/stages.js';
 import { MONSTER_MODELS } from './src/1_data/monsters.js';
 import { createWatchdog } from './src/4_diagnostics/watchdog.js';
 import { openSettings, onSettings } from './src/2_core/settings.js';
@@ -706,13 +706,15 @@ const fmtT = s => `${String(s / 60 | 0).padStart(2, '0')}:${String(s % 60).padSt
 function openExpedition() {
   const cl = CHAR.cleared || [];
   if (!stageUnlocked(expSel, cl)) expSel = 0;
-  const S = STAGES[expSel], unlocked = stageUnlocked(expSel, cl);
+  // 項目 31：通關前一張＋裝備分數（GS）達標才能出發
+  const gs = gearScore(CHAR.items), gate = stageGate(expSel, cl, gs), S = STAGES[expSel], unlocked = gate.ok;
   const hex = n => '#' + n.toString(16).padStart(6, '0');
   const list = STAGES.map((st, i) => { const un = stageUnlocked(i, cl), done = cl.includes(st.key), mvp = st.bosses[st.bosses.length - 1][1];
     return `<div class="st ${i === expSel ? 'on' : ''} ${un ? '' : 'lock'}" data-st="${i}"><img data-mon="${mvp}" alt=""><div><b>${st.name}</b><small>MVP ${mvp}　Lv ${st.lv}</small>
-      <span class="tag ${done ? 'done' : un ? 'ok' : 'lock'}">${done ? '已通關' : un ? '可挑戰' : '未解鎖'}</span></div></div>`; }).join('');
+      <span class="tag ${done ? 'done' : un ? (gs >= (GS_REQ[i] || 0) ? 'ok' : 'lock') : 'lock'}">${done ? '已通關' : un ? (gs >= (GS_REQ[i] || 0) ? '可挑戰' : `GS ${GS_REQ[i]}`) : '未解鎖'}</span></div></div>`; }).join('');
   const info = `<div class="hero" style="background:${S.banner ? `linear-gradient(90deg,#0009,#0000 70%),url(${S.banner}) 22% 78%/175% auto no-repeat,` : ''}linear-gradient(135deg,${hex(S.ground)},${hex(S.fog)})"><span class="lv">Lv ${S.lv}</span><b>${S.name}</b><small>${S.sub}・MVP ${S.bosses[S.bosses.length - 1][1]}</small></div>
-    <div class="sec"><h4>頭目</h4><div class="row">${S.bosses.map(([sec, n, k]) => `<div class="mon ${k}"><img data-mon="${n}" alt="">${n}<small>${k === 'mvp' ? 'MVP' : '小王'}・${fmtT(sec)}</small></div>`).join('')}</div></div>
+    <div class="sec"><h4>關卡</h4>Tier ${S.tier || 1}　・　時長 ${fmtT(stageTime(S))}（MVP 在最後出場）　・　裝備分數 <b style="color:${gs >= (GS_REQ[expSel] || 0) ? '#2e7d32' : '#c0392b'}">${gs}</b> / 需要 ${GS_REQ[expSel] || 0}${(S.tier || 1) >= 2 ? `<br><small>高階地圖：開局 ${EARLY_WEAK.secs / 60} 分鐘內怪物較弱（×${EARLY_WEAK.from} 慢慢恢復），首領一律全力</small>` : ''}${gate.ok ? '' : `<br><b style="color:#c0392b">${gate.why}</b>`}<br><small>裝備分數＝每件穿著的裝備（品質＋1）×4＋精煉×2＋G 化×4</small></div>
+    <div class="sec"><h4>頭目</h4><div class="row">${bossTimes(S).map(([sec, n, k]) => `<div class="mon ${k}"><img data-mon="${n}" alt="">${n}<small>${k === 'mvp' ? 'MVP' : '小王'}・${fmtT(sec)}</small></div>`).join('')}</div></div>
     <div class="sec"><h4>怪物</h4><div class="row">${S.monsters.map(n => `<div class="mon"><img data-mon="${n}" alt="">${n}</div>`).join('')}</div></div>
     <div class="sec"><h4>獎勵</h4>經驗、金幣 ×${S.reward}　・　打倒小王和 MVP 必掉首領寶箱（至少精良）<br>精英怪 40% 掉寶箱　・　打倒 MVP 通關，獎勵再 ×1.5${STAGES[expSel + 1] ? `，並解鎖「${STAGES[expSel + 1].name}」` : ''}</div>`;
   // 項目 41：難度滑桿（存 localStorage ss_diff_saved，出發時寫進 sessionStorage ss_diff 給遊戲用）

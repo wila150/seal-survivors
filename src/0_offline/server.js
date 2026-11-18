@@ -4,7 +4,7 @@ export { handle };
 // 希望OL 倖存者 本機伺服器：靜態檔案＋帳號／角色 API
 // 啟動：node server.mjs   → http://localhost:8765
 import { JOBS, OUTFITS, validateStats, STATS, MOUNT, validLook, defaultStats, FREE_POINTS } from '../1_data/jobs.js';
-import { STAGES, stageUnlocked } from '../1_data/stages.js';
+import { STAGES, stageUnlocked, stageGate, gearScore, stageTime } from '../1_data/stages.js';
 import { STONES, STONE_UP, STONE_MAX, STONE_CHANGE, CHANGE_MAX, CHANGE_CHARGE, STONE_ORDER, DECOMPOSE, DUST_PER_CRYSTAL, stoneOf, rollAttr } from '../1_data/stones.js';
 import { towerFloor, towerSeg, towerScore, towerPoints, towerOpen, CURSES, TOWER_NAME } from '../1_data/tower.js';
 import { parseGm } from '../1_data/gm.js';
@@ -193,7 +193,8 @@ const api = {
     const S = isTower ? { ...STAGES[si], key: 'tower', reward: STAGES[si].reward * 1.2 } : STAGES[si];
     if (isTower) { if (!towerOpen(charView(c), STAGES)) return send(res, 400, { error: `${TOWER_NAME}要完成二轉並通關四張遠征地圖才開放` }); if (!CURSES[curse]) return send(res, 400, { error: '沒有這個詛咒' }); }
     else if (!S || !stageUnlocked(si, d0.cleared || [])) return send(res, 400, { error: '這張地圖還沒解鎖' });
-    const bonus = !isTower && cleared === true && secs >= 590; // MVP 10 分鐘才出場，太快通關不算
+    else { const g = stageGate(si, d0.cleared || [], gearScore(itemsOf(c.id))); if (!g.ok) return send(res, 400, { error: g.why }); } // 項目 31：裝備分數門檻
+    const bonus = !isTower && cleared === true && secs >= stageTime(S) - 10; // MVP 在時長結束時才出場（T1 15 分、T2／T3 11 分），太快通關不算
     const mul = S.reward * (bonus ? 1.5 : 1);
     const gain = Math.floor((secs / 3 + kills / 4 + lv * 5) * mul);
     let base = c.base_lv, exp = c.exp + gain, ups = 0;
