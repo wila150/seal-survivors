@@ -106,6 +106,8 @@ export const ORES = {
   god:  { name: '神之金屬',     icon: 42, price: 1750, desc: '可將武器從 +7 精煉至 +10' },
   alu:  { name: '鋁',           icon: 34, price: 1250, desc: '可將防具、飾品從 +7 精煉至 +10' },
   // 項目 28：不是礦石，但一樣放在 mats、在商人「購買」分頁賣（圖示＝服務端 item.scr 圖示欄：卷軸 2313）
+  // 項目 55：防爆石（不在商店賣：釣魚老人用稀有魚換；圖示借服務端 item.scr「受祝福的金符咒」1351）
+  abis: { name: '艾彼斯的祝福', icon: 1351, price: 0, desc: '精煉失敗時裝備不會碎掉，只降 1 級（+6 以上才用得到）；跟釣魚老人用稀有魚換', scroll: true, noshop: true },
   reset: { name: '技能屬性初始化卷軸', icon: 2313, price: 2000, desc: '把裝備的技能屬性重置成「尚未鑑定」，可以再鑑定一次', scroll: true },
   // 項目 28 鑲嵌石用的券（PC 是商城道具，售價暫定；圖示＝item.scr：固定券 4256、充值券 4257）
   fixTicket:    { name: '石頭屬性固定券',       icon: 4256, price: 1000, desc: '變更鑲嵌石屬性時只重抽數值、不換屬性', scroll: true },

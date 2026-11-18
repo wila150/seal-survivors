@@ -321,14 +321,16 @@ const api = {
     send(res, 200, { item: got, char: fullChar(ownChar(uid, c.id)) });
   },
   'POST /api/refine': async (req, res, _, uid) => {
-    const { itemId } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
+    const { itemId, protect = false } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
     if (it.refine >= REFINE_MAX) return send(res, 400, { error: '已經強化到最高了' });
     const c = ownChar(uid, it.char_id), ore = oreFor(it), d = JSON.parse(c.data || '{}'); d.mats ??= {};
     if (!(d.mats[ore] > 0)) return send(res, 400, { error: `需要 1 個「${ORES[ore].name}」，去裝備商人那裡買` });
-    d.mats[ore]--; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    // 項目 55：艾彼斯的祝福（防爆）：有勾選而且這次會碎才用掉 1 個；失敗改成降 1 級
+    const guard = !!protect && refineBreaks(it.refine) && d.mats.abis > 0; if (protect && refineBreaks(it.refine) && !guard) return send(res, 400, { error: '沒有艾彼斯的祝福' });
+    d.mats[ore]--; if (guard) d.mats.abis--; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
     let result;
     if (Math.random() < REFINE_RATE[it.refine]) { db.prepare('UPDATE items SET refine=refine+1 WHERE id=?').run(it.id); result = 'ok'; }
-    else if (refineBreaks(it.refine)) { db.prepare('DELETE FROM items WHERE id=?').run(it.id); result = 'broken'; }
+    else if (refineBreaks(it.refine) && !guard) { db.prepare('DELETE FROM items WHERE id=?').run(it.id); result = 'broken'; }
     else { db.prepare('UPDATE items SET refine=MAX(0, refine-1) WHERE id=?').run(it.id); result = 'down'; }
     send(res, 200, { result, char: fullChar(ownChar(uid, c.id)) });
   },
@@ -367,6 +369,16 @@ const api = {
     db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
     send(res, 200, { got: got && { key: got.key, name: got.name, icon: got.icon, rare: !!got.rare }, char: fullChar(ownChar(uid, c.id)) });
   },
+  // 項目 55：稀有魚 2 條 → 艾彼斯的祝福 1 個（白金金魚、鯉魚、綢緞鯉魚任意組合）
+  'POST /api/fishtrade': async (req, res, _, uid) => {
+    const { charId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'), F = d.fishing ??= { rod: 0, bait: 0, fish: {} }, rare = CATCH.filter(f => f.rare && !f.mat);
+    if (rare.reduce((t, f) => t + (F.fish[f.key] || 0), 0) < 2) return send(res, 400, { error: '要 2 條稀有魚（白金金魚、鯉魚、綢緞鯉魚）' });
+    let need = 2; for (const f of rare) while (need && F.fish[f.key] > 0) { F.fish[f.key]--; if (!F.fish[f.key]) delete F.fish[f.key]; need--; }
+    d.mats ??= {}; d.mats.abis = (d.mats.abis || 0) + 1;
+    db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    send(res, 200, { abis: d.mats.abis, char: fullChar(ownChar(uid, c.id)) });
+  },
   'POST /api/fishsell': async (req, res, _, uid) => {
     const { charId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}'), F = d.fishing ??= { rod: 0, bait: 0, fish: {} };
@@ -377,7 +389,7 @@ const api = {
   },
   'POST /api/buyore': async (req, res, _, uid) => {
     const { charId, ore, n } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
-    if (!Object.hasOwn(ORES, ore) || ![1, 10].includes(n)) return send(res, 400, { error: '沒有這種商品' });
+    if (!Object.hasOwn(ORES, ore) || ORES[ore].noshop || ![1, 10].includes(n)) return send(res, 400, { error: '沒有這種商品' });
     const cost = ORES[ore].price * n;
     if ((c.gold ?? 0) < cost) return send(res, 400, { error: `金幣不夠（要 ${cost}）` });
     const d = JSON.parse(c.data || '{}'); d.mats ??= {}; d.mats[ore] = (d.mats[ore] || 0) + n;

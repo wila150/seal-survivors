@@ -917,10 +917,13 @@ function openFishing() {
     <div style="background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:8px">${bag}${worth ? `<div><small>可賣 ${worth} 金幣</small></div>` : ''}</div>
     <div id="fishSpot" style="text-align:center;font-size:22px;font-weight:800;min-height:36px;color:#3a5bbf"></div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${RODS.map((r, i) => r && i > F.rod ? `<button class="btn" data-rod="${i}">買${r.name}（${r.price}）</button>` : '').join('')}
-      <button class="btn" data-bait="10">魚餌 ×10（${BAIT.price * 10}）</button><button class="btn" data-bait="50">魚餌 ×50（${BAIT.price * 50}）</button></div>`;
+      <button class="btn" data-bait="10">魚餌 ×10（${BAIT.price * 10}）</button><button class="btn" data-bait="50">魚餌 ×50（${BAIT.price * 50}）</button></div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><img src="assets/items/1351.png" style="width:28px;height:28px" alt=""><small>「拿 <b>2 條稀有魚</b>（白金金魚、鯉魚、綢緞鯉魚）來，我就送你<b>艾彼斯的祝福</b>：精煉失敗不會碎掉。」持有 ${CHAR.mats?.abis || 0}</small>
+      <button class="btn primary" id="fishTrade" ${CATCH.filter(c => c.rare && !c.mat).reduce((t, c) => t + (F.fish?.[c.key] || 0), 0) >= 2 ? '' : 'disabled'}>兌換</button></div>`;
   openDlg('釣魚老人', html, [['🎣 拋竿', castLine, true], ['全部賣掉', async () => { try { const r = await call('POST', '/api/fishsell', { charId: CHAR.id }); showChar(r.char); toast(`賣了 ${r.gold} 金幣`); openFishing(); } catch (e) { toast(e.message); } }]]);
   $('#dlgBody').querySelectorAll('[data-rod]').forEach(b => b.onclick = () => fishBuy('rod' + b.dataset.rod, 1));
   $('#dlgBody').querySelectorAll('[data-bait]').forEach(b => b.onclick = () => fishBuy('bait', +b.dataset.bait));
+  $('#fishTrade')?.addEventListener('click', async () => { try { const r = await call('POST', '/api/fishtrade', { charId: CHAR.id }); showChar(r.char); toast(`換到艾彼斯的祝福！（持有 ${r.abis}）`); openFishing(); } catch (e) { toast(e.message); } }); // 項目 55
 }
 async function fishBuy(what, n) { try { showChar(await call('POST', '/api/fishbuy', { charId: CHAR.id, what, n })); openFishing(); } catch (e) { toast(e.message); } }
 function castLine() {
@@ -1020,7 +1023,7 @@ async function openMerchant(tab) {
       <div class="bag">${shown.map(it => `<div class="cell ${mMarked.has(it.id) ? 'sel' : ''}" data-mk="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('') || '<small>沒有可以賣的裝備（穿著的不能賣）</small>'}</div>
       <div class="detail">點裝備標記要賣的。已標記 <b>${mMarked.size}</b> 件，共 <b class="gold">${items.filter(i => mMarked.has(i.id)).reduce((a, i) => a + sellPrice(i), 0)}</b> 金幣　<button class="btn primary" data-sellmarked ${mMarked.size ? '' : 'disabled'}>販賣</button></div>`;
   } else if (mTab === 'ore') {
-    html += Object.entries(ORES).map(([k, o]) => `<div class="eq" style="cursor:default;margin-bottom:6px"><img src="assets/items/${o.icon}.png" alt=""><div style="flex:1"><b>${o.name}</b><small>${o.desc}</small></div><small>持有 ${c.mats?.[k] || 0}</small>
+    html += Object.entries(ORES).filter(([, o]) => !o.noshop).map(([k, o]) => `<div class="eq" style="cursor:default;margin-bottom:6px"><img src="assets/items/${o.icon}.png" alt=""><div style="flex:1"><b>${o.name}</b><small>${o.desc}</small></div><small>持有 ${c.mats?.[k] || 0}</small>
       <button class="btn" data-ore="${k}" data-n="1">×1・${o.price}</button><button class="btn" data-ore="${k}" data-n="10">×10・${o.price * 10}</button></div>`).join('') + '<p><small>精煉用的礦石。要精煉的話，請找廣場上的強化師。</small></p>';
   } else if (stockData) {
     stockData.at ??= Date.now();
@@ -1117,8 +1120,9 @@ function renderBag() {
     if (a === 'sell') act('/api/sell', { itemId: id }, r => { selItem = null; return `賣得 ${r.price} 金幣`; });
     if (a === 'refine') {
       const cur = (CHAR.items || []).find(i => i.id === id);
-      if (refineBreaks(cur.refine) && !(await askConfirm(`+${cur.refine} → +${cur.refine + 1} 失敗會碎掉，確定要強化？`, { danger: true }))) return;
-      act('/api/refine', { itemId: id }, r => { if (r.result === 'broken') selItem = null; return { ok: '強化成功！', down: '強化失敗，降了一級…', broken: '強化失敗，裝備碎掉了！' }[r.result]; });
+      const protect = b.dataset.protect === '1';
+      if (refineBreaks(cur.refine) && !protect && !(await askConfirm(`+${cur.refine} → +${cur.refine + 1} 失敗會碎掉，確定要強化？`, { danger: true }))) return;
+      act('/api/refine', { itemId: id, protect }, r => { if (r.result === 'broken') selItem = null; return { ok: '強化成功！', down: '強化失敗，降了一級…', broken: '強化失敗，裝備碎掉了！' }[r.result]; });
     }
     if (a === 'gup') act('/api/gup', { itemId: id, box: b.dataset.box }, r => r.result === 'ok' ? `G 化成功！變成 ${r.tag}` : 'G 化失敗，材料用掉了…');
   });
@@ -1137,6 +1141,7 @@ function itemDetail(it) {
   if (bagMode === 'smith') {
     if (it.refine >= REFINE_MAX) h += '<small>已經強化到最高了</small>';
     else h += `<button class="btn primary" data-act="refine" data-item="${it.id}">精煉 +${it.refine} → +${it.refine + 1}（${Math.round(REFINE_RATE[it.refine] * 100)}%，用 1 個${ORES[oreFor(it)].name}，持有 ${CHAR.mats?.[oreFor(it)] || 0}）</button>${refineBreaks(it.refine) ? '<small style="color:#c0392b">失敗會碎</small>' : it.refine >= 3 ? '<small>失敗會降一級</small>' : ''}`;
+    if (it.refine < REFINE_MAX && refineBreaks(it.refine)) h += `<button class="btn" data-act="refine" data-protect="1" data-item="${it.id}" ${CHAR.mats?.abis > 0 ? '' : 'disabled'}>🛡 用艾彼斯的祝福精煉（失敗不碎、降 1 級；持有 ${CHAR.mats?.abis || 0}）</button>`; // 項目 55
     // 項目 46：G 化（一般 → G → DG → XG），寶石在裝備商人「購買」分頁；有 G 化工具箱可以一起用
     if ((it.gup || 0) >= GUP_MAX) h += '<small>已經是 XG（最高）</small>';
     else { const nx = GUP[(it.gup || 0) + 1], have = CHAR.mats?.[nx.gem] || 0, pct = Math.round(gupRate(it) * 100);
