@@ -71,6 +71,17 @@
   /* 建角視窗：標題＋可捲動內容＋固定在底部的按鈕列（11/18：素質改 6 項後內容變長，底部按鈕被切掉） */
   #createDlg[open]{display:flex;flex-direction:column;height:94vh;height:94dvh} /* iPhone Safari：dialog 沒給高度時 flex:1 的內容會被壓成 0（11/19 手機截圖只剩標題） */#createDlg>header{flex:none}#createDlg #createForm{flex:1;min-height:0}#createDlg .bar{flex:none;margin-top:4px}
   @media (max-width:700px){.cgrid{grid-template-columns:1fr}.cgrid .preview{aspect-ratio:auto;height:min(62vw,300px);flex:none}} /* 手機：預覽固定高度，不然被壓成一條 */
+  /* 11/19 手機截圖：一打開只看到大預覽圖，名稱／職業／素質都要往下滑才找得到 → 手機改成 名稱 → 職業 → 預覽（縮小）→ 說明 → 性別 → 外觀 → 素質 */
+  @media (max-width:700px){
+    .cgrid{display:flex;flex-direction:column;gap:10px}.cgrid>div{display:contents}
+    #createDlg label:has(#cname){order:1}#createDlg .sec.job{order:2;margin-top:0!important}#jobs{order:3}
+    #pvBox{order:4;height:min(46vw,210px)!important}#createDlg .pvctl{order:5;margin-top:-6px}#pvInfo{order:6}#createDlg .gbox{order:7}
+    #createDlg .sec.look{order:8}#look{order:9}#createDlg .sec.stat{order:10}#stats{order:11}
+    #jobs{grid-template-columns:repeat(4,1fr);gap:6px}#jobs button{padding:5px 2px;font-size:12px;gap:2px}#jobs button img{width:30px;height:30px}#jobs .skico{zoom:.83}
+    #createDlg .pvctl .btn{padding:4px 12px;font-size:13px}#pvInfo{font-size:13px}
+    #createDlg .sec.stat{display:flex;justify-content:space-between;align-items:center}#createDlg .pts{white-space:nowrap}#stats{max-height:none!important;overflow:visible!important}
+    #createDlg>header{padding:10px 14px}#createDlg .body{padding:10px 12px}#createDlg .bar .btn{padding:8px 16px}
+  }
   .preview{background:linear-gradient(#cfdcf8,#9fb6ea);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
   .preview canvas{width:100%!important;height:100%!important;display:block}
   .pvload{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a5bbf;font-weight:700;pointer-events:none}
@@ -182,11 +193,11 @@
       </div>
       <div>
         <label>名稱<input id="cname" maxlength="12" placeholder="2～12 個字"></label>
-        <div class="sec" style="margin-top:12px">職業</div>
+        <div class="sec job" style="margin-top:12px">職業</div>
         <div class="jobs" id="jobs"></div>
-        <div class="sec" style="margin-top:12px">外觀 <small style="font-weight:400">（進主城後找造型師可以免費再改）</small></div>
+        <div class="sec look" style="margin-top:12px">外觀 <small style="font-weight:400">（進主城後找造型師可以免費再改）</small></div>
         <div id="look"></div>
-        <div class="sec" style="margin-top:12px">素質 <span class="pts">剩餘點數：<span id="pts"></span></span></div>
+        <div class="sec stat" style="margin-top:12px">素質 <span class="pts">剩餘點數：<span id="pts"></span></span></div>
         <div class="stats" id="stats"></div>
       </div>
     </div>
