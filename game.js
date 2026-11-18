@@ -428,7 +428,8 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   const weak = (e.slowT > 0 || e.stunT > 0) && (tags.includes('fire') || tags.includes('heavy'));
   const gm = P.gem?.[src], eg = P.egem?.[src];
   // 項目 44：屬性相剋（element.scr）；項目 23：屬性寶石改招式屬性、每級爆擊 +3%
-  const em = elemMult(eg ? eg.e : src === 'pet' && PET ? PETS[PET.kind].elem : skillElem(SKD.skills[src]), MONSTER_ELEM[e.type] ?? 0); // 寵物＝自己的屬性
+  const em0 = elemMult(eg ? eg.e : src === 'pet' && PET ? PETS[PET.kind].elem : skillElem(SKD.skills[src]), MONSTER_ELEM[e.type] ?? 0); // 寵物＝自己的屬性
+  const em = em0 > 1 ? 1 + (em0 - 1) * 1.5 : em0; // 項目 57：提高相剋倍率（剋制的加成 ×1.5，例：1.2 → 1.3）
   const crit = weak || Math.random() < P.crit + (gm?.crit || 0) + (eg ? 0.03 * eg.lv : 0);
   // 項目 34：× 0.9～1.1 隨機；爆擊 ×1.6＋額外（技能寶石爆傷）
   const amt = dmg * P.might * (kind === 'magic' ? P.magic : P.phys) * (crit ? 1.6 + (gm?.critDmg || 0) : 1) * (weak ? SKD.status.shatterMult : 1) * em * (0.9 + Math.random() * 0.2) * (P.tmp.dmg > 0 ? 1.2 : 1);

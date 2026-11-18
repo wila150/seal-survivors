@@ -153,6 +153,7 @@ import { renderLook } from './src/2_core/look-ui.js';
 import { sealModel, sealProp, sealActor, sealMob, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
 import { pcLoading } from './src/2_core/pc-loading.js';
+import * as EL from './src/1_data/element.js';
 const TLOAD = pcLoading({ img: 'assets/load/elim_load.png', title: '希望之城' }); document.getElementById('tload0')?.remove(); // PC 原版載入畫面（艾林＝獅子城插畫）
 import { RODS, BAIT, CATCH } from './src/1_data/fishing.js';
 import { loadSealMap, buildSealMap, liftScene, walkMove, addWalkSurfaces } from './src/2_core/seal-map.js';
@@ -394,6 +395,12 @@ async function talk(n) {
 }
 
 // ===== 項目 27：百業宗師＝二轉（PC 每職兩條二轉：2u tree_2／tree_3）=====
+// 項目 57：出征前提示 MVP 屬性（服務端 element.scr 相剋表）→ 引導去扎羅配技能寶石
+function mvpElemHint(name) {
+  const me = EL.MONSTER_ELEM[name] ?? 0, best = [1, 2, 3, 4, 5, 6, 7].filter(a => EL.elemMult(a, me) > 1).sort((a, b) => EL.elemMult(b, me) - EL.elemMult(a, me));
+  const tag = i => `<b style="color:${EL.ELEM_COLOR[i]};text-shadow:0 1px 2px #000">${EL.ELEMS[i]}</b>`;
+  return `<div style="margin:6px 0;padding:6px 10px;border-radius:10px;background:#fff8e6;border:1px solid #e8c77a;font-size:13px">🔮 MVP <b>${esc(name)}</b> 屬性【${tag(me)}】　${best.length ? `剋它：${best.map(a => `${tag(a)} ×${EL.elemMult(a, me)}`).join('、')}　→ 去<b>寶石收藏家 扎羅</b>配技能寶石` : '沒有特別剋它的屬性'}</div>`;
+}
 // 11/19 一轉（照 PC：初心者 Base Lv 10 → 7 職選 1）
 function openJob1(D) {
   const ok = CHAR.baseLv >= JOB1_AT, ico = ([f, x, y]) => `<i style="display:inline-block;width:32px;height:32px;vertical-align:middle;background:url(assets/skill/${f}) -${x}px -${y}px no-repeat"></i>`;
@@ -735,7 +742,7 @@ function openExpedition() {
   const list = STAGES.map((st, i) => { const un = stageUnlocked(i, cl), done = cl.includes(st.key), mvp = st.bosses[st.bosses.length - 1][1];
     return `<div class="st ${i === expSel ? 'on' : ''} ${un ? '' : 'lock'}" data-st="${i}"><img data-mon="${mvp}" alt=""><div><b>${st.name}</b><small>MVP ${mvp}　Lv ${st.lv}</small>
       <span class="tag ${done ? 'done' : un ? (gs >= (GS_REQ[i] || 0) ? 'ok' : 'lock') : 'lock'}">${done ? '已通關' : un ? (gs >= (GS_REQ[i] || 0) ? '可挑戰' : `GS ${GS_REQ[i]}`) : '未解鎖'}</span></div></div>`; }).join('');
-  const info = `<div class="hero" style="background:${S.banner ? `linear-gradient(90deg,#0009,#0000 70%),url(${S.banner}) 22% 78%/175% auto no-repeat,` : ''}linear-gradient(135deg,${hex(S.ground)},${hex(S.fog)})"><span class="lv">Lv ${S.lv}</span><b>${S.name}</b><small>${S.sub}・MVP ${S.bosses[S.bosses.length - 1][1]}</small></div>
+  const info = `<div class="hero" style="background:${S.banner ? `linear-gradient(90deg,#0009,#0000 70%),url(${S.banner}) 22% 78%/175% auto no-repeat,` : ''}linear-gradient(135deg,${hex(S.ground)},${hex(S.fog)})"><span class="lv">Lv ${S.lv}</span><b>${S.name}</b><small>${S.sub}・MVP ${S.bosses[S.bosses.length - 1][1]}</small></div>${mvpElemHint(S.bosses[S.bosses.length - 1][1])}
     <div class="sec"><h4>關卡</h4>Tier ${S.tier || 1}　・　時長 ${fmtT(stageTime(S))}（MVP 在最後出場）　・　裝備分數 <b style="color:${gs >= (GS_REQ[expSel] || 0) ? '#2e7d32' : '#c0392b'}">${gs}</b> / 需要 ${GS_REQ[expSel] || 0}${(S.tier || 1) >= 2 ? `<br><small>高階地圖：開局 ${EARLY_WEAK.secs / 60} 分鐘內怪物較弱（×${EARLY_WEAK.from} 慢慢恢復），首領一律全力</small>` : ''}${gate.ok ? '' : `<br><b style="color:#c0392b">${gate.why}</b>`}<br><small>裝備分數＝每件穿著的裝備（品質＋1）×4＋精煉×2＋G 化×4</small></div>
     <div class="sec"><h4>頭目</h4><div class="row">${bossTimes(S).map(([sec, n, k]) => `<div class="mon ${k}"><img data-mon="${n}" alt="">${n}<small>${k === 'mvp' ? 'MVP' : '小王'}・${fmtT(sec)}</small></div>`).join('')}</div></div>
     <div class="sec"><h4>怪物</h4><div class="row">${S.monsters.map(n => `<div class="mon"><img data-mon="${n}" alt="">${n}</div>`).join('')}</div></div>
