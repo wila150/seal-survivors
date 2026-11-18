@@ -1162,7 +1162,7 @@
   "b_magic": {
    "name": "持杖技",
    "basic": true,
-   "type": "PROJECTILE_BOUNCE",
+   "type": "MELEE_ARC",
    "kind": "magic",
    "tags": [],
    "icon": [
@@ -1170,22 +1170,19 @@
     288,
     0
    ],
-   "fx": "light",
+   "fx": "slash",
    "color": "#d8c8ff",
    "pc": "持杖基本攻击",
    "base": {
-    "dmg": 7,
-    "cd": 0.8,
-    "count": 1,
-    "speed": 16,
-    "bounce": 0,
-    "pierce": 0,
-    "size": 1.1
+    "dmg": 8,
+    "cd": 0.85,
+    "range": 2.2,
+    "arc": 1.2
    },
    "per": {
-    "dmg": 2,
+    "dmg": 3,
     "cd": -0.04,
-    "count": 0.25
+    "range": 0.15
    }
   },
   "b_cleric": {
