@@ -97,11 +97,26 @@ const addMat = (t, color = 0xffffff) => new THREE.SpriteMaterial({ map: t, color
 
 // ===== 音效 =====
 let muted = false; const audioLast = {};
-const sounds = {}; for (const k in SFX) sounds[k] = new Audio(`assets/sfx/${SFX[k]}.wav`);
+// 11/19 手機超卡：以前每次播放都 new Audio／cloneNode（iPhone 每個都要重新解碼、開播放器，打怪時一秒幾十次）
+// → 改 Web Audio：每個檔只下載解碼一次，之後從記憶體播；同時最多 24 個聲音
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+const sfxGain = AC.createGain(); sfxGain.connect(AC.destination);
+const sounds = {}; let voices = 0;
+const sndUrl = k => SFX[k] ? `assets/sfx/${SFX[k]}.wav` : k.includes('/') ? `assets/sfx/${k}` : `assets/sfx/skill/${k}`; // 原版技能音效（build-skillfx.mjs 從腳本 SoundName 抄來）
+function loadSnd(k) { return sounds[k] ??= fetch(sndUrl(k)).then(r => r.ok ? r.arrayBuffer() : null).then(b => b && new Promise((ok, bad) => AC.decodeAudioData(b, ok, bad))).catch(() => null); }
+for (const k in SFX) loadSnd(k);
+const unlockAudio = () => { if (AC.state === 'suspended') AC.resume().catch(() => {}); };
+addEventListener('pointerdown', unlockAudio, { capture: true }); addEventListener('keydown', unlockAudio, { capture: true });
 function play(k, vol = 0.5, gap = 70) {
   if (muted) return; const now = performance.now(); if (now - (audioLast[k] || 0) < gap) return; audioLast[k] = now;
-  if (!sounds[k]) { if (!/\.wav$/.test(k)) return; sounds[k] = new Audio(k.includes('/') ? `assets/sfx/${k}` : `assets/sfx/skill/${k}`); } // 原版技能音效（build-skillfx.mjs 從腳本 SoundName 抄來）
-  const G = getSettings(); const a = sounds[k].cloneNode(); a.volume = Math.min(1, vol * G.master * G.sfx); a.play().catch(() => {});
+  if (!SFX[k] && !/\.wav$/.test(k)) return;
+  if (voices >= 24) return;
+  loadSnd(k).then(buf => {
+    if (!buf || AC.state !== 'running') return;
+    const G = getSettings(), src = AC.createBufferSource(), g = AC.createGain();
+    src.buffer = buf; g.gain.value = Math.min(1, vol * G.master * G.sfx); src.connect(g).connect(sfxGain);
+    voices++; src.onended = () => { voices--; g.disconnect(); }; src.start();
+  });
 }
 // 怪物原版音效（tools/build-mobs.mjs 從 .act 抄來）：攻擊 f1、倒下 dd、受擊 ms
 let MOB_SND = {}; fetch('assets/sfx/mob/index.json').then(r => r.ok ? r.json() : {}).then(j => { MOB_SND = j; }).catch(() => {});
@@ -663,6 +678,7 @@ function drawSkillCd() {
     m.style.setProperty('--p', (k * 360).toFixed(1) + 'deg'); m.textContent = left >= 1 ? Math.ceil(left) : '';
   }
 }
+let hudLast = 0;
 function render() {
   const pp = player.position;
   if (!opts.shake) bossFx.shake = 0;
@@ -671,7 +687,9 @@ function render() {
   sun.position.set(pp.x + 8, gy + 20, pp.z + 6); sun.target.position.set(pp.x, gy, pp.z); sun.target.updateMatrixWorld();
   const restore = liftScene(scene, MAP.heightAt); renderer.render(scene, camera); restore(); // 畫面上抬到地面高度，邏輯維持平面
   if (!P) return;
-  drawGage(); // PC 原版左上 HUD
+  // 介面文字／條每秒更新 12 次就夠（以前每幀改 DOM，手機很吃效能）
+  const nowH = performance.now(); if (nowH - hudLast < 83) return; hudLast = nowH;
+  if (GAGE.cv?.offsetParent) drawGage(); // PC 原版左上 HUD（手機版藏起來就不畫）
   drawSkillCd(); // 技能冷卻遮罩
   hud.xp.style.width = (P.xp / P.need * 100) + '%';
   hud.hp.style.width = Math.max(0, P.hp / P.maxHp * 100) + '%';
