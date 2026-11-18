@@ -153,6 +153,52 @@ document.getElementById('mountBtn').onclick = () => triggerMountDash();
 const input = createInput(renderer.domElement, document.getElementById('joy'), { camera, scene, target: () => player.position, groundY: () => groundY() });
 enableOrbit(renderer.domElement); // 右鍵拖曳轉視角
 rig.walk = (p, nx, nz) => walkMove(MAP, p, nx, nz); // 原版可走區（水、懸崖、建築擋路）
+// ===== 項目 52：A → S → D 連續技（第八批藍圖）=====
+// 氣條：時間＋移動累積（約 15～20 秒滿）；滿了腳下出現收縮光圈＋提示
+//   A＝放開手指／放開滑鼠／放開方向鍵（急停）：無敵 2.5 秒＋第一段（身邊 5 公尺）
+//   S＝輕點畫面／點一下滑鼠／空白鍵：第二段範圍技（8 公尺）
+//   D＝長按拖曳（手機、滑鼠）／按方向鍵：終結清屏大招（18 公尺，高傷＋掉屬性寶石），同時恢復走位
+// S、D 各有 2.5 秒的時間窗，沒接上就結束；A 之後直接移動＝中斷
+const CB = { g: 0, st: 0, t: 0, still: 0, ring: null };
+const cbHud = document.createElement('div'); cbHud.id = 'comboHud';
+cbHud.innerHTML = '<div class="cg"><i></i></div><div class="ch"></div>'; document.body.appendChild(cbHud);
+const cbStyle = document.createElement('style'); cbStyle.textContent = `#comboHud{position:fixed;left:50%;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 118px);transform:translateX(-50%);z-index:6;pointer-events:none;text-align:center}
+#comboHud .cg{width:150px;height:8px;border-radius:5px;background:#0006;border:1px solid #fff6;overflow:hidden;margin:0 auto}#comboHud .cg i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd36b,#ff7a3d)}
+#comboHud.full .cg{box-shadow:0 0 10px #ffb84a}#comboHud .ch{margin-top:4px;font-weight:900;font-size:15px;color:#fff;text-shadow:0 2px 4px #000;letter-spacing:1px;white-space:nowrap}#comboHud .ch b{color:#ffd36b}`;
+document.head.appendChild(cbStyle);
+const cbHint = h => { cbHud.querySelector('.ch').innerHTML = h; };
+function cbStage(n) {
+  const pp = player.position, J = SKD.jobs[CHAR.job], pool = J?.pool || [], lvK = 1 + 0.12 * P.lv, base = 10 * lvK; // 暫定：Lv1 三段 30／50／100
+  const R = [5, 8, 18][n], dmg = base * [3, 5, 10][n], key = pool[[0, 2, 3][n]];
+  // 原版特效：這職業的技能（第一段第 1 招、第二段第 3 招、第三段第 4 招＋首領倒地特效）；初心者沒有就用衝擊波
+  const pc = key && (PCFX.play(key, 'hit', pp, P.face, { fit: R * 0.6 }) || PCFX.play(key, 'cast', pp, P.face, { fit: R * 0.6, follow: player }));
+  if (!pc) spawnFx('shock', pp, { flat: true, scale: R * 2, life: 0.5, grow: 1.5, color: [0x9fe0ff, 0xffd36b, 0xff7a3d][n] });
+  if (n === 2) { PCFX.play('bigkill', 'cast', pp, 0, { y: 0.3, scale: 1.4 }); bossFx.shake = Math.max(bossFx.shake, 0.8); }
+  rig.swing(P.face, 'p' + (n + 1)); play(n === 2 ? 'boom' : 'hit', 0.7, 0);
+  for (const e of enemies) { if (e.dead) continue; const dx = e.mesh.position.x - pp.x, dz = e.mesh.position.z - pp.z; if (dx * dx + dz * dz > R * R) continue; hurt(e, dmg, pp, 'phys', 'combo', { tags: n === 2 ? ['heavy'] : [] }); }
+  showBanner(`<small>連續技 ${'ASD'[n]}</small><b>${['第一段', '第二段', '終結技'][n]}</b>`, 700);
+  if (n === 2) maybeElemGem(true);
+}
+function cbEnd() { CB.st = 0; CB.g = 0; CB.t = 0; cbHud.classList.remove('full'); cbHint(''); if (CB.ring) CB.ring.visible = false; }
+{ let pd = null; // 輕點（S）／長按拖曳（D）判斷
+  renderer.domElement.addEventListener('pointerdown', e => { if (e.button === 0) pd = { x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; });
+  addEventListener('pointermove', e => { if (!pd || pd.fired || CB.st !== 3) return; if (performance.now() - pd.t > 220 && Math.hypot(e.clientX - pd.x, e.clientY - pd.y) > 15) { pd.fired = true; cbStage(2); cbEnd(); } });
+  addEventListener('pointerup', e => { if (!pd) return; const quick = performance.now() - pd.t < 260 && Math.hypot(e.clientX - pd.x, e.clientY - pd.y) < 12, was = pd; pd = null;
+    if (!was.fired && quick && CB.st === 2 && state === 'play') { input.cancelClick(); cbStage(1); CB.st = 3; CB.t = 2.5; cbHint('長按拖曳 <b>[D]</b>（或方向鍵）→ 終結技'); } });
+  addEventListener('keydown', e => { if (state !== 'play') return;
+    if (e.code === 'Space' && CB.st === 2) { e.preventDefault(); cbStage(1); CB.st = 3; CB.t = 2.5; cbHint('長按拖曳 <b>[D]</b>（或方向鍵）→ 終結技'); }
+    else if (CB.st === 3 && /^(Key[WASD]|Arrow)/.test(e.code)) { cbStage(2); cbEnd(); } }); }
+function comboUpdate(dt, mv) {
+  const moving = mv.ml > 0.05 || input.joy.on || input.click.held;
+  if (CB.st === 0) { CB.g = Math.min(100, CB.g + dt * (5 + (moving ? 2.5 : 0))); if (CB.g >= 100) { CB.st = 1; cbHud.classList.add('full'); cbHint('放開 <b>[A]</b> → 輕點 <b>[S]</b> → 長按拖曳 <b>[D]</b>'); } }
+  else if (CB.st === 1) { CB.still = moving ? 0 : CB.still + dt; if (CB.still > 0.12) { P.inv = Math.max(P.inv, 2.5); cbStage(0); CB.st = 2; CB.t = 2.5; cbHint('輕點 <b>[S]</b>（或空白鍵）→ 第二段'); } }
+  else if (CB.st === 2) { CB.t -= dt; if (CB.t <= 0 || mv.ml > 0.05) cbEnd(); }
+  else if (CB.st === 3) { CB.t -= dt; if (CB.t <= 0) cbEnd(); }
+  cbHud.querySelector('.cg i').style.width = (CB.st ? 100 : CB.g) + '%';
+  // 腳下收縮光圈（氣條滿、等放開時）
+  if (!CB.ring) { CB.ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.1, 40), new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })); CB.ring.rotation.x = -Math.PI / 2; scene.add(CB.ring); }
+  CB.ring.visible = CB.st >= 1; if (CB.ring.visible) { const k = 2.2 - ((t * 1.4) % 1) * 1.4; CB.ring.scale.setScalar(k); CB.ring.position.set(player.position.x, 0.08, player.position.z); }
+}
 // 視角切換：V 鍵或右下按鈕
 function switchView() { const n = cycleView(); showBanner(`<small>視角</small><b>${n}</b>`, 700); }
 addEventListener('keydown', e => { if (e.code === 'KeyV') switchView(); });
@@ -286,7 +332,7 @@ function reset() {
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
-  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0;
+  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof cbEnd === 'function' && CB.ring !== undefined) cbEnd();
   enemies = []; gems = []; t = 0; kills = 0; spawner.reset();
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
@@ -436,7 +482,7 @@ const BS = createBossSystem({ pcfx: PCFX, scene, tex, player, ENEMY_TYPES, spawn
 const bossFx = BS.fx;
 
 // ===== 升級三選一（只出自己職業的技能＋被動＋超武融合）=====
-function skillName(k) { return k === 'pet' ? (PET ? '🐾 ' + petName(PET) : '寵物') : SKD.skills[k]?.name || (k === 'musou' ? SKD.jobs[CHAR.job]?.musou.name : k); }
+function skillName(k) { return k === 'pet' ? (PET ? '🐾 ' + petName(PET) : '寵物') : SKD.skills[k]?.name || (k === 'musou' ? SKD.jobs[CHAR.job]?.musou.name : k === 'combo' ? '連續技 A→S→D' : k === 'mount' ? '坐騎衝鋒' : k); }
 // 每級固定加成（項目 15；數值在 skills.json status.perLevel）
 // ===== 項目 37：菁英寶箱（花金幣開，開出局內道具；圖示＝服務端 item.scr 原版道具圖示）=====
 const RUN_ITEMS = [
@@ -620,7 +666,7 @@ function towerFloorUp() {
 function update(dt) {
   t += dt;
   // 移動（player.js）
-  rig.move(dt, input.read(), P);
+  rig.move(dt, input.read(), P); comboUpdate(dt, input.read()); // 項目 52 連續技
   const pp = player.position;
   // 換區域：跳區域名
   if (TOWER) { const f = towerFloor(t); if (f !== floor) { floor = f; towerFloorUp(); } }
@@ -865,5 +911,5 @@ if (location.search.includes('auto')) start().then(() => {
   if (location.search.includes('ride')) setMounted(true);
   const bq = location.search.match(/boss=(\d)/); if (bq) { spawner.bossIdx = +bq[1]; t = BOSSES[spawner.bossIdx][0] - 0.1; }
   const m = location.search.match(/sim=([\d.]+)/); if (m) { for (let i = 0; i < +m[1] * 30 && state !== 'over'; i++) { if (state === 'level') document.querySelector('.card')?.click(); P.hp = P.maxHp; update(1 / 30); } }
-  window.__ss = { pet: () => pet.g ? { x: +pet.g.position.x.toFixed(1), z: +pet.g.position.z.toFixed(1), cd: +pet.cd.toFixed(2), kind: PET?.kind, lv: PET?.lv } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, tmp: () => P.tmp, perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
+  window.__ss = { pet: () => pet.g ? { x: +pet.g.position.x.toFixed(1), z: +pet.g.position.z.toFixed(1), cd: +pet.cd.toFixed(2), kind: PET?.kind, lv: PET?.lv } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, tmp: () => P.tmp, cb: () => CB, perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
 });
