@@ -86,7 +86,12 @@
   .bag.pc .cell.empty{cursor:default;border-color:#bdac9b!important}
   .pcgold{display:flex;align-items:center;gap:8px;margin-top:8px;background:#f1ebe0;border:2px solid #b9ab9f;border-radius:20px;padding:4px 6px 4px 14px;font-weight:900;color:#7a5a3c}
   .pcgold span{flex:1;background:#fbf5d8;border:2px solid #e3d6a0;border-radius:14px;padding:2px 12px;text-align:right;color:#5a4220}
-  .slots.pc{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px} /* 項目 32：7 個部位（PC），自動排 3～6 欄 */
+  .slots.pc{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:5px} /* 11/19 小格化：12 個部位一格 58px（只放圖示＋部位名，名稱數值點了看 detail）→ 手機 5～6 欄、桌機一兩排 */
+  #dlg #dlgBody .slots.pc .eq{padding:4px 2px 5px!important;gap:2px;border-radius:10px;cursor:pointer}
+  #dlg #dlgBody .slots.pc .eq .sl{position:static!important;display:block;font-size:10px;letter-spacing:0;text-align:center;order:2}
+  #dlg #dlgBody .slots.pc .eq>b,#dlg #dlgBody .slots.pc .eq>small{display:none}
+  #dlg #dlgBody .slots.pc .eq .ico{width:40px!important;height:40px!important;margin:0 auto;order:1}
+  #dlg #dlgBody .slots.pc .eq .ico img{width:32px;height:32px}
   .slots.pc .eq{min-width:0;background:#f7f2ea;border:2px solid #b3a190;border-radius:12px;padding:6px;flex-direction:column;text-align:center;gap:4px}
   .slots.pc .eq .ico{width:44px;height:44px;border-radius:6px;background:linear-gradient(#d8c9ba,#c9b7a6);border:2px solid #b3a190;display:flex;align-items:center;justify-content:center}
   .slots.pc .eq b{font-size:13px}.slots.pc .eq small{font-size:11px;line-height:1.3}
@@ -95,7 +100,11 @@
   .strow{display:grid;grid-template-columns:60px 40px 36px 1fr;gap:8px;align-items:center;padding:4px 0;font-size:14px}
   .strow small{color:#6b7896}
   .exp{display:grid;grid-template-columns:240px 1fr;gap:12px;max-height:62vh}
-  @media (max-width:640px){.exp{grid-template-columns:1fr}}
+  @media (max-width:640px){#dlg #dlgBody .exp{grid-template-columns:minmax(0,1fr)!important;max-height:none!important}#dlg #dlgBody .exp>*{min-width:0}
+    /* 11/19 手機少捲動：4 張地圖排成一列小卡（地圖名＋狀態），下面直接是地圖資訊、難度 */
+    #dlg #dlgBody .exp .list{flex-direction:row!important;overflow:visible!important;gap:5px;padding:0;max-height:none!important}#dlg #dlgBody .exp .list .st{flex:1 1 0;min-width:0;flex-direction:column;gap:2px;padding:5px 3px!important;text-align:center}
+    #dlg #dlgBody .exp .list .st img{width:38px;height:38px}#dlg #dlgBody .exp .list .st b{font-size:12px;line-height:1.25}#dlg #dlgBody .exp .list .st small{display:none}#dlg #dlgBody .exp .list .st .tag{font-size:10px;padding:0 4px}
+    #dlg #dlgBody .exp .info{overflow:visible!important}}
   .exp .list{overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
   .st{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #c9d5f0;border-radius:12px;padding:8px;cursor:pointer}
   .st.on{border:2px solid #3f63c4;background:#eaf0ff}.st.lock{opacity:.55}
@@ -360,8 +369,16 @@ function checkUnfinishedRun() {
     ['繼續', () => { try { sessionStorage.setItem('ss_stage', snap.stage); } catch {} location.href = `game.html?resume&stage=${snap.stage}`; }, true],
   ]);
 }
+// 同一個視窗重畫（點天賦、加素質、換分頁…）時保留捲動位置（11/19 使用者：「每次點擊就會重置到最上面」）
+// 記下內容區＋裡面每個有捲軸的區塊（依出現順序）的捲動位置，重畫後照順序還原；換成別的視窗才回到最上面
+// 用「在視窗內容裡的位置」（一路往上的子元素序號）認同一個區塊；只記有捲動過的
+const dlgPath = (root, el) => { const p = []; while (el && el !== root) { p.unshift([...el.parentNode.children].indexOf(el)); el = el.parentNode; } return p; };
+const dlgAt = (root, p) => p.reduce((el, i) => el?.children[i], root);
 function openDlg(title, html, opts, wide = false) {
-  dlgOpen = true; document.querySelector('#dlg .box').classList.toggle('wide', wide); $('#dlgTitle').textContent = title; $('#dlgBody').innerHTML = html;
+  const B = $('#dlgBody'), same = dlgOpen && $('#dlgTitle').textContent === title;
+  const keep = same ? [B, ...B.querySelectorAll('*')].filter(el => el.scrollTop || el.scrollLeft).map(el => [dlgPath(B, el), el.scrollTop, el.scrollLeft]) : null;
+  dlgOpen = true; document.querySelector('#dlg .box').classList.toggle('wide', wide); $('#dlgTitle').textContent = title; B.innerHTML = html;
+  if (keep?.length) { const restore = () => keep.forEach(([p, t, l]) => { const el = dlgAt(B, p); if (el) { el.scrollTop = t; el.scrollLeft = l; } }); restore(); requestAnimationFrame(restore); } else if (!same) B.scrollTop = 0;
   const box = $('#dlgOpts'); box.innerHTML = '';
   for (const [label, fn, primary] of [...opts, ['離開', closeDlg]]) { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.textContent = label; b.onclick = fn; box.appendChild(b); }
   $('#dlg').classList.add('on');
@@ -1120,7 +1137,7 @@ function renderBag() {
   } else {
     if (bagMode === 'shop') html += `<div class="acts" style="display:flex;gap:6px;margin-bottom:10px">${Object.entries(SLOTS).filter(([k]) => k !== 'shield' || CHAR.job === '騎士').map(([k, v]) => `<button class="btn primary" data-buy="${k}">買${v}（150）</button>`).join('')}</div>`;
     html += `<div class="slots pc">${Object.entries(SLOTS).filter(([k]) => (bagMode !== 'smith' || smithOk({ slot: k })) && (k !== 'shield' || CHAR.job === '騎士')).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
-      return `<div class="eq" data-id="${it?.id || ''}"><span class="sl">${v}</span><div class="ico">${it ? `<img src="${itemIcon(it)}" alt="">` : ''}</div>${it ? `<b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small>` : `<b>${v}</b><small>沒有裝備</small>`}</div>`; }).join('')}</div>`;
+      return `<div class="eq" data-id="${it?.id || ''}" title="${it ? esc(itemName(it)) : v + '：沒有裝備'}"><span class="sl">${v}</span><div class="ico" ${it ? `style="border-color:${RARITY[it.rarity].color}!important"` : ''}>${it ? `<img src="${itemIcon(it)}" alt="">` : ''}</div>${it ? `<b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small>` : `<b>${v}</b><small>沒有裝備</small>`}</div>`; }).join('')}</div>`;
     const shown = items.filter(it => bagMode !== 'smith' || smithOk(it)), BAG_CAP = 40; // 伺服器 BAG_MAX＝40；PC 背包空格也畫出來
     html += `<div class="bag pc"><b class="pct">ITEM</b>${shown.map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('')}${bagMode === 'smith' ? '' : '<div class="cell empty"></div>'.repeat(Math.max(0, BAG_CAP - shown.length))}${shown.length ? '' : '<small style="color:#8a7a6a">背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
     html += `<div class="pcgold">希幣<span>${(c.gold || 0).toLocaleString()}</span></div>`;
