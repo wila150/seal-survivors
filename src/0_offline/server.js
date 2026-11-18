@@ -238,7 +238,7 @@ const api = {
   },
   // 出征結算：存紀錄、加經驗、升級
   'POST /api/runs': async (req, res, _, uid) => {
-    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0 } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
+    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0, combos = 0 } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
     const stB = stageBaseLv(STAGES.find(x => x.key === stage)), DL = isTowerKey(stage) ? diffLoot(null) : diffLoot(cleanDiff(diff, stB), stB); // 項目 41：難度只影響寶箱裝備品質，經驗金幣不變
     const isTower = stage === 'tower';
     const c = db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+charId, uid);
@@ -301,6 +301,9 @@ const api = {
     let petUp = 0, petEgg = null; d.pets ??= [];
     const ap = d.pets.find(p => p.id === d.pet); if (ap) petUp = addPetExp(ap, Math.floor(gain * 0.3));
     if (bl.some(n => mvpNames.has(n)) && Math.random() < MVP_EGG_RATE && d.pets.length < PET_MAX) { const k = Object.keys(PETS)[Math.random() * 4 | 0]; petEgg = { id: Date.now(), kind: k, lv: 1, exp: 0 }; d.pets.push(petEgg); }
+    // 11/19 使用者企劃 指令 3：每打完一套 A→S→D 連續技，身上鑲著的技能寶石各 +20 融合經驗，滿 100 升一級（N → G → DG → XG）
+    const gemUps = []; { const n = Math.max(0, Math.min(30, combos | 0)); if (n) for (const sl of d.gemSlots || []) { const g = sl && (d.gems || []).find(x => x.id === sl.gem); if (!g) continue;
+      g.fx = (g.fx || 0) + 20 * n; while (g.fx >= 100 && g.grade < 3) { g.fx -= 100; g.grade++; gemUps.push(g.grade); } if (g.grade >= 3) g.fx = Math.min(g.fx, 100); } }
     const spentGold = Math.max(0, Math.min(Math.floor(+req.__spent || 0), (c.gold ?? 0) + gold)); // 項目 37：菁英寶箱花的金幣，結算時扣（不會扣到負的）
     db.prepare('UPDATE characters SET base_lv=?, job_lv=?, exp=?, gold=gold+?, data=? WHERE id=?').run(base, job, exp, gold - spentGold, JSON.stringify(d), c.id);
     db.prepare('INSERT INTO runs (char_id, secs, kills, lv, exp, created) VALUES (?,?,?,?,?,?)').run(c.id, secs, kills, lv, gain, Date.now());
@@ -309,7 +312,7 @@ const api = {
     if (isTower) { const before = towerBest(c.id), score = towerScore(floor, kills, curse);
       db.prepare('INSERT INTO towers (char_id, month, floor, score, curse, kills, created) VALUES (?,?,?,?,?,?,?)').run(c.id, monthKey(), floor, score, curse, kills, Date.now());
       tower = { floor, score, newBest: score > before.score, newFloor: floor > before.floor, points: towerPoints(Math.max(floor, before.floor)) }; }
-    send(res, 200, { gain, bonus, baseLv: base, exp, need: needExp(base), levelUps: ups, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, pet: ap ? { name: ap.name || PETS[ap.kind].name, lv: ap.lv, up: petUp } : null, petEgg: petEgg && PETS[petEgg.kind].name, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
+    send(res, 200, { gain, bonus, baseLv: base, exp, need: needExp(base), levelUps: ups, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, pet: ap ? { name: ap.name || PETS[ap.kind].name, lv: ap.lv, up: petUp } : null, petEgg: petEgg && PETS[petEgg.kind].name, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
   },
   // ===== 背包、商店、強化、素質 =====
   'POST /api/equip': async (req, res, _, uid) => {

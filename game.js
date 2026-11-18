@@ -177,7 +177,10 @@ function cbStage(n) {
   if (!pc) spawnFx('shock', pp, { flat: true, scale: R * 2, life: 0.5, grow: 1.5, color: [0x9fe0ff, 0xffd36b, 0xff7a3d][n] });
   if (n === 2) { PCFX.play('bigkill', 'cast', pp, 0, { y: 0.3, scale: 1.4 }); bossFx.shake = Math.max(bossFx.shake, 0.8); }
   rig.swing(P.face, 'p' + (n + 1)); play(n === 2 ? 'boom' : 'hit', 0.7, 0);
+  // 指令 3：終結技（D）爆發屬性：用局內等級最高的屬性寶石（相剋照 element.scr），顏色特效＋相剋增傷
+  const top = n === 2 ? Object.values(P.egem || {}).sort((a, b) => b.lv - a.lv)[0] : null; if (top) { P.egem.combo = { e: top.e, lv: top.lv }; spawnFx('shock', pp, { flat: true, scale: R * 1.6, life: 0.6, grow: 1.5, color: new THREE.Color(ELEM_COLOR[top.e]).getHex() }); }
   for (const e of enemies) { if (e.dead) continue; const dx = e.mesh.position.x - pp.x, dz = e.mesh.position.z - pp.z; if (dx * dx + dz * dz > R * R) continue; hurt(e, dmg, pp, 'phys', 'combo', { tags: n === 2 ? ['heavy'] : [] }); }
+  if (top) delete P.egem.combo; if (n === 2) CB.done = (CB.done || 0) + 1; // 完整打完一套 → 結算時技能寶石融合經驗
   showBanner(`<small>連續技 ${'ASD'[n]}</small><b>${['第一段', '第二段', '終結技'][n]}</b>`, 700);
   if (n === 2) maybeElemGem(true);
 }
@@ -393,7 +396,7 @@ function reset() {
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
-  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } if (typeof cbEnd === 'function' && CB.ring !== undefined) cbEnd();
+  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } if (typeof cbEnd === 'function' && CB.ring !== undefined) { cbEnd(); CB.done = 0; }
   enemies = []; gems = []; t = 0; kills = 0; spawner.reset();
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
@@ -934,9 +937,9 @@ async function saveRun() {
   if (!token || !CHAR.id) return;
   out.textContent = '結算中…';
   try {
-    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done });
+    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done, combos: CB.done || 0 });
     const F = j.fame; // 項目 47
-    out.innerHTML = (F?.gain ? `🏅 名聲 +${F.gain}${F.up ? `　<b>名聲 Lv${F.lv}！</b>` : ''}${F.newTitles?.length ? `　新稱號：${F.newTitles.map(t => `【${t}】`).join('')}` : ''}${F.gear?.length ? `　名聲裝備已寄到信箱` : ''}<br>` : '') + (j.tower ? `<b>分數 ${j.tower.score.toLocaleString()}</b>${j.tower.newBest ? '　🏆 新紀錄！' : ''}${j.tower.newFloor ? `　最高樓層更新（塔點數 ${j.tower.points}）` : ''}<br>` : '') + (j.bonus ? `通關獎勵 ×1.5！　` : '') + `經驗 +${j.gain}　金幣 +${j.gold}${j.spent ? `（菁英寶箱 −${j.spent}）` : ''}` + (j.levelUps ? `<br>角色升級！Lv ${j.baseLv}（素質點 +${j.levelUps * 3}）` : `　（${j.exp} / ${j.need}）`) + (j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}` : '') + (j.gems?.length ? `<br>拿到技能寶石 ${j.gems.length} 顆（主城「寶石」開放後裝備）` : '')
+    out.innerHTML = (F?.gain ? `🏅 名聲 +${F.gain}${F.up ? `　<b>名聲 Lv${F.lv}！</b>` : ''}${F.newTitles?.length ? `　新稱號：${F.newTitles.map(t => `【${t}】`).join('')}` : ''}${F.gear?.length ? `　名聲裝備已寄到信箱` : ''}<br>` : '') + (j.tower ? `<b>分數 ${j.tower.score.toLocaleString()}</b>${j.tower.newBest ? '　🏆 新紀錄！' : ''}${j.tower.newFloor ? `　最高樓層更新（塔點數 ${j.tower.points}）` : ''}<br>` : '') + (j.bonus ? `通關獎勵 ×1.5！　` : '') + `經驗 +${j.gain}　金幣 +${j.gold}${j.spent ? `（菁英寶箱 −${j.spent}）` : ''}${j.gemUps?.length ? `<br>💎 連續技融合：技能寶石升級 ${j.gemUps.map(g => ['N', 'G', 'DG', 'XG'][g]).join('、')}！` : ''}` + (j.levelUps ? `<br>角色升級！Lv ${j.baseLv}（素質點 +${j.levelUps * 3}）` : `　（${j.exp} / ${j.need}）`) + (j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}` : '') + (j.gems?.length ? `<br>拿到技能寶石 ${j.gems.length} 顆（主城「寶石」開放後裝備）` : '')
       + (j.newStage ? `<br>🔓 解鎖新地圖：${j.newStage}` : '') + (j.items.length ? `<div class="loot">${j.items.map(it => `<span class="${it.rarity >= 3 ? 'glow' : ''}" style="border-color:${RARITY[it.rarity].color};${it.rarity >= 3 ? `color:${RARITY[it.rarity].color}` : ''}"><img src="${itemIcon(it)}" alt=""><em style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</em></span>`).join('')}</div>` : '')
       + (j.filtered ? `<br><small>🔍 撿取篩選（${LOOT_F[lootMin]}）：${j.filtered} 件不要，沒進背包</small>` : '')
       + (j.bagFull ? '<br><small>背包滿了，有些寶箱沒打開</small>' : '');
@@ -959,7 +962,7 @@ const RUN_KEY = 'ss_run_' + (CHAR.id || 'guest');
 function snapshotRun() {
   if (TOWER || !P || !CHAR.id || !['play', 'level', 'pause'].includes(state) || t < 5) return;
   const snap = { stage: STAGE_IDX, stageKey: STAGE.key, stageName: STAGE.name, t, kills, lv: P.lv, xp: P.xp, need: P.need, hp: P.hp / P.maxHp, chests, bossChests, bossIdx: spawner.bossIdx, px: player.position.x, pz: player.position.z,
-    skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), skmods: Object.fromEntries(Object.entries(SM.skills).filter(([, w]) => w.mods).map(([k, w]) => [k, w.mods])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], spent: goldSpent, events: EV.done, saved: Date.now() };
+    skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), skmods: Object.fromEntries(Object.entries(SM.skills).filter(([, w]) => w.mods).map(([k, w]) => [k, w.mods])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], spent: goldSpent, events: EV.done, combos: CB.done || 0, saved: Date.now() };
   try { localStorage.setItem(RUN_KEY, JSON.stringify(snap)); } catch {}
 }
 function clearRun() { try { localStorage.removeItem(RUN_KEY); } catch {} }
@@ -976,7 +979,7 @@ function resumeRun(snap) {
   for (const [k, m] of Object.entries(snap.skmods || {})) if (SM.skills[k]) SM.skills[k].mods = { ...m }; // 項目 36：強化卡
   for (const [k, n] of Object.entries(snap.passives || {})) for (let i = 0; i < n; i++) { PASSIVES[k]?.apply(); passives[k] = (passives[k] || 0) + 1; }
   P.hp = Math.max(1, Math.round(P.maxHp * (snap.hp ?? 1)));
-  P.egem = snap.egem || {}; runBosses = snap.bosses || []; goldSpent = snap.spent || 0; EV.done = snap.events || 0; EV.next = t + 20;
+  P.egem = snap.egem || {}; runBosses = snap.bosses || []; goldSpent = snap.spent || 0; EV.done = snap.events || 0; EV.next = t + 20; CB.done = snap.combos || 0;
   drawSkillbar(); showBanner(`<small>繼續上一局</small><b>${STAGE.name}</b><span>${String(t / 60 | 0).padStart(2, '0')}:${String(t % 60 | 0).padStart(2, '0')}・Lv ${P.lv}</span>`, 1600);
 }
 // 暫停選單：回主城但保留這一局
