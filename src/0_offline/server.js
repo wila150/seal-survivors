@@ -159,7 +159,7 @@ function auth(req) {
   if (!s || s.expires < Date.now()) return null;
   return s.account_id;
 }
-const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: { wis: 1, ...(d.stats || {}) }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])) }; };
+const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries(d.persona?.pts || {})) S0[k] = (S0[k] || 0) + v; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, pts: d.persona?.pts || {} }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])) }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
 const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
@@ -377,6 +377,17 @@ const api = {
   },
   // 項目 46：G 化（一般 → G → DG → XG）：用對應寶石（紅寶石／鑽石／粉紅鑽），可加 G 化工具箱（80%／100%）；失敗只消耗材料
   // 指令 4-2 裝備繼承：同部位、來源沒穿沒鎖；目標的精煉、G 化取兩件較高的；來源刪除；費用 300×精煉＋1000×G 化＋200
+  // 指令 4-2 個性化（PC 主要個性／次要個性）：主要個性 Lv 0～10 花希幣升級（1500×(Lv+1)）；每級 3 點次要個性，加到 6 項素質（永久，不佔素質點）；重置 1000 希幣
+  'POST /api/persona': async (req, res, _, uid) => {
+    const { charId, op, stat } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'), P = d.persona ??= { lv: 0, pts: {} }, used = Object.values(P.pts).reduce((a, b) => a + b, 0); let cost = 0;
+    if (op === 'up') { if (P.lv >= 10) return send(res, 400, { error: '主要個性已經 Lv 10' }); cost = 1500 * (P.lv + 1); if ((c.gold ?? 0) < cost) return send(res, 400, { error: `希幣不夠（要 ${cost}）` }); P.lv++; }
+    else if (op === 'add') { if (!Object.hasOwn(STATS, stat)) return send(res, 400, { error: '沒有這個素質' }); if (used >= P.lv * 3) return send(res, 400, { error: '沒有個性點數了' }); P.pts[stat] = (P.pts[stat] || 0) + 1; }
+    else if (op === 'reset') { cost = 1000; if ((c.gold ?? 0) < cost) return send(res, 400, { error: `希幣不夠（要 ${cost}）` }); P.pts = {}; }
+    else return send(res, 400, { error: '沒有這個動作' });
+    db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(cost, JSON.stringify(d), c.id);
+    send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
   'POST /api/inherit': async (req, res, _, uid) => {
     const { fromId, toId } = await body(req); const a = ownItem(uid, fromId), b = ownItem(uid, toId);
     if (!a || !b || a.id === b.id) return send(res, 404, { error: '找不到裝備' }); if (a.char_id !== b.char_id) return send(res, 400, { error: '要同一個角色的裝備' });

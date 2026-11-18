@@ -1132,13 +1132,25 @@ function openCharInfo() {
   const stat = Object.entries(STATS).map(([k, d]) => `<div class="ci-st"><span>${d.name}</span><b>${c.stats[k]}</b><button class="btn ci-plus" data-stat="${k}" ${c.points ? '' : 'disabled'} title="${d.desc}">＋</button><button class="btn ci-edit" data-sedit="${k}" ${c.points ? '' : 'disabled'}>EDIT</button></div>`).join('');
   const html = `<div class="ci"><div class="ci-col"><section><h4>EQUIPMENT</h4><div class="ci-grid">${grid}</div></section><section><h4>COSTUME</h4><div class="ci-grid c2">${cos}</div><small class="ci-hint">髮型、髮色、服裝配色找廣場的造型師</small></section></div>
     <div class="ci-col"><section><h4>INFO</h4><div class="ci-info">${info}</div></section><section><h4>STATUS</h4><div class="ci-pts"><span>點數</span><b>${c.points}</b></div>${stat}
-    <small class="ci-hint">每升 1 級 +3 點${c.rebirth ? `・已轉生 ${c.rebirth} 次` : ''}　Base 經驗 ${c.exp} / ${c.need}</small></section></div></div>`;
+    <small class="ci-hint">每升 1 級 +3 點${c.rebirth ? `・已轉生 ${c.rebirth} 次` : ''}　Base 經驗 ${c.exp} / ${c.need}</small><button class="btn" id="ciPersonal" style="margin-top:6px;background:linear-gradient(#9fe39a,#4cae4c);color:#fff;border-color:#3d8b3d">個性化${c.persona?.lv ? ` Lv${c.persona.lv}` : ''}</button></section></div></div>`;
   openDlg('CHARACTER INFO', html, [['背包', () => { openBag('bag'); }], ['詳細觀看', () => { openBag('bag'); bagTab = 'stats'; renderBag(); }, true]], true);
   const B = $('#dlgBody');
   B.querySelectorAll('[data-ci]').forEach(el => el.onclick = () => { const id = +el.dataset.ci; if (!id) return openBag('bag'); openBag('bag'); selItem = id; renderBag(); });
   B.querySelectorAll('[data-stat]').forEach(b => b.onclick = async () => { try { showChar(await call('POST', '/api/statup', { charId: c.id, stat: b.dataset.stat })); openCharInfo(); } catch (e) { toast(e.message); } });
+  $('#ciPersonal')?.addEventListener('click', openPersona); // 指令 4-2 個性化
   B.querySelectorAll('[data-sedit]').forEach(b => b.onclick = async () => { const k = b.dataset.sedit, n = parseInt(await askText(`${STATS[k].name} 要加幾點？（剩 ${CHAR.points} 點）`, String(CHAR.points), { title: 'EDIT', max: 3 }), 10);
     if (!(n > 0)) return; let done = 0; try { for (let i = 0; i < Math.min(n, CHAR.points); i++) { showChar(await call('POST', '/api/statup', { charId: c.id, stat: k })); done++; } } catch (e) { toast(e.message); } if (done) toast(`${STATS[k].name} +${done}`); openCharInfo(); });
+}
+// 指令 4-2 個性化（PC 主要個性／次要個性）
+function openPersona() {
+  const c = CHAR, P = c.persona || { lv: 0, pts: {} }, used = Object.values(P.pts).reduce((a, b) => a + b, 0), left = P.lv * 3 - used, cost = 1500 * (P.lv + 1);
+  const rows = Object.entries(STATS).map(([k, d]) => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><b style="width:52px">${d.name}</b><span style="flex:1">次要個性 +${P.pts[k] || 0}</span><button class="btn" data-pp="${k}" ${left > 0 ? '' : 'disabled'}>＋</button></div>`).join('');
+  openDlg('個性化', `<p>「個性決定你是怎樣的冒險者。」<br><small>主要個性每升 1 級得到 3 點次要個性，次要個性 100% 加到對應素質（不佔素質點，永久）。</small></p>
+    <div style="background:#fff;border-radius:12px;padding:10px 12px"><b style="font-size:16px">主要個性 Lv ${P.lv}</b> / 10　<small>次要個性點數剩 <b>${left}</b></small>
+      <div style="margin:6px 0">${P.lv < 10 ? `<button class="btn primary" id="ppUp">升級主要個性（${cost} 希幣，持有 ${c.gold}）</button>` : '<small>已滿級</small>'} <button class="btn" id="ppReset" ${used ? '' : 'disabled'}>重置次要個性（1000 希幣）</button></div>${rows}</div>`, []);
+  const go = async (op, stat) => { try { showChar(await call('POST', '/api/persona', { charId: c.id, op, stat })); openPersona(); } catch (e) { toast(e.message); } };
+  $('#ppUp')?.addEventListener('click', () => go('up')); $('#ppReset')?.addEventListener('click', async () => { if (await askConfirm('重置次要個性要 1000 希幣，確定？')) go('reset'); });
+  $('#dlgBody').querySelectorAll('[data-pp]').forEach(b => b.onclick = () => go('add', b.dataset.pp));
 }
 function openBag(mode) { bagMode = mode; bagTab = 'items'; selItem = null; renderBag(); }
 function renderBag() {
