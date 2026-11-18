@@ -1,3 +1,4 @@
+import { PC_WEAR } from './pc-wear.js';
 // 職業與素質定義（前端、伺服器、遊戲共用）
 
 // 素質：建立角色時每項基礎 1 點，另有 FREE_POINTS 點自由分配，單項上限 STAT_MAX
@@ -66,10 +67,20 @@ export const OUTFIT_LOCKED = [7, 8];
 export const validLook = (hair, hairColor, outfit) => Number.isInteger(hair) && hair >= 0 && hair < HAIR_STYLES && Number.isInteger(hairColor) && hairColor >= 0 && hairColor < HAIR_COLORS.length
   && Number.isInteger(outfit) && outfit >= 0 && outfit < OUTFITS.length && !OUTFIT_LOCKED.includes(outfit);
 // 角色外觀 → sealActor 的 gear 與 opts：sealActor(playerModelId(...), playerAnimSet(...), 1.7, look.gear, look.opts)
-export function playerLook(job, gender, hair = 0, hairColor = 0, outfit = 0) {
-  const g = gender === '女' ? 'w' : 'm', s = 'abcdef'[hair] || 'a';
-  return { gear: [...playerGear(job), { id: `hair_${g}_${s}`, tex: `../hair/${g}_${s}_${hairColor | 0}.png`, native: true }],
-           opts: { tint: OUTFITS[outfit] ?? null } };
+// items：角色的裝備清單（有給就照穿著的 PC 原版道具換外觀，tools/build-wear.mjs；11/19 使用者：「穿什麼就改變角色穿著」照 PC）
+// 頭部／上衣／下衣／鞋子換身上部位（opts.swap），武器、盾換手上的模型；沒有原版外觀的維持職業初始服裝
+const WEAR_PIECE = { head: 'head', top: 'body', bottom: 'leg', shoes: 'foot' };
+export function playerLook(job, gender, hair = 0, hairColor = 0, outfit = 0, items = null) {
+  const g = gender === '女' ? 'w' : 'm', s = 'abcdef'[hair] || 'a', gi = g === 'w' ? 1 : 0;
+  let gear = [...playerGear(job)]; const swap = {};
+  for (const it of items || []) {
+    if (!it.equipped || !it.pc) continue; const m = PC_WEAR[it.pc]?.[gi] || PC_WEAR[it.pc]?.[0]; if (!m) continue;
+    if (WEAR_PIECE[it.slot]) swap[WEAR_PIECE[it.slot]] = m;
+    else if (it.slot === 'weapon') gear = [m, ...gear.filter(x => !/^wpn_R_/i.test(x))];
+    else if (it.slot === 'shield') gear = [...gear.filter(x => !/^wpn_L_/i.test(x)), m];
+  }
+  return { gear: [...gear, { id: `hair_${g}_${s}`, tex: `../hair/${g}_${s}_${hairColor | 0}.png`, native: true }],
+           opts: { tint: OUTFITS[outfit] ?? null, swap } };
 }
 // 頭髮跟職業帽子／頭盔一起畫（11/18 截圖確認不會穿模，跟 PC 版一樣）
 

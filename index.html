@@ -409,7 +409,7 @@ function headshot(c) {
   const key = faceKey(c); if (faceBusy.has(key)) return; faceBusy.add(key);
   try { const s = localStorage.getItem('ss_' + key); if (s) { faceCache.set(key, s); return queueMicrotask(render); } } catch {}
   faceQ = faceQ.then(async () => {
-    const L = playerLook(c.job, c.gender, c.hair ?? 0, c.hairColor ?? 0, c.outfit ?? 0);
+    const L = playerLook(c.job, c.gender, c.hair ?? 0, c.hairColor ?? 0, c.outfit ?? 0, c.items);
     const m = await sealActor(playerModelId(c.job, c.gender), playerAnimSet(c.job, c.gender), 1.7, L.gear, L.opts);
     if (!faceR) { faceR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); faceR.setSize(128, 128); }
     const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 2)); m.children[0].rotation.y = Math.PI; m.rotation.y = 0.35; sc.add(m);

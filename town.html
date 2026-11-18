@@ -212,8 +212,11 @@ async function refreshChar() {
   $('#meExp').style.width = Math.min(100, c.exp / c.need * 100) + '%';
   showChar(c);
 }
+let wearKey = null; // 穿著外觀（武器、盾、頭、上衣、下衣、鞋的 PC 編號）變了就重載角色模型
 function showChar(c) {
   CHAR = c; try { sessionStorage.setItem('ss_char', JSON.stringify(c)); } catch {}
+  { const k = (c.items || []).filter(i => i.equipped && ['weapon', 'shield', 'head', 'top', 'bottom', 'shoes'].includes(i.slot)).map(i => i.slot + ':' + (i.pc || '')).sort().join();
+    if (wearKey !== null && k !== wearKey && typeof loadPlayer === 'function') loadPlayer(); wearKey = k; }
   $('#meGold').textContent = `💰 ${c.gold}` + (c.points ? `　素質點 ${c.points}` : '');
   $('#meLv').textContent = `Job ${c.jobLv}　經驗 ${c.exp} / ${c.need}`; $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
 }
@@ -330,7 +333,7 @@ const START = walkable(TC.x, TC.z + 26);
 const player = makeChar(OUTFITS[CHAR?.outfit] ?? JOBS[CHAR?.job]?.color ?? 0x4fa3ff, START.x, START.z);
 let pActor = null; // 玩家動作（站／跑）
 // 載入玩家模型（造型師改完外觀會再叫一次）；坐騎留著
-const lookOf = c => playerLook(c?.job, c?.gender, c?.hair ?? 0, c?.hairColor ?? 0, c?.outfit ?? 0);
+const lookOf = c => playerLook(c?.job, c?.gender, c?.hair ?? 0, c?.hairColor ?? 0, c?.outfit ?? 0, c?.items);
 let playerLoadId = 0, BODY_SHOT = '';
 function loadPlayer() {
   const id = ++playerLoadId, L = lookOf(CHAR);
@@ -1035,7 +1038,7 @@ function openStylist(keep) {
   renderLook($('#styLook'), st, CHAR.job, changed); changed();
 }
 async function styShow(st) {
-  const key = [st.hair, st.hairColor, st.outfit].join(); sty.key = key; const L = playerLook(CHAR.job, CHAR.gender, st.hair, st.hairColor, st.outfit);
+  const key = [st.hair, st.hairColor, st.outfit].join(); sty.key = key; const L = playerLook(CHAR.job, CHAR.gender, st.hair, st.hairColor, st.outfit, CHAR.items);
   if (!sty.cache.has(key)) { $('#styLoad').style.display = 'flex'; sty.cache.set(key, sealActor(playerModelId(CHAR.job, CHAR.gender), playerAnimSet(CHAR.job, CHAR.gender), 1.7, L.gear, L.opts).then(m => { m.children[0].rotation.y = Math.PI; return m; })); }
   const m = await sty.cache.get(key).catch(() => null); if (sty.key !== key) return;
   if (sty.cur) sty.sc.remove(sty.cur); sty.cur = m; if (m) sty.sc.add(m); const ld = $('#styLoad'); if (ld) { ld.style.display = m ? 'none' : 'flex'; ld.textContent = m ? '' : '模型載入失敗'; }

@@ -23,7 +23,7 @@ for (const r of rows) {
   if (!fs.existsSync(new URL(`../assets/items/${icon}.png`, import.meta.url))) { miss.add(icon); continue; }
   const list = out[t] ??= [];
   if (list.some(x => x[1] === name)) continue;
-  list.push([+r[0], name, lv, v, icon]);
+  list.push([+r[0], name, lv, v, icon, +r[72] || 0]); // 第 6 欄＝外觀編號（wear/cha.dat 該部位清單的序號＋1，tools/build-wear.mjs 用）
 }
 // 離群值：跟前後 15 級同類道具的中位數比，超過 1.6 倍或不到 0.6 倍的不要（例：雷神之鎚 Lv50 攻 400、日輪刀、好巨好扇攻 53）
 const med = a => { const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
@@ -33,6 +33,6 @@ for (const t in out) {
   for (const x of out[t]) x[1] = tw(x[1]);
 }
 if (process.argv.includes('--chars')) { console.log([...chars].join('')); process.exit(0); }
-const body = `// 自動產生，不要手改（node tools/build-pc-items.mjs <item.scr>）\n// [PC 編號, 名稱, 需求等級, 攻擊或防禦, 圖示]（依等級排序）\nexport const PC_TYPES = ${JSON.stringify(TYPES)};\nexport const PC_ITEMS = ${JSON.stringify(out)};\n`;
+const body = `// 自動產生，不要手改（node tools/build-pc-items.mjs <item.scr>）\n// [PC 編號, 名稱, 需求等級, 攻擊或防禦, 圖示, 外觀編號]（依等級排序）\nexport const PC_TYPES = ${JSON.stringify(TYPES)};\nexport const PC_ITEMS = ${JSON.stringify(out)};\n`;
 fs.writeFileSync(new URL('../src/1_data/pc-items.js', import.meta.url), body);
 console.log(Object.entries(out).map(([t, l]) => `${TYPES[t]} ${l.length} 件（Lv${l[0][2]}～${l.at(-1)[2]}）`).join('、') + (miss.size ? `；缺圖示 ${miss.size}` : ''));

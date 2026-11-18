@@ -217,4 +217,4 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .pcmail-row .ic { width: 38px; height: 38px; flex: none; background: linear-gradient(#d8c9ba, #c9b7a6); border: 2px solid #9f8a76; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 #dlg .pcmail-row small { display: block; }
 #dlg .ci-cell img.shot { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; outline: 0 !important; image-rendering: auto; }
-#dlg .ci-cell img.shot.body { object-fit: contain; }
+#dlg .ci-cell img.shot.body { object-fit: contain; transform: scale(2.8); transform-origin: 50% 52%; }

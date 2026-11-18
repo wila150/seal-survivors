@@ -112,7 +112,14 @@ export async function sealActor(modelName, setKey, height = 1.7, gear = [], opts
   const tintMats = new Map();
   const tintFor = t => { if (!tintMats.has(t)) { const m = matFor(t).clone(); m.color.set(0xffffff).lerp(new THREE.Color(opts.tint), 0.55);
     if (t) texLoader.loadAsync(`assets/models/${t}`).then(map => { map.colorSpace = THREE.SRGBColorSpace; map.flipY = false; m.map = map; m.needsUpdate = true; }).catch(() => {}); tintMats.set(t, m); } return tintMats.get(t); };
-  for (const p of d.parts) {
+  // 穿裝備換外觀（opts.swap：{ head／body／leg／foot: 'pcw_…' }）：拿掉職業初始服裝的那個部位、換成原版裝備的模型
+  let allParts = d.parts;
+  if (opts.swap && Object.keys(opts.swap).length) {
+    const extra = await Promise.all(Object.entries(opts.swap).map(([k, id]) => getJson(`assets/models/${id}.json`).then(x => [k, x]).catch(() => [k, null])));
+    const ok = extra.filter(([, x]) => x?.parts?.length), drop = new RegExp(`_(${ok.map(([k]) => k === 'foot' ? 'foot' : k).join('|')})$`, 'i');
+    if (ok.length) allParts = [...d.parts.filter(p => !drop.test(p.piece || '')), ...ok.flatMap(([, x]) => x.parts)];
+  }
+  for (const p of allParts) {
     if (opts.hide && opts.hide.test(p.piece || '')) continue;
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(p.pos, 3));
