@@ -118,3 +118,7 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #topc .pill { background: linear-gradient(#fffdf6, #ece2cc) !important; border: 1px solid #c8b483 !important; color: #2a3a78 !important; box-shadow: 0 0 0 1px #18244f66, 0 3px 8px #0005 !important; }
 #topc #time { color: var(--th-navy) !important; text-shadow: 0 1px 0 #fff; }
 #skillbar { background: linear-gradient(#fffdf8e8, #efe7d4e8) !important; border: 1px solid #c8b483 !important; box-shadow: 0 0 0 2px var(--th-navy), 0 6px 16px #0006 !important; }
+
+/* 項目 32：裝備格左上角標部位名（頭部、上衣…） */
+#dlg .slots.pc .eq { position: relative; padding-top: 16px !important; }
+#dlg .slots.pc .eq .sl { position: absolute; left: 8px; top: 4px; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #a08850; }

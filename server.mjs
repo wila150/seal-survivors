@@ -43,6 +43,9 @@ try { db.exec('ALTER TABLE characters ADD COLUMN gold INTEGER NOT NULL DEFAULT 0
 try { db.exec('ALTER TABLE items ADD COLUMN bound INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 29：商人限量裝備綁定帳號
 try { db.exec('ALTER TABLE items ADD COLUMN ident TEXT'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN gup INTEGER NOT NULL DEFAULT 0'); } catch {}
+// 項目 32：裝備部位照 PC（防具拆成盾牌／頭部／上衣／下衣／鞋子）→ 舊的 armor 搬家：盾 → shield、其他 → top；非騎士身上的盾卸下
+for (const t of ['items', 'auctions']) { try { db.exec(`UPDATE ${t} SET slot='shield' WHERE slot='armor' AND base='shield'`); db.exec(`UPDATE ${t} SET slot='top' WHERE slot='armor'`); } catch {} }
+try { db.exec("UPDATE items SET equipped=0 WHERE slot='shield' AND char_id IN (SELECT id FROM characters WHERE job!='騎士')"); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN pc INTEGER'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN locked INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 50：鎖定（不會被一鍵餵食／分解／賣掉） // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
 // 項目 18：倉庫（整個帳號共用）。存進倉庫的裝備 char_id＝0、acct＝帳號、stash＝分頁 0～5
@@ -166,6 +169,7 @@ const ownChar = (uid, cid) => db.prepare('SELECT * FROM characters WHERE id=? AN
 const ownItem = (uid, iid) => db.prepare('SELECT i.* FROM items i JOIN characters c ON c.id=i.char_id WHERE i.id=? AND c.account_id=?').get(+iid, uid);
 // it.refine／it.ident 會保留（拍賣成交、取回、過期退回都走這裡；以前取回／成交會把精煉歸零，11/18 修正）
 function giveItem(cid, it, bound = false) {
+  if (it.slot === 'armor') it = { ...it, slot: it.base === 'shield' ? 'shield' : 'top' }; // 項目 32：信件／舊資料裡的 armor
   const ident = typeof it.ident === 'string' ? it.ident : it.ident ? JSON.stringify(it.ident) : null;
   const r = db.prepare('INSERT INTO items (char_id, slot, base, rarity, roll, refine, created, bound, ident, gup, pc) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(cid, it.slot, it.base, it.rarity, it.roll, it.refine | 0, Date.now(), bound ? 1 : 0, ident, it.gup | 0, it.pc || null);
   return { ...it, refine: it.refine | 0, gup: it.gup | 0, ident: ident ? JSON.parse(ident) : null, id: Number(r.lastInsertRowid), equipped: false, bound };
@@ -310,6 +314,7 @@ const api = {
   // ===== 背包、商店、強化、素質 =====
   'POST /api/equip': async (req, res, _, uid) => {
     const { itemId } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
+    if (it.slot === 'shield' && ownChar(uid, it.char_id)?.job !== '騎士') return send(res, 400, { error: '盾牌只有騎士能裝備' }); // 項目 32：PC 只有騎士拿盾
     db.prepare('UPDATE items SET equipped=0 WHERE char_id=? AND slot=?').run(it.char_id, it.slot);
     db.prepare('UPDATE items SET equipped=1 WHERE id=?').run(it.id);
     send(res, 200, fullChar(ownChar(uid, it.char_id)));
@@ -746,7 +751,7 @@ const api = {
         case 'rebirth': { d.rebirth = int(0, 0, 10); saveD(); msg = `轉生次數 → ${d.rebirth}`; break; }
         case 'clear': { d.cleared = STAGES.map(x => x.key); saveD(); msg = '四張遠征地圖都標成已通關'; break; }
         case 'talentreset': { d.talents = {}; d.talents2 = {}; saveD(); msg = '天賦全部重置'; break; }
-        case 'item': { const slot = args[0] || 'weapon'; if (!SLOTS[slot]) throw new Error('部位：weapon／armor／acc');
+        case 'item': { const slot = args[0] || 'weapon'; if (!SLOTS[slot]) throw new Error('部位：' + Object.keys(SLOTS).join('／'));
           const rar = int(1, 0, 4), ref = args[2] == null ? 0 : int(2, 0, REFINE_MAX); if (bagCount(c.id) >= BAG_MAX) throw new Error('背包滿了');
           const it = rollItem(Math.random, 0, slot, Math.max(1, c.base_lv), c.job); // 部位、底材、數值浮動照一般擲法，品質與精煉用指定的
           const got = giveItem(c.id, { ...it, rarity: rar, refine: ref }); msg = `給了 ${RARITY_N[rar]} ${slot} +${ref}（id ${got.id}）`; break; }

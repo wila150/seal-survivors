@@ -64,7 +64,7 @@ export function talentDesc(T, n, lv, skillName = k => k) {
 // ===== 項目 28：技能屬性鑑定（照 PC 原版：2u news_info.php?id=1199）=====
 // 主武器、防具可以鑑定；必定出 1 條「某技能 Lv+N」；N 依該技能的最大提升等級查機率表；
 // 加上去不能超過技能上限，角色沒點過（沒學）的技能不會提升。費用照 PC 比例 ÷1000（PC：武器 100 萬、防具 150 萬、選擇職業 500 萬希望幣）
-export const IDENT_SLOTS = ['weapon', 'armor'];
+export const IDENT_SLOTS = ['weapon', 'shield', 'head', 'top', 'bottom', 'shoes']; // 項目 32：防具拆成 5 個部位
 export const IDENT_COST = { weapon: 1000, armor: 1500 }, IDENT_PICK_COST = 5000;
 export const IDENT_PROB = { 2: [0.3, 0.7], 3: [0.3, 0.25, 0.45], 4: [0.3, 0.25, 0.3, 0.15], 5: [0.3, 0.25, 0.3, 0.1, 0.05] };
 export const identMax = n => Math.max(2, Math.min(5, n.max));

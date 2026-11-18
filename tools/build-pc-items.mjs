@@ -7,17 +7,18 @@ import { S2T } from './s2t.mjs';
 const src = process.argv[2];
 if (!src) { console.error('用法：node tools/build-pc-items.mjs <item.scr>'); process.exit(1); }
 // 我們的底材 → PC 道具類別（武器看物理攻擊、防具看防禦）
-export const TYPES = { 4: '劍', 6: '大劍', 7: '匕首', 8: '榔頭', 9: '鎚', 11: '杖', 46: '彈弓', 14: '盾', 15: '盔甲', 16: '上衣' };
-const STAT_COL = t => (t === 14 || t === 15 || t === 16) ? 17 : t === 11 ? 12 : 6; // 杖看魔法攻擊（第 12 欄）
+export const TYPES = { 4: '劍', 6: '大劍', 7: '匕首', 8: '榔頭', 9: '鎚', 11: '杖', 46: '彈弓', 14: '盾', 15: '盔甲', 16: '上衣',
+  17: '頭盔', 18: '帽子', 25: '盔甲下', 26: '下褲', 19: '靴', 20: '鞋' }; // 項目 32：PC 部位 頭部 17／18、下衣 25／26、鞋子 19／20
+const STAT_COL = t => [14, 15, 16, 17, 18, 19, 20, 25, 26].includes(t) ? 17 : t === 11 ? 12 : 6; // 杖看魔法攻擊（第 12 欄）
 const text = new TextDecoder('gbk').decode(fs.readFileSync(src));
 const rows = text.split('\n').slice(1).map(l => l.split('|')).filter(r => r.length > 74);
 const out = {}, chars = new Set(), miss = new Set();
 const tw = s => [...s].map(c => { if (S2T[c]) return S2T[c]; chars.add(c); return c; }).join('');
 for (const r of rows) {
   const t = +r[2]; if (!TYPES[t]) continue;
-  const name = r[1].trim().replace(/\(上(衣)?\)$/, ''), lv = +r[3], v = +r[STAT_COL(t)], icon = +r[73]; // 盔甲(上)＝上半身那件
+  const name = r[1].trim().replace(/\(上(衣)?\)$/, '').replace(/\(下(裤|裙|衣)?\)$/, '（下）'), lv = +r[3], v = +r[STAT_COL(t)], icon = +r[73]; // 盔甲(上)＝上半身那件
   // 排除：英文名、活動／搞笑道具（周年、紀念、服裝、套裝、禮服）、「20等級○○武器」這種泛用名、新手道具
-  if (!name || /[?？\[\(（A-Za-z]|\.(G|DG|XG)$|测试|周年|纪念|服装|套装|礼服|等级.*(武器|上衣)|初级者|初心者|新手|未完成/.test(name) || lv < 1 || lv > 200 || v <= 0 || !icon) continue;
+  if (!name || /[?？\[\(（A-Za-z]|\.(G|DG|XG)$|测试|周年|纪念|服装|套装|礼服|等级.*(武器|上衣)|初级者|初心者|新手|未完成/.test(name.replace(/（下）$/, '')) || lv < 1 || lv > 200 || v <= 0 || !icon) continue;
   if (!fs.existsSync(new URL(`../assets/items/${icon}.png`, import.meta.url))) { miss.add(icon); continue; }
   const list = out[t] ??= [];
   if (list.some(x => x[1] === name)) continue;

@@ -34,7 +34,7 @@ export const TITLES = [
   { id: 'master',   name: '宗師',       cond: { job3: true }, bonus: { atk: 0.03 },              desc: '完成三轉' },
 ];
 // 名聲專屬裝備：到達該名聲等級時寄到信箱（品質＝精良以上的固定品質；數值暫定）
-export const FAME_GEAR = [[5, 'acc', 2, '艾林守護者的護符'], [10, 'weapon', 3, '希爾特英雄之刃'], [20, 'armor', 4, '傳說勇者的鎧甲']];
+export const FAME_GEAR = [[5, 'acc', 2, '艾林守護者的護符'], [10, 'weapon', 3, '希爾特英雄之刃'], [20, 'top', 4, '傳說勇者的鎧甲']];
 // 目前符合的稱號 id 清單；s＝{ fameLv, bossKills, towerBest, rebirth, job3 }
 export function earnedTitles(s) {
   return TITLES.filter(({ cond: c }) => c.fame != null ? s.fameLv >= c.fame : c.boss ? (s.bossKills?.[c.boss] || 0) >= c.n : c.tower ? s.towerBest >= c.tower : c.rebirth ? (s.rebirth || 0) >= c.rebirth : c.job3 ? !!s.job3 : false).map(t => t.id);
