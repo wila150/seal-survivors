@@ -43,14 +43,24 @@ async function idbGet() { try { const d = await idb(); return await new Promise(
 async function idbPut(v) { try { const d = await idb(); await new Promise((ok, bad) => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, KEY); t.oncomplete = ok; t.onerror = () => bad(t.error); }); } catch (e) { console.warn('存檔失敗', e); } }
 await new Promise((ok, bad) => { if (globalThis.initSqlJs) return ok(); const s = document.createElement('script'); s.src = new URL('vendor/sql-wasm.js', import.meta.url); s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
 const SQL = await globalThis.initSqlJs({ locateFile: f => new URL('vendor/' + f, import.meta.url).href });
-const saved = await idbGet();
+// 11/19 使用者：「每次手機重開都要重新建立帳號」→ 存檔多一份備份在 localStorage（有些手機瀏覽器／LINE 內建瀏覽器會清掉 IndexedDB），
+// 並請瀏覽器把這個網站的資料設成「持久保存」；載入時用兩份裡比較新的那份
+try { navigator.storage?.persist?.(); } catch {}
+const LS_DB = 'ss_db_backup', LS_T = 'ss_db_backup_t';
+const b64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = t => { const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
+function lsGet() { try { const t = localStorage.getItem(LS_DB); return t ? { db: unb64(t), t: +(localStorage.getItem(LS_T) || 0) } : null; } catch { return null; } }
+function lsPut(u8) { try { if (u8.length > 3.5e6) return; localStorage.setItem(LS_DB, b64(u8)); localStorage.setItem(LS_T, String(Date.now())); } catch (e) { console.warn('備份存檔失敗', e); } }
+let saved = await idbGet();
+{ const ls = lsGet(), idbT = +(globalThis.localStorage?.getItem('ss_db_idb_t') || 0);
+  if (ls && (!saved || ls.t > idbT)) saved = ls.db; } // IndexedDB 被清掉（或比較舊）→ 用 localStorage 備份
 let dirty = false;
 const norm = a => a.map(v => v === undefined ? null : typeof v === 'boolean' ? +v : typeof v === 'bigint' ? Number(v) : v);
 export class DatabaseSync {
   constructor() { this.db = saved ? new SQL.Database(saved) : new SQL.Database(); DatabaseSync.main = this; }
   exec(sql) { this.db.exec(sql); this.touch(); }
   touch() { dirty = true; }
-  save() { if (!dirty) return; dirty = false; return idbPut(this.db.export()); }
+  save() { if (!dirty) return; dirty = false; const u8 = this.db.export(); lsPut(u8); return idbPut(u8).then(() => { try { localStorage.setItem('ss_db_idb_t', String(Date.now())); } catch {} }); }
   prepare(sql) {
     const db = this.db, self = this, write = !/^\s*select/i.test(sql);
     const each = (args, fn) => { const st = db.prepare(sql); try { st.bind(norm(args)); while (st.step()) if (fn(st.getAsObject()) === false) break; } finally { st.free(); } };
