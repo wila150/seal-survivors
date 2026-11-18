@@ -199,6 +199,52 @@ function comboUpdate(dt, mv) {
   if (!CB.ring) { CB.ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.1, 40), new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })); CB.ring.rotation.x = -Math.PI / 2; scene.add(CB.ring); }
   CB.ring.visible = CB.st >= 1; if (CB.ring.visible) { const k = 2.2 - ((t * 1.4) % 1) * 1.4; CB.ring.scale.setScalar(k); CB.ring.position.set(player.position.x, 0.08, player.position.z); }
 }
+// ===== 項目 53：地圖動態事件 × MVP 護盾（第八批藍圖）=====
+// 依「事件數量」出事件（同時只有 1 個）：淨化嚕啦族祭壇（光圈內累積站 5 秒）、追擊黃金大盜（限時打倒會逃跑的金色精英）、守護希爾特商隊（咕咕撐 30 秒不被打倒）
+// 每完成 1 個：結算寶箱品質提升、MVP 減傷護盾少一層（3 層、每層 HP ＋10%）；一個都沒完成：MVP 狂暴（HP ×1.3、攻擊 ×1.3）
+const EV = { list: [], cur: null, next: 50, done: 0, failed: 0, mvpDone: false };
+const evHud = document.createElement('div'); evHud.id = 'evHud'; document.body.appendChild(evHud);
+{ const st = document.createElement('style'); st.textContent = `#evHud{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 92px);transform:translateX(-50%);z-index:6;pointer-events:none;display:none;min-width:220px;max-width:92vw;text-align:center;padding:6px 14px;border-radius:12px;background:#1a2340cc;border:1px solid #ffd36b99;color:#fff;font-size:13px;font-weight:700;text-shadow:0 1px 2px #000}
+#evHud b{color:#ffd36b}#evHud .bar{height:6px;border-radius:4px;background:#0006;margin-top:4px;overflow:hidden}#evHud .bar i{display:block;height:100%;background:linear-gradient(90deg,#7dff9a,#ffd36b)}`; document.head.appendChild(st); }
+const EV_TYPES = ['altar', 'thief', 'escort'];
+const evEvery = () => Math.max(35, 100 / (1 + 0.2 * (DIFF.event - 1))); // 事件數量越高越頻繁
+function evPoint(min = 12, max = 20) { for (let k = 0; k < 30; k++) { const a = Math.random() * 6.283, r = min + Math.random() * (max - min), x = player.position.x + Math.cos(a) * r, z = player.position.z + Math.sin(a) * r; if (MAP.canWalk(x, z)) return { x, z }; } return { x: player.position.x, z: player.position.z }; }
+function evMark(pos, color, r) { const g = new THREE.Group(); const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.18, r, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.07; g.add(ring);
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 14, 12, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); pillar.position.y = 7; g.add(pillar);
+  g.position.set(pos.x, 0, pos.z); scene.add(g); return g; }
+function evStart() {
+  const type = EV_TYPES[Math.random() * EV_TYPES.length | 0], E = { type, t: 0, ok: false };
+  if (type === 'altar') { E.pos = evPoint(); E.r = 3; E.need = 5; E.prog = 0; E.limit = 40; E.mark = evMark(E.pos, 0x9fe0ff, E.r); E.name = '淨化嚕啦族祭壇'; E.tip = '站進藍色光圈裡 5 秒'; }
+  if (type === 'thief') { const types = STAGE.monsters || []; const e = spawnEnemy(types[Math.random() * types.length | 0] || Object.keys(ENEMY_TYPES)[0], true); e.thief = true; e.speed = (P.speed || 6) * 0.95; e.hp = e.maxHp = e.maxHp * 0.5; E.e = e; E.limit = 30; E.mark = evMark(e.mesh.position, 0xffd36b, 1.2); E.name = '追擊黃金大盜'; E.tip = '打倒逃跑的金色大盜'; }
+  if (type === 'escort') { E.pos = evPoint(8, 14); E.hp = E.maxHp = 100; E.limit = 30; E.mark = evMark(E.pos, 0x7dff9a, 1.4); E.name = '守護希爾特商隊'; E.tip = '保護咕咕撐過 30 秒';
+    sealMob('T_by', 1.2).then(f => { if (EV.cur !== E) return; const m = f.create(); m.children[0].rotation.y = Math.PI; m.position.set(E.pos.x, 0, E.pos.z); scene.add(m); E.gugu = m; }).catch(() => {});
+    for (let i = 0; i < 6 + DIFF.count; i++) { const types = STAGE.monsters || []; const e = spawnEnemy(types[i % types.length] || Object.keys(ENEMY_TYPES)[0]); const a = Math.random() * 6.283; e.mesh.position.set(E.pos.x + Math.cos(a) * 9, 0, E.pos.z + Math.sin(a) * 9); } }
+  EV.cur = E; showBanner(`<small>地圖事件</small><b>${E.name}</b><span>${E.tip}（${E.limit} 秒）</span>`, 1800); play('gem', 0.6, 0);
+}
+function evEnd(ok) {
+  const E = EV.cur; if (!E) return; EV.cur = null; if (E.mark) scene.remove(E.mark); if (E.gugu) scene.remove(E.gugu);
+  for (const e of enemies) if (e.evT) e.evT = null; if (E.e && !E.e.dead) E.e.thief = false;
+  if (ok) { EV.done++; showBanner(`<small>事件完成 ✔（${EV.done}）</small><b>${E.name}</b><span>寶箱品質提升・MVP 護盾 −1 層</span>`, 1800); play('level', 0.6, 0); dropChest(E.pos || E.e?.mesh.position || player.position, false); }
+  else { EV.failed++; showBanner(`<small>事件失敗</small><b>${E.name}</b>`, 1200); }
+  EV.next = t + evEvery(); evHud.style.display = 'none';
+}
+function eventsUpdate(dt) {
+  if (TOWER) return; const mvpAt = STAGE.bosses.at(-1)?.[0] ?? 1e9;
+  // MVP 護盾：出場時依完成事件數調整
+  if (!EV.mvpDone) { const m = enemies.find(e => e.mvp && !e.dead); if (m) { EV.mvpDone = true; const layers = Math.max(0, 3 - EV.done);
+    if (EV.done === 0) { m.hp = m.maxHp = m.maxHp * 1.3; m.dmg *= 1.3; showBanner('<small>一個事件都沒完成</small><b>MVP 狂暴！</b><span>HP、攻擊 ×1.3</span>', 1800); }
+    else if (layers) { m.hp = m.maxHp = m.maxHp * (1 + 0.1 * layers); showBanner(`<small>MVP 減傷護盾</small><b>剩 ${layers} 層</b><span>完成了 ${EV.done} 個事件</span>`, 1500); }
+    else showBanner('<small>完成 3 個以上事件</small><b>MVP 護盾全破！</b>', 1500); } }
+  if (!EV.cur) { if (t >= EV.next && t < mvpAt - 20) evStart(); return; }
+  const E = EV.cur, pp = player.position; E.t += dt; let prog = 0;
+  if (E.type === 'altar') { if (Math.hypot(pp.x - E.pos.x, pp.z - E.pos.z) < E.r) E.prog += dt; prog = E.prog / E.need; if (E.prog >= E.need) return evEnd(true); }
+  if (E.type === 'thief') { if (E.e.dead) return evEnd(true); E.mark.position.set(E.e.mesh.position.x, 0, E.e.mesh.position.z); prog = 1 - E.e.hp / E.e.maxHp; }
+  if (E.type === 'escort') { prog = E.hp / E.maxHp; let n = 0;
+    for (const e of enemies) { if (e.dead) continue; const d = Math.hypot(e.mesh.position.x - E.pos.x, e.mesh.position.z - E.pos.z); e.evT = d < 10 ? E.pos : null; if (d < 1.8) n++; }
+    E.hp -= n * 6 * dt; if (E.hp <= 0) return evEnd(false); if (E.t >= E.limit) return evEnd(true); }
+  if (E.t >= E.limit) return evEnd(false);
+  evHud.style.display = 'block'; evHud.innerHTML = `<b>${E.name}</b>　${E.tip}　剩 ${Math.ceil(E.limit - E.t)} 秒<div class="bar"><i style="width:${Math.round(Math.max(0, Math.min(1, prog)) * 100)}%"></i></div>`;
+}
 // 視角切換：V 鍵或右下按鈕
 function switchView() { const n = cycleView(); showBanner(`<small>視角</small><b>${n}</b>`, 700); }
 addEventListener('keydown', e => { if (e.code === 'KeyV') switchView(); });
@@ -332,7 +378,7 @@ function reset() {
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
-  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof cbEnd === 'function' && CB.ring !== undefined) cbEnd();
+  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } if (typeof cbEnd === 'function' && CB.ring !== undefined) cbEnd();
   enemies = []; gems = []; t = 0; kills = 0; spawner.reset();
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
@@ -667,7 +713,7 @@ function towerFloorUp() {
 function update(dt) {
   t += dt;
   // 移動（player.js）
-  rig.move(dt, input.read(), P); comboUpdate(dt, input.read()); // 項目 52 連續技
+  rig.move(dt, input.read(), P); comboUpdate(dt, input.read()); eventsUpdate(dt); // 項目 52 連續技、53 地圖事件
   const pp = player.position;
   // 換區域：跳區域名
   if (TOWER) { const f = towerFloor(t); if (f !== floor) { floor = f; towerFloorUp(); } }
@@ -694,11 +740,11 @@ function update(dt) {
     const dx = e.mesh.position.x - pp.x, dz = e.mesh.position.z - pp.z; if (dx * dx + dz * dz < 1600) A.update(half ? dt * 2 : dt); }
   for (const e of enemies) {
     if (e.dead) continue; const p = e.mesh.position;
-    tmp.subVectors(pp, p).setY(0); const d = tmp.length();
+    tmp.subVectors(e.evT || pp, p).setY(0); const d = tmp.length(); // 項目 53：商隊附近的怪改追咕咕
     statusTick(e, dt);
     if (e.ai) { BS.think(e, dt, pp, d); continue; }
     const spd = e.stunT > 0 ? 0 : e.speed * (e.slowT > 0 ? 1 - e.slowK : 1);
-    if (d > 0.001) tmp.multiplyScalar(spd / d);
+    if (d > 0.001) tmp.multiplyScalar((e.thief ? -1 : 1) * spd / d); // 黃金大盜：往反方向逃
     const cx = Math.floor(p.x / 1.2), cz = Math.floor(p.z / 1.2);
     for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
       const cell = grid.get(`${cx + i},${cz + j}`); if (!cell) continue;
@@ -855,7 +901,7 @@ async function saveRun() {
   if (!token || !CHAR.id) return;
   out.textContent = '結算中…';
   try {
-    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent });
+    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done });
     const F = j.fame; // 項目 47
     out.innerHTML = (F?.gain ? `🏅 名聲 +${F.gain}${F.up ? `　<b>名聲 Lv${F.lv}！</b>` : ''}${F.newTitles?.length ? `　新稱號：${F.newTitles.map(t => `【${t}】`).join('')}` : ''}${F.gear?.length ? `　名聲裝備已寄到信箱` : ''}<br>` : '') + (j.tower ? `<b>分數 ${j.tower.score.toLocaleString()}</b>${j.tower.newBest ? '　🏆 新紀錄！' : ''}${j.tower.newFloor ? `　最高樓層更新（塔點數 ${j.tower.points}）` : ''}<br>` : '') + (j.bonus ? `通關獎勵 ×1.5！　` : '') + `經驗 +${j.gain}　金幣 +${j.gold}${j.spent ? `（菁英寶箱 −${j.spent}）` : ''}` + (j.levelUps ? `<br>角色升級！Lv ${j.baseLv}（素質點 +${j.levelUps * 3}）` : `　（${j.exp} / ${j.need}）`) + (j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}` : '') + (j.gems?.length ? `<br>拿到技能寶石 ${j.gems.length} 顆（主城「寶石」開放後裝備）` : '')
       + (j.newStage ? `<br>🔓 解鎖新地圖：${j.newStage}` : '') + (j.items.length ? `<div class="loot">${j.items.map(it => `<span class="${it.rarity >= 3 ? 'glow' : ''}" style="border-color:${RARITY[it.rarity].color};${it.rarity >= 3 ? `color:${RARITY[it.rarity].color}` : ''}"><img src="${itemIcon(it)}" alt=""><em style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</em></span>`).join('')}</div>` : '')
@@ -880,7 +926,7 @@ const RUN_KEY = 'ss_run_' + (CHAR.id || 'guest');
 function snapshotRun() {
   if (TOWER || !P || !CHAR.id || !['play', 'level', 'pause'].includes(state) || t < 5) return;
   const snap = { stage: STAGE_IDX, stageKey: STAGE.key, stageName: STAGE.name, t, kills, lv: P.lv, xp: P.xp, need: P.need, hp: P.hp / P.maxHp, chests, bossChests, bossIdx: spawner.bossIdx, px: player.position.x, pz: player.position.z,
-    skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), skmods: Object.fromEntries(Object.entries(SM.skills).filter(([, w]) => w.mods).map(([k, w]) => [k, w.mods])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], spent: goldSpent, saved: Date.now() };
+    skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), skmods: Object.fromEntries(Object.entries(SM.skills).filter(([, w]) => w.mods).map(([k, w]) => [k, w.mods])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], spent: goldSpent, events: EV.done, saved: Date.now() };
   try { localStorage.setItem(RUN_KEY, JSON.stringify(snap)); } catch {}
 }
 function clearRun() { try { localStorage.removeItem(RUN_KEY); } catch {} }
@@ -897,7 +943,7 @@ function resumeRun(snap) {
   for (const [k, m] of Object.entries(snap.skmods || {})) if (SM.skills[k]) SM.skills[k].mods = { ...m }; // 項目 36：強化卡
   for (const [k, n] of Object.entries(snap.passives || {})) for (let i = 0; i < n; i++) { PASSIVES[k]?.apply(); passives[k] = (passives[k] || 0) + 1; }
   P.hp = Math.max(1, Math.round(P.maxHp * (snap.hp ?? 1)));
-  P.egem = snap.egem || {}; runBosses = snap.bosses || []; goldSpent = snap.spent || 0;
+  P.egem = snap.egem || {}; runBosses = snap.bosses || []; goldSpent = snap.spent || 0; EV.done = snap.events || 0; EV.next = t + 20;
   drawSkillbar(); showBanner(`<small>繼續上一局</small><b>${STAGE.name}</b><span>${String(t / 60 | 0).padStart(2, '0')}:${String(t % 60 | 0).padStart(2, '0')}・Lv ${P.lv}</span>`, 1600);
 }
 // 暫停選單：回主城但保留這一局
@@ -912,5 +958,5 @@ if (location.search.includes('auto')) start().then(() => {
   if (location.search.includes('ride')) setMounted(true);
   const bq = location.search.match(/boss=(\d)/); if (bq) { spawner.bossIdx = +bq[1]; t = BOSSES[spawner.bossIdx][0] - 0.1; }
   const m = location.search.match(/sim=([\d.]+)/); if (m) { for (let i = 0; i < +m[1] * 30 && state !== 'over'; i++) { if (state === 'level') document.querySelector('.card')?.click(); P.hp = P.maxHp; update(1 / 30); } }
-  window.__ss = { pet: () => pet.g ? { x: +pet.g.position.x.toFixed(1), z: +pet.g.position.z.toFixed(1), cd: +pet.cd.toFixed(2), kind: PET?.kind, lv: PET?.lv } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, tmp: () => P.tmp, cb: () => CB, perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
+  window.__ss = { pet: () => pet.g ? { x: +pet.g.position.x.toFixed(1), z: +pet.g.position.z.toFixed(1), cd: +pet.cd.toFixed(2), kind: PET?.kind, lv: PET?.lv } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, tmp: () => P.tmp, cb: () => CB, ev: () => EV, evStart: k => { EV_TYPES.length; evStart(); }, perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
 });

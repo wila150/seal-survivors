@@ -238,7 +238,7 @@ const api = {
   },
   // 出征結算：存紀錄、加經驗、升級
   'POST /api/runs': async (req, res, _, uid) => {
-    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0 } = await body(req); req.__spent = spent;
+    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0 } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
     const stB = stageBaseLv(STAGES.find(x => x.key === stage)), DL = isTowerKey(stage) ? diffLoot(null) : diffLoot(cleanDiff(diff, stB), stB); // 項目 41：難度只影響寶箱裝備品質，經驗金幣不變
     const isTower = stage === 'tower';
     const c = db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+charId, uid);
@@ -271,7 +271,7 @@ const api = {
     const got = [], monLvRun = isTower ? stageBaseLv(STAGES[si]) + floor : cleanDiff(diff, stB).monLv; // 寶箱裝備照這局怪物等級挑 PC 原版道具
     for (let i = 0; i < nChest + nBoss; i++) {
       if (bagCount(c.id) >= BAG_MAX) break;
-      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus, undefined, monLvRun); // 項目 49：寶箱掉全職業（保留原味），非本職業的拿去一鍵餵寵／分解（項目 50） // 項目 35：感覺提升寶箱品質
+      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus + evBonus, undefined, monLvRun); // 項目 49：寶箱掉全職業（保留原味），非本職業的拿去一鍵餵寵／分解（項目 50） // 項目 35：感覺提升寶箱品質
       if (i >= nChest && it.rarity < 1) it.rarity = 1; // 首領寶箱至少精良
       if (it.rarity < minR) { filtered++; continue; }
       got.push(giveItem(c.id, it));

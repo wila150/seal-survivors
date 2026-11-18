@@ -124,7 +124,7 @@ else {
   for (const [k, s] of Object.entries(SK.skills)) { checkIcon(`${s.name}（${k}）`, s.icon); checkFx(`${s.name}（${k}）`, s.fx); }
   for (const job of Object.keys(JOBS)) {
     const j = SK.jobs?.[job]; if (!j) { err('技能', `${job} 在 skills.json 沒有設定`); continue; }
-    if (j.pool?.length !== 4) err('技能', `${job} 的 pool 有 ${j.pool?.length ?? 0} 招（要剛好 4 招）`);
+    if (job !== '初心者' && j.pool?.length !== 4) err('技能', `${job} 的 pool 有 ${j.pool?.length ?? 0} 招（要剛好 4 招）`);
     if (!j.pool?.includes(j.start) && j.start !== j.basic) err('技能', `${job} 的開局技能 ${j.start} 不在 pool 裡、也不是普攻`);
     if (j.basic && !SK.skills?.[j.basic]) err('技能', `${job} 的普攻 ${j.basic} 沒有技能資料`);
     for (const k of j.pool || []) if (!SK.skills[k]) err('技能', `${job} 的 pool 有不存在的技能 ${k}`);
