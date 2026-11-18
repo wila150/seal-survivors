@@ -171,3 +171,50 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
   #dlg .opts { flex: none; padding-top: 8px !important; }
   #dlgX { right: -4px !important; top: -6px !important; }
 }
+
+/* ===== 照 PC 原版視窗內容（11/19 使用者：「除了狀態，其他按鈕的介面都沒照 PC」）===== */
+/* 標題：PC 藍色泡泡字圖（openDlg 依標題換圖，沒有圖的用同色系文字）*/
+#dlg header .pct-img { height: 26px; image-rendering: auto; vertical-align: middle; filter: drop-shadow(0 2px 0 #0b1430); }
+/* 共用：PC 米色格子 */
+#dlg .pcwinx { background: linear-gradient(#fdfcf8, #efe9dd); border: 3px solid #a89d97; border-radius: 16px; padding: 12px; box-shadow: inset 0 0 0 2px #fff; }
+/* SKILL */
+#dlg .pcs-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+#dlg .pcs-top .sp { font-weight: 900; color: #7a5a1c; font-family: "Arial Black", system-ui; }
+#dlg .pcs-top .ep { margin-left: 18px; }
+#dlg .pcs-top b { min-width: 60px; text-align: center; background: #fbf5d8; border: 2px solid #e3d6a0; border-radius: 12px; padding: 1px 10px; color: #5a4220 !important; }
+#dlg .pcs-top small { margin-left: auto; }
+#dlg .pcs-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 46px)); gap: 4px; justify-content: center; padding: 8px; background: #ece4d6; border: 2px solid #b3a190; border-radius: 12px; }
+#dlg .pcs-cell { aspect-ratio: 1; background: linear-gradient(#d8c9ba, #c9b7a6); border: 2px solid #b3a190; border-radius: 5px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: inset 0 1px 0 #fff9; }
+#dlg .pcs-cell.empty { cursor: default; }
+#dlg .pcs-cell.off .skico { filter: grayscale(.9); opacity: .55; }
+#dlg .pcs-cell.sel { box-shadow: 0 0 0 3px var(--th-blue), 0 0 10px #3f6fe099; }
+#dlg .skico { display: inline-block; border-radius: 6px; flex: 0 0 auto; }
+#dlg .pcs-tabs { position: relative; width: 200px; height: 48px; margin: 6px 0 0 2px; background: no-repeat left top / 200px 48px; display: flex; }
+#dlg .pcs-tabs button { flex: 1; background: none !important; border: 0 !important; box-shadow: none !important; cursor: pointer; }
+#dlg .pcs-detail { display: flex; gap: 10px; align-items: flex-start; background: #fffdf8; border: 1px solid #e0d2b2; border-radius: 10px; padding: 8px 10px; margin-top: 4px; line-height: 1.6; }
+/* ITEM 標題改原版圖：膠囊底拿掉 */
+#dlg .bag.pc > .pct { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; top: -12px !important; filter: drop-shadow(0 2px 0 #fff); }
+/* SHOP（PC merchant.tex：清單列，深淺交錯米色）*/
+#dlg .pcshop { position: relative; background: linear-gradient(#fdfcf8, #efe9dd); border: 3px solid #a89d97; border-radius: 16px; padding: 22px 10px 10px; margin: 14px 0 10px; box-shadow: inset 0 0 0 2px #fff; }
+#dlg .pcshop > .pct-img { position: absolute; left: 50%; top: -13px; transform: translateX(-50%); height: 22px; filter: drop-shadow(0 2px 0 #fff); }
+#dlg .pcshop-row { display: grid; grid-template-columns: 44px 70px 1fr 60px auto; align-items: center; gap: 8px; padding: 3px 8px 3px 3px; border-radius: 6px; }
+#dlg .pcshop-row:nth-child(odd) { background: #ead9c6; } #dlg .pcshop-row:nth-child(even) { background: #fff1e0; }
+#dlg .pcshop-row .ic { width: 40px; height: 40px; background: linear-gradient(#d8c9ba, #c9b7a6); border: 2px solid #9f8a76; border-radius: 5px; display: flex; align-items: center; justify-content: center; }
+#dlg .pcshop-row .ic img { width: 32px; height: 32px; image-rendering: pixelated; }
+#dlg .pcshop-row .pr { text-align: right; font-weight: 900; color: #a86b10; }
+#dlg .pcshop-row .pr::after { content: ' 希幣'; font-size: 11px; font-weight: 700; color: #8a6a3a; }
+#dlg .pcshop-row .btn { padding: 5px 12px !important; }
+/* BANK／倉庫：用 ITEM 一樣的 PC 格子面板，標題換 BANK */
+#dlg .bag.pc .cell.empty { background: linear-gradient(#d8c9ba, #c9b7a6) !important; }
+/* MAIL BOX（PC mailbox.tex：收件夾分頁、深淺交錯清單列、左邊道具格）*/
+#dlg .pcmail { position: relative; background: linear-gradient(#fdfcf8, #efe9dd); border: 3px solid #a89d97; border-radius: 16px; padding: 18px 10px 10px; margin: 16px 0 10px; box-shadow: inset 0 0 0 2px #fff; }
+#dlg .pcmail > .pct-img { position: absolute; left: 50%; top: -13px; transform: translateX(-50%); height: 22px; filter: drop-shadow(0 2px 0 #fff); }
+#dlg .pcmail-tab { width: 200px; height: 44px; margin-bottom: -2px; background: no-repeat left top / 200px 44px; }
+#dlg .pcmail-list { max-height: 240px; overflow: auto; border: 2px solid #c8b59c; border-radius: 8px; background: #ead9c6; }
+#dlg .pcmail-row { display: flex; gap: 10px; align-items: center; padding: 6px 10px; cursor: pointer; line-height: 1.5; }
+#dlg .pcmail-row:nth-child(odd) { background: #ead9c6; } #dlg .pcmail-row:nth-child(even) { background: #fff1e0; }
+#dlg .pcmail-row.read { opacity: .75; } #dlg .pcmail-row.sel { box-shadow: inset 0 0 0 2px var(--th-blue); }
+#dlg .pcmail-row .ic { width: 38px; height: 38px; flex: none; background: linear-gradient(#d8c9ba, #c9b7a6); border: 2px solid #9f8a76; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+#dlg .pcmail-row small { display: block; }
+#dlg .ci-cell img.shot { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; outline: 0 !important; image-rendering: auto; }
+#dlg .ci-cell img.shot.body { object-fit: contain; }

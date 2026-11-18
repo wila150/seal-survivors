@@ -233,15 +233,34 @@ $('#talentBtn').onclick = async () => {
   const [T, D] = await Promise.all([fetch('assets/data/talents.json').then(r => r.json()), fetch('assets/data/skills.json').then(r => r.json())]);
   openTalents({ char: CHAR, T, skillName: k => D.skills[k]?.name || k, openDlg, call, onSaved: c => showChar(c) });
 };
-$('#skillBtn').onclick = async () => {
-  const D = await fetch('assets/data/skills.json').then(r => r.json()), J = D.jobs[CHAR.job]; if (!J) return;
-  const ico = ([f, x, y], z = 36) => { const k = z / 32; return `<i style="display:inline-block;width:${z}px;height:${z}px;border-radius:8px;flex:0 0 auto;background:url(assets/skill/${f}) -${x * k}px -${y * k}px/${512 * k}px ${512 * k}px no-repeat"></i>`; };
+// ===== 技能（11/19 照 PC 原版 SKILL 視窗：SP／EP、8×4 圖示格、基本／職業／轉職分頁圖 interface/skill_menu.tex）=====
+let skTab = 0, skSel = null;
+$('#skillBtn').onclick = () => { skTab = 0; skSel = null; openSkillWin(); };
+async function openSkillWin() {
+  const [T, D] = await DATA, J = D.jobs[CHAR.job]; if (!J) return;
+  const ico = ([f, x, y], z = 36) => { const k = z / 32; return `<i class="skico" style="width:${z}px;height:${z}px;background:url(assets/skill/${f}) -${x * k}px -${y * k}px/${512 * k}px ${512 * k}px no-repeat"></i>`; };
   const TN = { MELEE_ARC: '扇形近戰', PROJECTILE_BOUNCE: '彈射投射', ORBIT_AURA: '環繞光環', ZONE_AOE: '區域轟炸' }, GN = { ice: '冰', fire: '火', heavy: '重擊' };
-  const row = (k, tag) => { const d = D.skills[k]; return `<div class="eq" style="cursor:default;margin-bottom:6px">${ico(d.icon)}<div style="flex:1"><b>${d.name}</b> <small style="color:#6b7896">${tag}</small><small>${TN[d.type]}${d.tags.map(t => '・' + GN[t]).join('')}${d.status?.slow ? '・緩速' : ''}${d.status?.poison ? '・中毒' : ''}${d.status?.stun ? '・暈眩' : ''}</small></div></div>`; };
-  const fu = D.fusions.find(f => J.pool.includes(f.a));
-  openDlg(`${CHAR.job}的技能`, `<p><small>出征時：開局只有普攻，第 1 次升級選第一招，最多帶 ${CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4} 招（一轉 4／二轉 5／三轉 6）；兩招 Lv5 可融合成二轉超武。</small></p>`
-    + row(J.basic, '普攻') + J.pool.map(k => row(k, '技能')).join('') + (fu ? row(fu.into, `超武：${D.skills[fu.a].name}＋${D.skills[fu.b].name} Lv5`) : ''), []);
-};
+  const BR = T.jobs[CHAR.job]?.branches || [], myB = BR.find(b => b.key === CHAR.job2);
+  const fu = D.fusions.filter(f => J.pool.includes(f.a));
+  // 分頁：基本＝普攻＋一轉技能＋超武；職業＝二轉兩條分支的技能；轉職＝三轉技能
+  const tabs = [
+    [[J.basic, '普攻', 1], ...J.pool.map(k => [k, '一轉技能', 1]), ...fu.map(f => [f.into, `超武（${D.skills[f.a].name}＋${D.skills[f.b].name} Lv5）`, 1])],
+    BR.flatMap(b => (b.skills || []).map(k => [k, `二轉 ${b.name}`, b === myB])),
+    BR.filter(b => b.skill3).map(b => [b.skill3, `三轉 ${b.thirdName || ''}`, b === myB && !!CHAR.job3]),
+  ];
+  const list = tabs[skTab].filter(([k]) => D.skills[k]); if (skSel && !list.some(x => x[0] === skSel)) skSel = null;
+  const cells = Array.from({ length: 32 }, (_, i) => { const x = list[i]; if (!x) return '<div class="pcs-cell empty"></div>';
+    const [k, , own] = x; return `<div class="pcs-cell${own ? '' : ' off'}${skSel === k ? ' sel' : ''}" data-sk="${k}" title="${D.skills[k].name}">${ico(D.skills[k].icon, 34)}</div>`; }).join('');
+  const sel = list.find(x => x[0] === skSel), d = sel && D.skills[sel[0]];
+  const detail = d ? `<div class="pcs-detail">${ico(d.icon, 44)}<div><b>${d.name}</b>　<small>${sel[1]}${sel[2] ? '' : '・<span style="color:#c0392b">尚未學會</span>'}</small><br><small>${TN[d.type] || ''}${(d.tags || []).map(t => '・' + (GN[t] || t)).join('')}${d.status?.slow ? '・緩速' : ''}${d.status?.poison ? '・中毒' : ''}${d.status?.stun ? '・暈眩' : ''}</small>${d.pc ? `<br><small>原版：${esc(d.pc)}</small>` : ''}</div></div>`
+    : `<div class="pcs-detail"><small>點技能看說明。出征時開局只有普攻，第 1 次升級選第一招，最多帶 ${CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4} 招（一轉 4／二轉 5／三轉 6）；兩招 Lv5 可融合成超武。</small></div>`;
+  const spent = Object.values(CHAR.talents || {}).reduce((a, b) => a + b, 0) + Object.values(CHAR.talents2 || {}).reduce((a, b) => a + b, 0);
+  openDlg('技能', `<div class="pcwinx"><div class="pcs-top"><span class="sp">SP</span><b>${Math.max(0, (CHAR.jobLv || 1) - spent)}</b><span class="sp ep">EP</span><b>${CHAR.jobLv || 1}</b><small>SP＝剩餘天賦點、EP＝Job 等級</small></div>
+    <div class="pcs-grid">${cells}</div><div class="pcs-tabs" style="background-image:url(assets/ui/pc/tab_skill_${skTab}.png)">${[0, 1, 2].map(i => `<button data-skt="${i}" title="${['基本', '職業', '轉職'][i]}"></button>`).join('')}</div>${detail}</div>`,
+    [['天賦樹', () => $('#talentBtn').click(), true]]);
+  $('#dlgBody').querySelectorAll('[data-sk]').forEach(el => el.onclick = () => { skSel = el.dataset.sk; openSkillWin(); });
+  $('#dlgBody').querySelectorAll('[data-skt]').forEach(el => el.onclick = () => { skTab = +el.dataset.skt; skSel = null; openSkillWin(); });
+}
 
 // ===== 場景 =====
 const renderer = new THREE.WebGLRenderer({ antialias: !matchMedia('(pointer:coarse)').matches, powerPreference: 'high-performance' }); // 手機關反鋸齒
@@ -312,7 +331,7 @@ const player = makeChar(OUTFITS[CHAR?.outfit] ?? JOBS[CHAR?.job]?.color ?? 0x4fa
 let pActor = null; // 玩家動作（站／跑）
 // 載入玩家模型（造型師改完外觀會再叫一次）；坐騎留著
 const lookOf = c => playerLook(c?.job, c?.gender, c?.hair ?? 0, c?.hairColor ?? 0, c?.outfit ?? 0);
-let playerLoadId = 0;
+let playerLoadId = 0, BODY_SHOT = '';
 function loadPlayer() {
   const id = ++playerLoadId, L = lookOf(CHAR);
   return sealActor(playerModelId(CHAR?.job, CHAR?.gender), playerAnimSet(CHAR?.job, CHAR?.gender), 1.7, L.gear, L.opts).then(m => {
@@ -323,7 +342,10 @@ function loadPlayer() {
     try { m.userData.actor.update(0.016, false); const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); r.setSize(128, 128);
       const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 2)); sc.add(m); m.rotation.y = 0.35;
       const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50); cam.position.set(0, 1.45, 1.6); cam.lookAt(0, 1.35, 0); r.render(sc, cam);
-      $('#faceImg').src = r.domElement.toDataURL(); r.dispose(); sc.remove(m); m.rotation.y = 0; } catch {}
+      $('#faceImg').src = r.domElement.toDataURL();
+      // 全身照（CHARACTER INFO 的 COSTUME 服裝格用）
+      r.setSize(128, 160); const cam2 = new THREE.PerspectiveCamera(30, 0.8, 0.1, 50); cam2.position.set(0, 0.9, 2.5); cam2.lookAt(0, 0.82, 0); r.render(sc, cam2); BODY_SHOT = r.domElement.toDataURL();
+      r.dispose(); sc.remove(m); m.rotation.y = 0; } catch {}
     m.position.y = townRiding ? 0.85 : 0; player.add(m); pActor = m.userData.actor;
   }).catch(e => console.warn('玩家模型', e.message));
 }
@@ -375,9 +397,13 @@ function checkUnfinishedRun() {
 const dlgPath = (root, el) => { const p = []; while (el && el !== root) { p.unshift([...el.parentNode.children].indexOf(el)); el = el.parentNode; } return p; };
 const dlgAt = (root, p) => p.reduce((el, i) => el?.children[i], root);
 function openDlg(title, html, opts, wide = false) {
-  const B = $('#dlgBody'), same = dlgOpen && $('#dlgTitle').textContent === title;
+  const B = $('#dlgBody'), same = dlgOpen && $('#dlgTitle').dataset.t === title;
   const keep = same ? [B, ...B.querySelectorAll('*')].filter(el => el.scrollTop || el.scrollLeft).map(el => [dlgPath(B, el), el.scrollTop, el.scrollLeft]) : null;
-  dlgOpen = true; document.querySelector('#dlg .box').classList.toggle('wide', wide); $('#dlgTitle').textContent = title; B.innerHTML = html;
+  dlgOpen = true; document.querySelector('#dlg .box').classList.toggle('wide', wide); $('#dlgTitle').dataset.t = title;
+  // PC 原版標題圖（藍色泡泡字，assets/ui/pc/t_*.png）；其他標題照舊文字
+  const TIMG = [['技能', 'skill'], ['裝備商人', 'shop'], ['郵差', 'mail'], ['倉庫管理員', 'bank']].find(([k]) => title.startsWith(k));
+  if (TIMG) { const extra = title.slice(TIMG[0].length).trim(); $('#dlgTitle').innerHTML = `<img class="pct-img" src="assets/ui/pc/t_${TIMG[1]}.png" alt="${esc(title)}">${extra ? ` <small>${esc(extra)}</small>` : ''}`; } else $('#dlgTitle').textContent = title;
+  B.innerHTML = html;
   if (keep?.length) { const restore = () => keep.forEach(([p, t, l]) => { const el = dlgAt(B, p); if (el) { el.scrollTop = t; el.scrollLeft = l; } }); restore(); requestAnimationFrame(restore); } else if (!same) B.scrollTop = 0;
   const box = $('#dlgOpts'); box.innerHTML = '';
   for (const [label, fn, primary] of [...opts, ['離開', closeDlg]]) { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.textContent = label; b.onclick = fn; box.appendChild(b); }
@@ -621,8 +647,8 @@ async function openMail(refetch = true) {
   if (refetch || !mails) { try { mails = (await call('GET', '/api/mail/' + CHAR.id)).mails; } catch (e) { return toast(e.message); } }
   const has = m => m.gold || m.items.length || Object.keys(m.mats).length, m = mails.find(x => x.id === mSel);
   const html = `<p>「有你的信喔！」</p>
-    <div style="max-height:200px;overflow:auto">${mails.map(x => `<div class="eq" data-ml="${x.id}" style="margin-bottom:4px;${mSel === x.id ? 'border-color:#ff8a3d' : ''}${x.read ? ';opacity:.75' : ''}">
-      <div style="flex:1">${x.read ? '' : '<b style="color:#c0392b">● </b>'}<b>${x.title.replace(/</g, '&lt;')}</b>　<small>${x.sender}・${new Date(x.created).toLocaleDateString()}</small><small>${has(x) ? (x.claimed ? '附件已領取' : '📎 ' + attachHtml(x)) : ''}</small></div></div>`).join('') || '<small>信箱是空的</small>'}</div>
+    <div class="pcmail"><img class="pct-img" src="assets/ui/pc/t_mail.png" alt="MAIL BOX"><div class="pcmail-tab" style="background-image:url(assets/ui/pc/tab_mail_1.png)"></div><div class="pcmail-list">${mails.map(x => `<div class="pcmail-row${mSel === x.id ? ' sel' : ''}${x.read ? ' read' : ''}" data-ml="${x.id}">
+      <span class="ic">${has(x) && !x.claimed ? '📦' : '✉️'}</span><div style="flex:1">${x.read ? '' : '<b style="color:#c0392b">● </b>'}<b>${x.title.replace(/</g, '&lt;')}</b>　<small>${x.sender}・${new Date(x.created).toLocaleDateString()}</small><small>${has(x) ? (x.claimed ? '附件已領取' : '📎 ' + attachHtml(x)) : ''}</small></div></div>`).join('') || '<small>信箱是空的</small>'}</div></div>
     <div class="detail">${m ? `<b>${m.title.replace(/</g, '&lt;')}</b>　<small>寄件人：${m.sender}</small><p>${m.body.replace(/</g, '&lt;')}</p>${has(m) ? `<p>附件：${attachHtml(m)}</p>` : ''}
       <div class="acts">${has(m) && !m.claimed ? `<button class="btn primary" id="mClaim">領取</button>` : ''}<button class="btn" id="mDel">丟掉這封</button></div>` : '<small>點一封信來看</small>'}</div>`;
   openDlg(`郵差（${mails.length} 封）`, html, [['全部領取', () => claim('all'), true], ['丟掉已讀且已領取的', () => del(mails.filter(x => x.read && (x.claimed || !has(x))).map(x => x.id))]], true);
@@ -653,9 +679,9 @@ async function openStash(refetch = true) {
       <select id="sSort">${[['rarity', '品質'], ['refine', '精煉'], ['slot', '部位'], ['new', '最新']].map(([k, v]) => `<option value="${k}" ${sSort === k ? 'selected' : ''}>排序：${v}</option>`).join('')}</select>
       <button class="btn" id="sRename">改名</button></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <div style="flex:1;min-width:220px"><b>背包</b> <small>${(c.items || []).length}/40・點一下＝存入</small><div class="bag">${bag.map(it => cell(it, 'data-sput')).join('') || '<small>沒有</small>'}</div>
+      <div style="flex:1;min-width:220px"><small>背包 ${(c.items || []).length}/40・點一下＝存入</small><div class="bag pc"><b class="pct"><img src="assets/ui/pc/t_item.png" alt="ITEM" style="height:20px;display:block"></b>${bag.map(it => cell(it, 'data-sput')).join('')}${'<div class="cell empty"></div>'.repeat(Math.max(0, 40 - bag.length))}</div>
         <button class="btn" id="sPutAll">存入全部沒穿的</button></div>
-      <div style="flex:1;min-width:220px"><b>${S.names[sPage]}</b> <small>${page.length}/${S.size}・點一下＝取回</small><div class="bag">${shown.map(it => cell(it, 'data-stake')).join('') || '<small>空的</small>'}</div>
+      <div style="flex:1;min-width:220px"><small><b>${S.names[sPage]}</b> ${page.length}/${S.size}・點一下＝取回</small><div class="bag pc"><b class="pct"><img src="assets/ui/pc/t_bank.png" alt="BANK" style="height:20px;display:block"></b>${shown.map(it => cell(it, 'data-stake')).join('')}${'<div class="cell empty"></div>'.repeat(Math.max(0, S.size - shown.length))}</div>
         <button class="btn" id="sTakePage">取出這一頁</button><button class="btn" id="sTakeAll">全部取出</button></div>
     </div>`}
     <p><small>倉庫是整個帳號共用的，換角色也拿得到。穿著中的裝備不能存。</small></p>`;
@@ -1097,8 +1123,9 @@ function openCharInfo() {
     slot('weapon', '武器'), slot('top', '上衣'), c.job === '騎士' ? slot('shield', '盾牌') : lock('', '盾牌'), slot('acc', '飾品'),
     slot('bracelet', '手鐲'), slot('bottom', '下衣'), slot('ring', '戒指'), other('寵物', pet ? `<span class="pet" style="color:${hex(PETS[pet.kind]?.color)}">●</span>` : '', pet ? `寵物：${esc(petName(pet))} Lv${pet.lv}` : '沒有出戰的寵物'),
     other('坐騎', mountOn ? '<span class="pet">🐎</span>' : '', mountOn ? `坐騎：${MOUNT_NAMES[JOBS[c.job]?.mount] || ''}` : '沒有租坐騎'), slot('shoes', '鞋子'), lock('', '—'), lock('', '—')].join('');
-  const cos = [other('髮型', `<b style="font-size:15px">${(c.hair ?? 0) + 1}</b>`, '髮型（找造型師可以改）'), other('髮色', `<span class="sw" style="background:${HAIR_COLORS[c.hairColor ?? 0]?.hex != null ? hex(HAIR_COLORS[c.hairColor ?? 0].hex) : 'linear-gradient(135deg,#d9b48a,#7a5230)'}"></span>`, '髮色'),
-    other('服裝', `<span class="sw" style="background:${OUTFITS[c.outfit] != null ? hex(OUTFITS[c.outfit]) : 'linear-gradient(135deg,#fff,#ccc)'}"></span>`, '服裝配色'), lock('costume', '時裝'), lock('costume', '時裝'), lock('', '—'), lock('', '—'), lock('', '—')].join('');
+  const face = $('#faceImg')?.src || '', img = (u, cls) => u ? `<img class="${cls}" src="${u}" alt="">` : '';
+  const cos = [other('髮型', img(face, 'shot') || `<b style="font-size:15px">${(c.hair ?? 0) + 1}</b>`, `髮型 ${(c.hair ?? 0) + 1}（找造型師可以改）`), other('髮色', `<span class="sw" style="background:${HAIR_COLORS[c.hairColor ?? 0]?.hex != null ? hex(HAIR_COLORS[c.hairColor ?? 0].hex) : 'linear-gradient(135deg,#d9b48a,#7a5230)'}"></span>`, '髮色'),
+    other('服裝', img(BODY_SHOT, 'shot body') || `<span class="sw" style="background:${OUTFITS[c.outfit] != null ? hex(OUTFITS[c.outfit]) : 'linear-gradient(135deg,#fff,#ccc)'}"></span>`, '服裝配色'), lock('costume', '時裝'), lock('costume', '時裝'), lock('', '—'), lock('', '—'), lock('', '—')].join('');
   const T = titleOf(c.title), info = [['名稱', esc(c.name)], ['等級', `Base ${c.baseLv}　Job ${c.jobLv} / ${c.jobMax ?? 50}`], ['職業', esc(c.jobName || c.job)], ['名聲稱號', T ? `【${T.name}】` : '—'],
     ['名聲數值', `Lv ${c.fameLv ?? 0}　${(c.fame || 0).toLocaleString()}${c.fameNext ? ' / ' + c.fameNext.toLocaleString() : ''}`], ['WIN', `${(c.cleared || []).length}`], ['裝備分數', `<b style="color:#2a4fb8">${gearScore(items)}</b>`]]
     .map(([k, v]) => `<div class="ci-row"><span>${k}</span><b>${v}</b></div>`).join('');
@@ -1135,11 +1162,15 @@ function renderBag() {
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${TITLES.map(t => { const has = (c.titles || []).includes(t.id), on = c.title === t.id;
         return `<div style="flex:1 1 180px;border:2px solid ${on ? '#e0a826' : has ? '#9db4ee' : '#e0e4ee'};border-radius:10px;padding:6px 8px;${has ? '' : 'opacity:.55'}"><b>【${t.name}】</b>${on ? ' <small style="color:#c8901a">★ 裝備中</small>' : ''}<br><small>${t.desc}・${bonusText(t.bonus)}</small>${has && !on ? `<br><button class="btn" style="margin-top:4px;padding:4px 10px" data-title="${t.id}">裝上</button>` : ''}</div>`; }).join('')}</div></div>`;
   } else {
-    if (bagMode === 'shop') html += `<div class="acts" style="display:flex;gap:6px;margin-bottom:10px">${Object.entries(SLOTS).filter(([k]) => k !== 'shield' || CHAR.job === '騎士').map(([k, v]) => `<button class="btn primary" data-buy="${k}">買${v}（150）</button>`).join('')}</div>`;
-    html += `<div class="slots pc">${Object.entries(SLOTS).filter(([k]) => (bagMode !== 'smith' || smithOk({ slot: k })) && (k !== 'shield' || CHAR.job === '騎士')).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
+    // 照 PC 原版 SHOP 視窗（interface/merchant.tex）：左邊道具格＋右邊名稱／價格的清單列
+    if (bagMode === 'shop') html += `<div class="pcshop"><img class="pct-img" src="assets/ui/pc/t_shop.png" alt="SHOP">${Object.entries(SLOTS).filter(([k]) => k !== 'shield' || CHAR.job === '騎士').map(([k, v]) => { const b0 = BASES[k]?.[0];
+      return `<div class="pcshop-row"><span class="ic">${b0 ? `<img src="assets/items/${b0.icon}.png" alt="">` : ''}</span><b>${v}</b><small>普通～精良・照你的等級挑 PC 原版道具</small><span class="pr">150</span><button class="btn primary" data-buy="${k}">購買</button></div>`; }).join('')}</div>`;
+    // 背包＝PC 原版 ITEM 視窗（只有道具格＋希幣）；穿著的裝備在「狀態」CHARACTER INFO
+    if (bagMode === 'bag') html += `<div class="acts" style="display:flex;gap:6px;margin-bottom:6px"><button class="btn" id="toCI">👤 角色裝備（CHARACTER INFO）</button></div>`;
+    else html += `<div class="slots pc">${Object.entries(SLOTS).filter(([k]) => (bagMode !== 'smith' || smithOk({ slot: k })) && (k !== 'shield' || CHAR.job === '騎士')).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
       return `<div class="eq" data-id="${it?.id || ''}" title="${it ? esc(itemName(it)) : v + '：沒有裝備'}"><span class="sl">${v}</span><div class="ico" ${it ? `style="border-color:${RARITY[it.rarity].color}!important"` : ''}>${it ? `<img src="${itemIcon(it)}" alt="">` : ''}</div>${it ? `<b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small>` : `<b>${v}</b><small>沒有裝備</small>`}</div>`; }).join('')}</div>`;
     const shown = items.filter(it => bagMode !== 'smith' || smithOk(it)), BAG_CAP = 40; // 伺服器 BAG_MAX＝40；PC 背包空格也畫出來
-    html += `<div class="bag pc"><b class="pct">ITEM</b>${shown.map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('')}${bagMode === 'smith' ? '' : '<div class="cell empty"></div>'.repeat(Math.max(0, BAG_CAP - shown.length))}${shown.length ? '' : '<small style="color:#8a7a6a">背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
+    html += `<div class="bag pc"><b class="pct"><img src="assets/ui/pc/t_item.png" alt="ITEM" style="height:20px;display:block"></b>${shown.map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('')}${bagMode === 'smith' ? '' : '<div class="cell empty"></div>'.repeat(Math.max(0, BAG_CAP - shown.length))}${shown.length ? '' : '<small style="color:#8a7a6a">背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
     html += `<div class="pcgold">希幣<span>${(c.gold || 0).toLocaleString()}</span></div>`;
     if (bagMode === 'bag') html += `<div class="acts" style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="dismAll">🔨 一鍵分解（非本職業＋普通／精良）</button></div>`;
     const it = items.find(i => i.id === selItem);
@@ -1148,6 +1179,7 @@ function renderBag() {
   openDlg(title, html, [], true);
   const body = $('#dlgBody');
   body.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bagTab = b.dataset.tab; renderBag(); });
+  body.querySelector('#toCI')?.addEventListener('click', () => openCharInfo());
   // 項目 50：一鍵分解：沒穿、沒鎖，而且（非本職業 或 普通／精良）
   body.querySelector('#dismAll')?.addEventListener('click', async () => {
     const pick = items.filter(i => !i.equipped && !i.locked && (offJob(i, c.job) || i.rarity <= 1));
