@@ -86,14 +86,15 @@ export class SkillManager {
     if (ctx.pool?.length) this.J = { ...this.J, pool: ctx.pool.filter(k => this.data.skills[k]) };
     this.skills = {}; // key → { lv, cd, ang, tick, orbs:[] }
     this.shots = []; this.lobs = []; this.combo = 0; this.comboT = 0; this.bestCombo = 0; this.musouCount = 0; this.musouCd = 0; this.nextMusou = this.data.status.combo.musouEvery;
-    this.add(this.J.start);
+    this.add(this.J.start); for (const k of this.J.extra || []) if (this.def(k)) this.add(k); // 初心者另外有「丟石頭」
   }
   def(k) { return this.data.skills[k]; }
   // 原版特效（seal-fx.js；this.pcfx 有給、而且這招轉得出來才用；沒有就用原本的貼圖特效）
-  pc(k, stage) { return !!this.pcfx?.has(k, stage); }
-  pcPlay(k, stage, pos, face, opts) { const r = this.pcfx?.play(k, stage, pos, face, stage === 'cast' && pos === this.player.position ? { ...opts, follow: this.player } : opts); if (r && stage !== 'cast') { const f = this.pcfx.index?.[k]?.sound?.[stage]; if (f) this.sound?.(f); } return r; }
+  fxk(k) { return this.def(k)?.pcfx || k; } // 初心者入門技借用職業招式的原版特效（skills.json pcfx 欄）
+  pc(k, stage) { return !!this.pcfx?.has(this.fxk(k), stage); }
+  pcPlay(k, stage, pos, face, opts) { k = this.fxk(k); const r = this.pcfx?.play(k, stage, pos, face, stage === 'cast' && pos === this.player.position ? { ...opts, follow: this.player } : opts); if (r && stage !== 'cast') { const f = this.pcfx.index?.[k]?.sound?.[stage]; if (f) this.sound?.(f); } return r; }
   // 出招音效：這招有原版施放音效就播原版的，沒有就播通用的（hit／zap／boom）
-  castSound(k, generic) { const f = this.pcfx?.index?.[k]?.sound?.cast; this.sound?.(f || generic); }
+  castSound(k, generic) { const f = this.pcfx?.index?.[this.fxk(k)]?.sound?.cast; this.sound?.(f || generic); }
   // 放技能時角色播原版技能動作 p1～p4（原版技能對動作的表在加密的 Skill.edt 讀不到 → 依這職業技能順序輪流分配）；普攻用 f1～f3
   motion(k) { if (this.def(k)?.motion) return this.def(k).motion; // 有專屬動作（獵人 hm_multishot…）就用
     if (this.def(k)?.basic || !this.pcfx) return null; const i = this.J.pool.filter(x => !this.def(x)?.basic).indexOf(k); return i < 0 ? null : 'p' + (i % 4 + 1); }
@@ -144,7 +145,7 @@ export class SkillManager {
     // 開局只有普攻：第一次升級只出技能卡，讓玩家先選第一招
     // 11/19 修：初心者技能池是空的 → 以前這裡回傳 0 張卡，升級畫面卡住
     if (!owned && this.J.pool.length) { const first = pool.filter(p => p.kind === 's'); for (let i = first.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [first[i], first[j]] = [first[j], first[i]]; } return first.slice(0, 3); }
-    if (this.J.basic && (this.skills[this.J.basic]?.lv ?? 0) < 5) pool.push({ kind: 's', k: this.J.basic, lv: this.skills[this.J.basic].lv });
+    for (const b of [this.J.basic, ...(this.J.extra || [])]) if (b && this.skills[b] && this.skills[b].lv < 5) pool.push({ kind: 's', k: b, lv: this.skills[b].lv });
     // 項目 36：已學會的招式出強化卡（Lv5 之後也會一直出；數量到上限就不出數量）
     for (const k of Object.keys(this.skills)) { const d = this.def(k); if (!d || d.basic && !this.skills[k].lv) continue;
       const keys = enhKeys(d).filter(e => !(ENH[e].max && (this.skills[k].mods?.[e] || 0) >= ENH[e].max) && !(ENH[e].cap && (this.skills[k].mods?.[e] || 0) >= ENH[e].cap));
@@ -217,6 +218,8 @@ export class SkillManager {
     this.onCast?.(face, this.motion(k)); this.castSound(k, 'hit');
     const c = new THREE.Color(d.color).getHex(), full = st.arc >= 6;
     const hits = st.hits || 1, pc = this.pc(k, 'hit') || this.pc(k, 'cast');
+    // 初心者空手技：每第 3 下是木棒重擊（×2、目標周圍 1.5 公尺範圍）
+    const heavy = d.third && (s.n = (s.n || 0) + 1) % 3 === 0; if (heavy) { st = { ...st, dmg: st.dmg * 2 }; if (tg) { const tp = tg.mesh.position; this.fx.spawn('shock', tp, { flat: true, scale: 3.2, life: 0.3, grow: 1.4, color: 0xffd36b }); for (const e of this.enemies()) if (!e.dead && e !== tg && d2(e.mesh.position, tp) < 1.5 * 1.5) this.hit(e, k, st.dmg, tp); this.sound?.('boom'); } }
     if (pc) this.pcPlay(k, 'cast', pp, face, { fit: 2.5 });
     for (let h = 0; h < hits; h++) setTimeout(() => {
       const p = this.player.position;
@@ -314,7 +317,7 @@ export class SkillManager {
     }
   }
   zoneHit(k, d, st, p, pp, pc, c) {
-    const R = st.radius;
+    const R = st.radius; if (d.heal && this.P) this.P.hp = Math.min(this.P.maxHp, this.P.hp + this.P.maxHp * d.heal); // 祈禱：順便回血
     if (pc) this.pcPlay(k, 'hit', p, Math.atan2(p.z - pp.z, p.x - pp.x), { fit: R });
     else this.fx.spawn(d.fx, p, { flat: true, scale: R * 2.3, life: 0.4, grow: 1.25, color: c, spin: 3 });
     if (!pc && st.at !== 'self') this.fx.spawn(d.fx === 'beam' ? 'beam' : d.fx, p, { scale: R * 1.1, scaleY: d.fx === 'beam' ? 7 : R * 1.6, y: d.fx === 'beam' ? 3.5 : 1, life: 0.35, grow: 1.2, color: c });

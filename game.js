@@ -297,7 +297,7 @@ let loadDone = 0; const loadTotal = Object.keys(ENEMY_TYPES).length + 2;
 const GLOAD = pcLoading({ img: STAGE.banner, title: STAGE.name }); // PC 原版載入畫面（地圖插畫＋TIP＋黃色進度條）
 const loadTick = () => { loadDone++; const p = Math.round(loadDone / loadTotal * 100); document.getElementById('gloadBar').style.width = p + '%'; document.getElementById('gloadTxt').textContent = `正在進入 ${STAGE.name}… ${p}%`; GLOAD.set(p); };
 // 這個職業（含二轉分支）會出現的技能 → 預先載入原版特效
-const pcfxReady = PCFX.preload(['levelup', 'monrejen', 'bigkill', 'bigitem', ...(SKD.jobs[CHAR.job]?.pool || []), ...((TAL && CHAR.job2 && branchOf(TAL, CHAR.job, CHAR.job2)?.skills) || []), ...((TAL && CHAR.job3 && [branchOf(TAL, CHAR.job, CHAR.job2)?.skill3].filter(Boolean)) || [])]).catch(() => {});
+const pcfxReady = PCFX.preload(['levelup', 'monrejen', 'bigkill', 'bigitem', ...(SKD.jobs[CHAR.job]?.pool || []).map(k => SKD.skills[k]?.pcfx || k), ...((TAL && CHAR.job2 && branchOf(TAL, CHAR.job, CHAR.job2)?.skills) || []), ...((TAL && CHAR.job3 && [branchOf(TAL, CHAR.job, CHAR.job2)?.skill3].filter(Boolean)) || [])]).catch(() => {});
 const modelsReady = Promise.all(Object.entries(ENEMY_TYPES).map(async ([k, T]) => {
   // 有骨架＋動作的用會動的版本（項目 6：走、攻擊、受擊、倒下），沒有的用靜態模型
   try { const mob = await sealMob(T.model, T.h).catch(() => null);
