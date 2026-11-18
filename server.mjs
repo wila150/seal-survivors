@@ -19,7 +19,7 @@ import { PETS, PET_MAX, EGG_PRICE, MVP_EGG_RATE, FEED_EXP, addPetExp } from './s
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from './src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from './src/1_data/talents.js';
 import { RODS, BAIT, CATCH, rollCatch } from './src/1_data/fishing.js';
-import { rollItem, totalBonus, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
+import { rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 
 const PORT = +process.env.PORT || 8765;
 let _skills = null; const SKILLS = () => (_skills ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'data', 'skills.json'), 'utf8')));
@@ -43,7 +43,8 @@ try { db.exec('ALTER TABLE characters ADD COLUMN gold INTEGER NOT NULL DEFAULT 0
 try { db.exec('ALTER TABLE items ADD COLUMN bound INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 29：商人限量裝備綁定帳號
 try { db.exec('ALTER TABLE items ADD COLUMN ident TEXT'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN gup INTEGER NOT NULL DEFAULT 0'); } catch {}
-try { db.exec('ALTER TABLE items ADD COLUMN pc INTEGER'); } catch {} // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
+try { db.exec('ALTER TABLE items ADD COLUMN pc INTEGER'); } catch {}
+try { db.exec('ALTER TABLE items ADD COLUMN locked INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 50：鎖定（不會被一鍵餵食／分解／賣掉） // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
 // 項目 18：倉庫（整個帳號共用）。存進倉庫的裝備 char_id＝0、acct＝帳號、stash＝分頁 0～5
 try { db.exec('ALTER TABLE items ADD COLUMN acct INTEGER'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN stash INTEGER'); } catch {}
@@ -126,7 +127,7 @@ function auth(req) {
 }
 const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: { wis: 1, ...(d.stats || {}) }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])) }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
-const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, pc: r.pc || null, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
+const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, pc: r.pc || null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
 const ownChar = (uid, cid) => db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+cid, uid);
 const ownItem = (uid, iid) => db.prepare('SELECT i.* FROM items i JOIN characters c ON c.id=i.char_id WHERE i.id=? AND c.account_id=?').get(+iid, uid);
@@ -206,8 +207,10 @@ const api = {
     const bonus = !isTower && cleared === true && secs >= stageTime(S) - 10; // MVP 在時長結束時才出場（T1 15 分、T2／T3 11 分），太快通關不算
     const mul = S.reward * (bonus ? 1.5 : 1);
     const monLvExp = isTower ? stageBaseLv(STAGES[si]) + towerFloor(secs) : cleanDiff(diff, stageBaseLv(S)).monLv; // 這局怪物等級（難度滑桿選的）
-    const jobGain = Math.floor((secs / 3 + kills / 4 + lv * 5) * mul); // Job 經驗維持原本算法（第 25／27 項的 Job 曲線是照這個調的）
-    const gain = Math.floor(runExp(Math.max(0, +kills | 0), monLvExp, c.base_lv) * mul + lv * 5 * mul); // 項目 33：Base 經驗照怪物等級（PC）
+    // 項目 51：難度經驗加成（階梯式）：敵人數量、事件數量每多一階（×2、×3…）Base／Job 經驗 +12%；塔不套用
+    const DX = isTower ? null : cleanDiff(diff, stB), expBonus = DX ? 1 + 0.12 * ((DX.count - 1) + (DX.event - 1)) : 1;
+    const jobGain = Math.floor((secs / 3 + kills / 4 + lv * 5) * mul * expBonus); // Job 經驗維持原本算法（第 25／27 項的 Job 曲線是照這個調的）
+    const gain = Math.floor((runExp(Math.max(0, +kills | 0), monLvExp, c.base_lv) * mul + lv * 5 * mul) * expBonus); // 項目 33：Base 經驗照怪物等級（PC）
     let base = c.base_lv, exp = c.exp + gain, ups = 0;
     while (exp >= needExp(base) && base < BASE_MAX) { exp -= needExp(base); base++; ups++; }
     if (base >= BASE_MAX) exp = 0;
@@ -220,7 +223,7 @@ const api = {
     const got = [], monLvRun = isTower ? stageBaseLv(STAGES[si]) + floor : cleanDiff(diff, stB).monLv; // 寶箱裝備照這局怪物等級挑 PC 原版道具
     for (let i = 0; i < nChest + nBoss; i++) {
       if (bagCount(c.id) >= BAG_MAX) break;
-      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus, undefined, monLvRun, c.job); // 項目 35：感覺提升寶箱品質
+      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus, undefined, monLvRun); // 項目 49：寶箱掉全職業（保留原味），非本職業的拿去一鍵餵寵／分解（項目 50） // 項目 35：感覺提升寶箱品質
       if (i >= nChest && it.rarity < 1) it.rarity = 1; // 首領寶箱至少精良
       if (it.rarity < minR) { filtered++; continue; }
       got.push(giveItem(c.id, it));
@@ -272,9 +275,25 @@ const api = {
     db.prepare('UPDATE items SET equipped=0 WHERE id=?').run(it.id);
     send(res, 200, fullChar(ownChar(uid, it.char_id)));
   },
+  // 項目 50：鎖定／解鎖
+  'POST /api/lock': async (req, res, _, uid) => {
+    const { itemId } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
+    db.prepare('UPDATE items SET locked=? WHERE id=?').run(it.locked ? 0 : 1, it.id); send(res, 200, { locked: !it.locked, char: fullChar(ownChar(uid, it.char_id)) });
+  },
+  // 項目 50：一鍵分解 → 強化金屬＋希幣
+  'POST /api/dismantle': async (req, res, _, uid) => {
+    const { charId, itemIds } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    if (!Array.isArray(itemIds) || !itemIds.length || itemIds.length > BAG_MAX) return send(res, 400, { error: '清單不對' });
+    const its = itemIds.map(id => db.prepare('SELECT * FROM items WHERE id=? AND char_id=?').get(+id, c.id));
+    if (its.some(i => !i)) return send(res, 404, { error: '找不到裝備' }); if (its.some(i => i.equipped || i.locked)) return send(res, 400, { error: '穿著或鎖定的裝備不能分解' });
+    const got = { ore1: 0, ore2: 0, gold: 0 }; for (const i of its) { const y = dismantleYield(i); for (const k in got) got[k] += y[k]; db.prepare('DELETE FROM items WHERE id=?').run(i.id); }
+    const d = JSON.parse(c.data || '{}'); d.mats ??= {}; d.mats.ore1 = (d.mats.ore1 || 0) + got.ore1; if (got.ore2) d.mats.ore2 = (d.mats.ore2 || 0) + got.ore2;
+    db.prepare('UPDATE characters SET gold=gold+?, data=? WHERE id=?').run(got.gold, JSON.stringify(d), c.id);
+    send(res, 200, { n: its.length, ...got, char: fullChar(ownChar(uid, c.id)) });
+  },
   'POST /api/sell': async (req, res, _, uid) => {
     const { itemId } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
-    if (it.equipped) return send(res, 400, { error: '先卸下才能賣' });
+    if (it.equipped) return send(res, 400, { error: '先卸下才能賣' }); if (it.locked) return send(res, 400, { error: '鎖定中，先解鎖才能賣' });
     const price = sellPrice(it);
     db.prepare('DELETE FROM items WHERE id=?').run(it.id); db.prepare('UPDATE characters SET gold=gold+? WHERE id=?').run(price, it.char_id);
     send(res, 200, { price, char: fullChar(ownChar(uid, it.char_id)) });
@@ -726,7 +745,7 @@ const api = {
     const d = JSON.parse(c.data || '{}'), p = (d.pets || []).find(x => x.id === petId); if (!p) return send(res, 404, { error: '找不到寵物' });
     if (!Array.isArray(itemIds) || !itemIds.length || itemIds.length > BAG_MAX) return send(res, 400, { error: '清單不對' });
     const its = itemIds.map(id => db.prepare('SELECT * FROM items WHERE id=? AND char_id=?').get(+id, c.id));
-    if (its.some(i => !i)) return send(res, 404, { error: '找不到裝備' }); if (its.some(i => i.equipped)) return send(res, 400, { error: '穿著的裝備不能餵' });
+    if (its.some(i => !i)) return send(res, 404, { error: '找不到裝備' }); if (its.some(i => i.equipped)) return send(res, 400, { error: '穿著的裝備不能餵' }); if (its.some(i => i.locked)) return send(res, 400, { error: '有鎖定的裝備' });
     const exp = its.reduce((t, i) => t + Math.round(FEED_EXP[i.rarity] * (1 + 0.1 * (i.refine || 0))), 0);
     for (const i of its) db.prepare('DELETE FROM items WHERE id=?').run(i.id);
     const ups = addPetExp(p, exp);

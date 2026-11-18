@@ -156,6 +156,7 @@ import { RODS, BAIT, CATCH } from './src/1_data/fishing.js';
 import { loadSealMap, buildSealMap, liftScene, walkMove } from './src/2_core/seal-map.js';
 import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
+import { offJob, dismantleYield } from './src/1_data/items.js';
 import { BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 import { STATS } from './src/1_data/jobs.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime, bossTimes, GS_REQ, EARLY_WEAK } from './src/1_data/stages.js';
@@ -513,7 +514,7 @@ function openPets() {
       <div class="acts" style="margin-top:6px">${p.id === c.pet ? '<button class="btn" data-pa="">收回</button>' : '<button class="btn primary" data-pa="1">出戰</button>'}<button class="btn" id="petRename">改名</button></div>
       <div style="margin-top:8px"><small><b>餵食</b>：點背包裡不要的裝備（品質越高經驗越多，餵了就沒了）</small></div>
       <div class="bag">${bag.map(i => `<div class="cell ${petFeed.has(i.id) ? 'sel' : ''}" data-pf="${i.id}" style="border-color:${RARITY[i.rarity].color}"><img src="${itemIcon(i)}" alt="">${i.refine ? `<b>+${i.refine}</b>` : ''}</div>`).join('') || '<small style="grid-column:1/-1">背包沒有可以餵的裝備</small>'}</div>
-      <button class="btn primary" id="petFeedGo" ${petFeed.size ? '' : 'disabled'}>餵 ${petFeed.size} 件（+${fexp} 經驗）</button></div>`; })();
+      <button class="btn" id="petFeedAuto">一鍵挑選非本職業</button> <button class="btn primary" id="petFeedGo" ${petFeed.size ? '' : 'disabled'}>餵 ${petFeed.size} 件（+${fexp} 經驗）</button></div>`; })();
   const html = `<p>「這些精靈會陪你出征，餵牠們不要的裝備就會長大，Lv10、Lv20 還會進化喔。」</p>
     <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">${pets.map(card).join('')}</div>${det}
     <div class="sec" style="margin-top:10px"><b>買寵物蛋</b>　<small>每顆 ${EGG_PRICE} 金幣・最多 ${PET_MAX} 隻・打倒 MVP 也有機會撿到</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${Object.entries(PETS).map(([k, D]) => `<button class="btn" data-pb="${k}" ${c.gold < EGG_PRICE || pets.length >= PET_MAX ? 'disabled' : ''}><span style="color:${hex(D.color)}">●</span> ${D.name}</button>`).join('')}</div></div>`;
@@ -523,6 +524,7 @@ function openPets() {
   b.querySelectorAll('[data-pb]').forEach(x => x.onclick = async () => { try { const c2 = await call('POST', '/api/petbuy', { charId: c.id, kind: x.dataset.pb }); petSel = c2.pets.at(-1).id; done(c2, `孵出了 ${PETS[x.dataset.pb].name}！`); } catch (e) { toast(e.message); } });
   b.querySelectorAll('[data-pa]').forEach(x => x.onclick = async () => { try { done(await call('POST', '/api/petactive', { charId: c.id, petId: x.dataset.pa ? p.id : null }), x.dataset.pa ? '出戰！下次出征會跟著你' : '收回了'); } catch (e) { toast(e.message); } });
   b.querySelectorAll('[data-pf]').forEach(x => x.onclick = () => { const id = +x.dataset.pf; petFeed.has(id) ? petFeed.delete(id) : petFeed.add(id); openPets(); });
+  $('#petFeedAuto')?.addEventListener('click', () => { const pick = (c.items || []).filter(i => !i.equipped && !i.locked && offJob(i, c.job)); if (!pick.length) return toast('背包沒有非本職業的裝備（鎖定的不算）'); petFeed = new Set(pick.map(i => i.id)); openPets(); }); // 項目 50
   $('#petFeedGo')?.addEventListener('click', async () => { if (!(await askConfirm(`把 ${petFeed.size} 件裝備餵給${petName(p)}？餵了就沒了。`))) return;
     try { const r = await call('POST', '/api/petfeed', { charId: c.id, petId: p.id, itemIds: [...petFeed] }); petFeed.clear(); done(r.char, `+${r.exp} 經驗${r.ups ? `，升到 Lv ${r.pet.lv}！` : ''}`); } catch (e) { toast(e.message); } });
   $('#petRename')?.addEventListener('click', async () => { const n = await askText('寵物的新名字（1～8 個字，空白＝原名）', p.name || '', { max: 8 }); if (n == null) return;
@@ -721,7 +723,7 @@ function openExpedition() {
   // v1.1（使用者：同一關、自己調難度、照 PC 數值）：怪物等級＝地圖本身等級～Lv200，HP／攻擊照 PC 一般野外怪等級曲線
   const BASE = stageBaseLv(S); let DF = cleanDiff(null, BASE); try { DF = cleanDiff(JSON.parse(localStorage.getItem('ss_diff_saved')), BASE); } catch {}
   const diffTxt = () => { const m = diffMods(DF, BASE), L = diffLoot(DF, BASE), lr = legendRate(lootBonus(L.gear, 0.3) + expSel * 0.4), lrb = legendRate(lootBonus(L.boss, 2) + expSel * 0.4), R = pcRef(DF.monLv);
-    return `PC Lv${DF.monLv} 一般怪：HP ${R.hp.toLocaleString()}・攻擊 ${R.atk}　→ 這張地圖的怪 HP ×${+m.hp.toFixed(2)}・攻擊 ×${+m.dmg.toFixed(2)}・生怪 ×${m.spawn}・精英 ×${m.event}<br><b>裝備 ×${L.gear}</b>（一般寶箱品質）・<b>掉寶 ×${L.boss}</b>（首領寶箱品質）・傳說率 一般 ${(lr * 100).toFixed(2)}%／首領 ${(lrb * 100).toFixed(2)}%<br><small>經驗與金幣不受難度影響</small>`; };
+    return `PC Lv${DF.monLv} 一般怪：HP ${R.hp.toLocaleString()}・攻擊 ${R.atk}　→ 這張地圖的怪 HP ×${+m.hp.toFixed(2)}・攻擊 ×${+m.dmg.toFixed(2)}・生怪 ×${m.spawn}・精英 ×${m.event}<br><b>裝備 ×${L.gear}</b>（一般寶箱品質）・<b>掉寶 ×${L.boss}</b>（首領寶箱品質）・傳說率 一般 ${(lr * 100).toFixed(2)}%／首領 ${(lrb * 100).toFixed(2)}%<br><b>經驗 +${Math.round(12 * ((DF.count - 1) + (DF.event - 1)))}%</b>（敵人數量、事件數量每多一階 +12%；怪物等級越高 Base 經驗也越多）・<small>金幣不受難度影響</small>`; };
   const diffHtml = `<div class="sec"><h4>難度（同一張地圖，怪物強度照 PC 等級）</h4>${[['monLv', '怪物等級'], ...DIFF_KEYS].map(([k, n]) => `<div style="display:flex;align-items:center;gap:8px;margin:2px 0"><small style="width:64px">${n}</small><input type="range" data-df="${k}" min="${k === 'monLv' ? BASE : 1}" max="${k === 'monLv' ? LV_MAX : DIFF_MAX}" value="${DF[k]}" style="flex:1"><b data-dfv="${k}" style="width:52px;text-align:right">${k === 'monLv' ? 'Lv' : '×'}${DF[k]}</b></div>`).join('')}
     <div id="dfTxt" style="font-size:12px;line-height:1.6;margin-top:4px">${diffTxt()}</div><button class="btn" id="dfReset" style="margin-top:4px;padding:4px 10px">恢復預設</button></div>`;
   openDlg('遠征', `<div class="exp"><div class="list">${list}</div><div class="info">${info}${diffHtml}</div></div>`,
@@ -1059,12 +1061,21 @@ function renderBag() {
     const shown = items.filter(it => bagMode !== 'smith' || smithOk(it)), BAG_CAP = 40; // 伺服器 BAG_MAX＝40；PC 背包空格也畫出來
     html += `<div class="bag pc"><b class="pct">ITEM</b>${shown.map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('')}${bagMode === 'smith' ? '' : '<div class="cell empty"></div>'.repeat(Math.max(0, BAG_CAP - shown.length))}${shown.length ? '' : '<small style="color:#8a7a6a">背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
     html += `<div class="pcgold">希幣<span>${(c.gold || 0).toLocaleString()}</span></div>`;
+    if (bagMode === 'bag') html += `<div class="acts" style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="dismAll">🔨 一鍵分解（非本職業＋普通／精良）</button></div>`;
     const it = items.find(i => i.id === selItem);
     html += `<div class="detail">${it ? itemDetail(it) : '<small>點一件裝備看詳細</small>'}</div>`;
   }
   openDlg(title, html, [], true);
   const body = $('#dlgBody');
   body.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bagTab = b.dataset.tab; renderBag(); });
+  // 項目 50：一鍵分解：沒穿、沒鎖，而且（非本職業 或 普通／精良）
+  body.querySelector('#dismAll')?.addEventListener('click', async () => {
+    const pick = items.filter(i => !i.equipped && !i.locked && (offJob(i, c.job) || i.rarity <= 1));
+    if (!pick.length) return toast('沒有可以分解的裝備（穿著、鎖定的不會分解）');
+    const y = pick.reduce((t, i) => { const v = dismantleYield(i); for (const k in v) t[k] += v[k]; return t; }, { ore1: 0, ore2: 0, gold: 0 });
+    if (!(await askConfirm(`分解 ${pick.length} 件裝備？\n會得到 強化金屬・一 ×${y.ore1}${y.ore2 ? `、強化金屬・二 ×${y.ore2}` : ''}、希幣 ${y.gold}\n（穿著、鎖定的不會分解）`, { ok: '分解', danger: true }))) return;
+    act('/api/dismantle', { charId: c.id, itemIds: pick.map(i => i.id) }, r => { selItem = null; return `分解 ${r.n} 件：強化金屬・一 +${r.ore1}${r.ore2 ? `、強化金屬・二 +${r.ore2}` : ''}、希幣 +${r.gold}`; });
+  });
   body.querySelectorAll('[data-smt]').forEach(b => b.onclick = () => { smithTab = b.dataset.smt; selItem = null; renderBag(); });
   body.querySelectorAll('.cell[data-id],.eq[data-id]').forEach(el => el.onclick = () => { if (el.dataset.id) { selItem = +el.dataset.id; renderBag(); } });
   body.querySelectorAll('[data-stat]').forEach(b => b.onclick = () => act('/api/statup', { charId: c.id, stat: b.dataset.stat }));
@@ -1074,6 +1085,7 @@ function renderBag() {
     const id = +b.dataset.item, a = b.dataset.act;
     if (a === 'equip') act('/api/equip', { itemId: id });
     if (a === 'unequip') act('/api/unequip', { itemId: id });
+    if (a === 'lock') act('/api/lock', { itemId: id }, r => r.locked ? '已鎖定（不會被一鍵餵食／分解／賣掉）' : '已解鎖');
     if (a === 'sell') act('/api/sell', { itemId: id }, r => { selItem = null; return `賣得 ${r.price} 金幣`; });
     if (a === 'refine') {
       const cur = (CHAR.items || []).find(i => i.id === id);
@@ -1105,7 +1117,8 @@ function itemDetail(it) {
       h += '<small>失敗只會用掉材料，裝備不變</small>'; }
   } else {
     h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
-    if (!it.equipped) h += `<button class="btn" data-act="sell" data-item="${it.id}">賣出（${sellPrice(it)} 金幣）</button>`;
+    if (!it.equipped && !it.locked) h += `<button class="btn" data-act="sell" data-item="${it.id}">賣出（${sellPrice(it)} 金幣）</button>`;
+    h += `<button class="btn" data-act="lock" data-item="${it.id}">${it.locked ? '🔓 解鎖' : '🔒 鎖定'}</button>${offJob(it, CHAR.job) ? '<small style="color:#8a7a6a">非本職業</small>' : ''}`;
   }
   return h + '</div>';
 }

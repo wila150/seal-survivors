@@ -78,6 +78,10 @@ export const sellPrice = it => Math.round(20 * RARITY[it.rarity].mult * RARITY[i
 // 隨機產生裝備（伺服器用）：bonus 越高越容易出好品質
 // PC 每個職業只能拿自己的武器（11/19 使用者：「小丑不是丟匕首嗎？為甚麼見面禮是長槍」）；盾只有騎士
 export const JOB_WEAPON = { 劍士: 'blade', 騎士: 'sword', 小丑: 'spear', 法師: 'staff', 祭司: 'mace', 鐵匠: 'hammer', 獵人: 'sling' };
+// 項目 50：非本職業的裝備（別職業的武器、非騎士的盾）→ 一鍵餵寵物／分解的候選
+export const offJob = (it, job) => !!JOB_WEAPON[job] && ((it.slot === 'weapon' && it.base !== JOB_WEAPON[job]) || (it.base === 'shield' && job !== '騎士'));
+// 項目 50：分解（強化金屬・一＝1＋品質、+4 以上多 1 個強化金屬・二；希幣＝賣價 60%）
+export const dismantleYield = it => ({ ore1: 1 + it.rarity, ore2: (it.refine || 0) >= 4 ? 1 : 0, gold: Math.round(sellPrice(it) * 0.6) });
 export function rollItem(rand = Math.random, bonus = 0, slot, lv = 0, job = null) { // lv：這局怪物等級（有給才挑 PC 原版道具）；job：只出這職業能用的武器
   const slots = Object.keys(BASES); const s = slot || slots[Math.floor(rand() * slots.length)];
   let bases = BASES[s];
