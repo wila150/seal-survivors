@@ -37,7 +37,8 @@ CREATE INDEX IF NOT EXISTS items_char ON items(char_id);
 try { db.exec('ALTER TABLE characters ADD COLUMN gold INTEGER NOT NULL DEFAULT 0'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN bound INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 29：商人限量裝備綁定帳號
 try { db.exec('ALTER TABLE items ADD COLUMN ident TEXT'); } catch {}
-try { db.exec('ALTER TABLE items ADD COLUMN gup INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
+try { db.exec('ALTER TABLE items ADD COLUMN gup INTEGER NOT NULL DEFAULT 0'); } catch {}
+try { db.exec('ALTER TABLE items ADD COLUMN pc INTEGER'); } catch {} // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
 // 項目 18：倉庫（整個帳號共用）。存進倉庫的裝備 char_id＝0、acct＝帳號、stash＝分頁 0～5
 try { db.exec('ALTER TABLE items ADD COLUMN acct INTEGER'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN stash INTEGER'); } catch {}
@@ -55,6 +56,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS auctions (id INTEGER PRIMARY KEY, seller_cha
   rarity INTEGER NOT NULL, roll REAL NOT NULL, refine INTEGER NOT NULL, price INTEGER NOT NULL, expires INTEGER NOT NULL, created INTEGER NOT NULL)`);
 try { db.exec('ALTER TABLE auctions ADD COLUMN ident TEXT'); } catch {} // 項目 28
 try { db.exec('ALTER TABLE auctions ADD COLUMN gup INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 46
+try { db.exec('ALTER TABLE auctions ADD COLUMN pc INTEGER'); } catch {}
 const AUC_MAX = 10, AUC_HOURS = 24, AUC_FEE = 0.05;
 // 過期的拍賣退回賣家背包
 function expireAuctions() {
@@ -63,7 +65,7 @@ function expireAuctions() {
     db.prepare('DELETE FROM auctions WHERE id=?').run(a.id);
   }
 }
-const aucView = a => ({ id: a.id, seller: a.seller_name, sellerChar: a.seller_char, slot: a.slot, base: a.base, rarity: a.rarity, roll: a.roll, refine: a.refine, gup: a.gup || 0, price: a.price, expires: a.expires, ident: a.ident ? JSON.parse(a.ident) : null });
+const aucView = a => ({ id: a.id, seller: a.seller_name, sellerChar: a.seller_char, slot: a.slot, base: a.base, rarity: a.rarity, roll: a.roll, refine: a.refine, gup: a.gup || 0, pc: a.pc || null, price: a.price, expires: a.expires, ident: a.ident ? JSON.parse(a.ident) : null });
 const BAG_MAX = 40;
 const STASH_PAGES = 6, STASH_SIZE = 40, STASH_FREE = 2, STASH_COST = [0, 0, 5000, 10000, 20000, 40000]; // 第 3 頁起花金幣解鎖（數值暫定）
 const stashInfo = uid => { const a = db.prepare('SELECT stash FROM accounts WHERE id=?').get(uid); const s = a?.stash ? JSON.parse(a.stash) : {};
@@ -87,7 +89,7 @@ const hasAttach = m => m.gold > 0 || !!m.items || !!m.mats;
 function welcomeMail(c) {
   const d = JSON.parse(c.data || '{}'); if (d.welcomed) return;
   d.welcomed = true; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
-  let w; do { w = rollItem(Math.random, 2, 'weapon'); } while (w.rarity < 2);
+  let w; do { w = rollItem(Math.random, 2, 'weapon', Math.max(1, c.base_lv), c.job); } while (w.rarity < 2); // 見面禮：自己職業的武器、照角色等級挑 PC 原版
   sendMail(c.id, { sender: '希望倖存者營運團隊', title: '開服見面禮', body: `${c.name}，歡迎來到艾林！這是我們準備的見面禮，祝你出征順利。`, gold: 1000, items: [w], mats: { ore1: 10 } });
 }
 const stashSave = (uid, s) => db.prepare('UPDATE accounts SET stash=? WHERE id=?').run(JSON.stringify(s), uid);
@@ -115,14 +117,14 @@ function auth(req) {
 }
 const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: { wis: 1, ...(d.stats || {}) }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])) }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
-const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
+const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, pc: r.pc || null, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
 const ownChar = (uid, cid) => db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+cid, uid);
 const ownItem = (uid, iid) => db.prepare('SELECT i.* FROM items i JOIN characters c ON c.id=i.char_id WHERE i.id=? AND c.account_id=?').get(+iid, uid);
 // it.refine／it.ident 會保留（拍賣成交、取回、過期退回都走這裡；以前取回／成交會把精煉歸零，11/18 修正）
 function giveItem(cid, it, bound = false) {
   const ident = typeof it.ident === 'string' ? it.ident : it.ident ? JSON.stringify(it.ident) : null;
-  const r = db.prepare('INSERT INTO items (char_id, slot, base, rarity, roll, refine, created, bound, ident, gup) VALUES (?,?,?,?,?,?,?,?,?,?)').run(cid, it.slot, it.base, it.rarity, it.roll, it.refine | 0, Date.now(), bound ? 1 : 0, ident, it.gup | 0);
+  const r = db.prepare('INSERT INTO items (char_id, slot, base, rarity, roll, refine, created, bound, ident, gup, pc) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(cid, it.slot, it.base, it.rarity, it.roll, it.refine | 0, Date.now(), bound ? 1 : 0, ident, it.gup | 0, it.pc || null);
   return { ...it, refine: it.refine | 0, gup: it.gup | 0, ident: ident ? JSON.parse(ident) : null, id: Number(r.lastInsertRowid), equipped: false, bound };
 }
 const bagCount = cid => db.prepare('SELECT COUNT(*) n FROM items WHERE char_id=?').get(cid).n;
@@ -202,10 +204,10 @@ const api = {
     const minR = Math.max(0, Math.min(4, lootMin | 0)); let filtered = 0;
     const lukBonus = Math.min(0.6, ((d0.stats?.luk || 1) - 1) * 0.02); // 感覺每點 +0.02 品質加成（暫定） // 撿取篩選：低於門檻的直接不給、不佔背包
     const nBoss = Math.max(0, Math.min(+bossChests | 0, Math.floor(secs / 120), 5));
-    const got = [];
+    const got = [], monLvRun = isTower ? stageBaseLv(STAGES[si]) + floor : cleanDiff(diff, stB).monLv; // 寶箱裝備照這局怪物等級挑 PC 原版道具
     for (let i = 0; i < nChest + nBoss; i++) {
       if (bagCount(c.id) >= BAG_MAX) break;
-      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus); // 項目 35：感覺提升寶箱品質
+      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus, undefined, monLvRun, c.job); // 項目 35：感覺提升寶箱品質
       if (i >= nChest && it.rarity < 1) it.rarity = 1; // 首領寶箱至少精良
       if (it.rarity < minR) { filtered++; continue; }
       got.push(giveItem(c.id, it));
@@ -237,7 +239,7 @@ const api = {
     if (bl.some(n => mvpNames.has(n)) && Math.random() < MVP_EGG_RATE && d.pets.length < PET_MAX) { const k = Object.keys(PETS)[Math.random() * 4 | 0]; petEgg = { id: Date.now(), kind: k, lv: 1, exp: 0 }; d.pets.push(petEgg); }
     db.prepare('UPDATE characters SET base_lv=?, job_lv=?, exp=?, gold=gold+?, data=? WHERE id=?').run(base, job, exp, gold, JSON.stringify(d), c.id);
     db.prepare('INSERT INTO runs (char_id, secs, kills, lv, exp, created) VALUES (?,?,?,?,?,?)').run(c.id, secs, kills, lv, gain, Date.now());
-    for (const [l, slot, rar, name] of fameGear) sendMail(c.id, { sender: '名聲', title: `名聲 Lv${l} 獎勵`, body: `你的名聲到了 Lv${l}，送你名聲專屬裝備「${name}」。`, items: [{ ...rollItem(Math.random, 0, slot), rarity: rar }] });
+    for (const [l, slot, rar, name] of fameGear) sendMail(c.id, { sender: '名聲', title: `名聲 Lv${l} 獎勵`, body: `你的名聲到了 Lv${l}，送你名聲專屬裝備「${name}」。`, items: [{ ...rollItem(Math.random, 0, slot, Math.max(1, c.base_lv), c.job), rarity: rar }] });
     let tower = null;
     if (isTower) { const before = towerBest(c.id), score = towerScore(floor, kills, curse);
       db.prepare('INSERT INTO towers (char_id, month, floor, score, curse, kills, created) VALUES (?,?,?,?,?,?,?)').run(c.id, monthKey(), floor, score, curse, kills, Date.now());
@@ -269,7 +271,7 @@ const api = {
     const PRICE = 150;
     if ((c.gold ?? 0) < PRICE) return send(res, 400, { error: `金幣不夠（要 ${PRICE}）` });
     if (bagCount(c.id) >= BAG_MAX) return send(res, 400, { error: '背包滿了' });
-    const it = rollItem(Math.random, 0, slot); if (it.rarity > 1) it.rarity = 1; // 商店只賣普通～精良
+    const it = rollItem(Math.random, 0, slot, Math.max(1, c.base_lv), c.job); if (it.rarity > 1) it.rarity = 1; // 商店只賣普通～精良；照角色等級、職業
     db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(PRICE, c.id);
     const got = giveItem(c.id, it);
     send(res, 200, { item: got, char: fullChar(ownChar(uid, c.id)) });
@@ -657,7 +659,7 @@ const api = {
         case 'talentreset': { d.talents = {}; d.talents2 = {}; saveD(); msg = '天賦全部重置'; break; }
         case 'item': { const slot = args[0] || 'weapon'; if (!SLOTS[slot]) throw new Error('部位：weapon／armor／acc');
           const rar = int(1, 0, 4), ref = args[2] == null ? 0 : int(2, 0, REFINE_MAX); if (bagCount(c.id) >= BAG_MAX) throw new Error('背包滿了');
-          const it = rollItem(Math.random, 0, slot); // 部位、底材、數值浮動照一般擲法，品質與精煉用指定的
+          const it = rollItem(Math.random, 0, slot, Math.max(1, c.base_lv), c.job); // 部位、底材、數值浮動照一般擲法，品質與精煉用指定的
           const got = giveItem(c.id, { ...it, rarity: rar, refine: ref }); msg = `給了 ${RARITY_N[rar]} ${slot} +${ref}（id ${got.id}）`; break; }
         case 'mat': { const k = args[0], v = int(1, 1, 99999), ok = [...Object.keys(ORES), 'dust', 'crystal', 'rainbow']; if (!ok.includes(k)) throw new Error('道具：' + ok.join('／'));
           d.mats ??= {}; d.mats[k] = (d.mats[k] || 0) + v; saveD(); msg = `${k} +${v}（持有 ${d.mats[k]}）`; break; }
@@ -757,8 +759,8 @@ const api = {
     const c = ownChar(uid, it.char_id);
     if (db.prepare('SELECT COUNT(*) n FROM auctions WHERE seller_char=?').get(c.id).n >= AUC_MAX) return send(res, 400, { error: `最多同時上架 ${AUC_MAX} 件` });
     db.prepare('DELETE FROM items WHERE id=?').run(it.id);
-    db.prepare('INSERT INTO auctions (seller_char, seller_name, slot, base, rarity, roll, refine, price, expires, created, ident, gup) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-      .run(c.id, c.name, it.slot, it.base, it.rarity, it.roll, it.refine, price, Date.now() + AUC_HOURS * 3600000, Date.now(), it.ident, it.gup | 0);
+    db.prepare('INSERT INTO auctions (seller_char, seller_name, slot, base, rarity, roll, refine, price, expires, created, ident, gup, pc) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(c.id, c.name, it.slot, it.base, it.rarity, it.roll, it.refine, price, Date.now() + AUC_HOURS * 3600000, Date.now(), it.ident, it.gup | 0, it.pc || null);
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
   'POST /api/auccancel': async (req, res, _, uid) => {

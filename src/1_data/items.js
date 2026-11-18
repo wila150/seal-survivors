@@ -1,4 +1,5 @@
 // 裝備定義（前端、伺服器、遊戲共用）
+import { PC_ITEMS } from './pc-items.js';
 // 圖示編號 = assets/items/<編號>.png（取自 GM 工具的道具圖示）
 
 export const SLOTS = { weapon: '武器', armor: '防具', acc: '飾品' };
@@ -10,7 +11,9 @@ export const BASES = {
     { key: 'blade',  name: '精鋼大劍', icon: 122, stat: { atk: 0.12 } },
     { key: 'staff',  name: '魔法杖',   icon: 186, stat: { atk: 0.07, haste: 0.04 } },
     { key: 'hammer', name: '戰錘',     icon: 828, stat: { atk: 0.14 } },
-    { key: 'spear',  name: '長槍',     icon: 183, stat: { atk: 0.09, crit: 0.02 } },
+    { key: 'spear',  name: '匕首',     icon: 183, stat: { atk: 0.09, crit: 0.02 } },
+    { key: 'mace',   name: '鎚',       icon: 128, stat: { atk: 0.10, haste: 0.02 } }, // 11/19 道具照 PC：補上祭司鎚、獵人彈弓
+    { key: 'sling',  name: '彈弓',     icon: 1561, stat: { atk: 0.08, crit: 0.03 } },
   ],
   armor: [
     { key: 'leather', name: '皮甲',   icon: 144, stat: { hp: 20, armor: 1 } },
@@ -44,23 +47,47 @@ export const REFINE_RATE = [1, 1, 1, 0.9, 0.8, 0.7, 0.55, 0.45, 0.35, 0.25];
 export const refineCost = lv => 60 * (lv + 1) * (lv + 1);
 export const refineBreaks = lv => lv >= 6; // 從 +6 往 +7 開始失敗會碎
 
+// ===== 道具照 PC（11/19 使用者：「道具數值也照 pc 去做」）=====
+// 每種底材對到一種 PC 道具類別（src/1_data/pc-items.js，tools/build-pc-items.mjs 從服務端 item.scr 轉出）；
+// 掉落時依這局的怪物等級挑 PC 原版那件（名稱、圖示、需求等級照 PC），數值＝底材數值 × (那件的 PC 攻擊或防禦 ÷ 該類別入門款)
+// 舊裝備（沒有 pc 編號）照舊：底材名稱、倍率 1
+export const PC_TYPE_OF = { sword: 4, blade: 6, spear: 7, hammer: 8, mace: 9, staff: 11, sling: 46, leather: 16, robe: 16, chain: 15, shield: 14 };
+const REF = {}; for (const t in PC_ITEMS) { const v = PC_ITEMS[t].slice(0, 5).map(x => x[3]).sort((a, b) => a - b); REF[t] = v[v.length >> 1]; }
+export function pcOf(it) { const t = PC_TYPE_OF[it?.base]; return it?.pc && t ? PC_ITEMS[t]?.find(x => x[0] === it.pc) || null : null; }
+export const pcTier = it => { const p = pcOf(it); return p ? Math.max(0.5, p[3] / REF[PC_TYPE_OF[it.base]]) : 1; };
+export const pcReqLv = it => pcOf(it)?.[2] || 0;
+// 依怪物等級挑一件：需求等級 ≤ lv 的最高幾件裡隨機（越接近 lv 越常出）
+export function pickPc(base, lv, rand = Math.random) {
+  const L = PC_ITEMS[PC_TYPE_OF[base]]; if (!L) return null;
+  const ok = L.filter(x => x[2] <= Math.max(lv, L[0][2])); const top = ok.slice(-4);
+  const w = top.map((_, i) => i + 1); let r = rand() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < top.length; i++) { r -= w[i]; if (r <= 0) return top[i][0]; }
+  return top.at(-1)[0];
+}
+
 // 一件裝備實際的數值（含品質與強化）
 export function itemStats(it) {
   const base = BASES[it.slot]?.find(b => b.key === it.base); if (!base) return {};
-  const m = RARITY[it.rarity].mult * (it.roll || 1) * (1 + 0.12 * (it.refine || 0)) * (GUP[it.gup || 0]?.mult || 1);
+  const m = RARITY[it.rarity].mult * (it.roll || 1) * (1 + 0.12 * (it.refine || 0)) * (GUP[it.gup || 0]?.mult || 1) * pcTier(it);
   return Object.fromEntries(Object.entries(base.stat).map(([k, v]) => [k, v * m]));
 }
-export const itemName = it => `${it.refine ? '+' + it.refine + ' ' : ''}${BASES[it.slot]?.find(b => b.key === it.base)?.name || '?'}${it.gup ? '.' + GUP[it.gup].tag : ''}`; // 原版寫法：長劍.G
-export const itemIcon = it => `assets/items/${BASES[it.slot]?.find(b => b.key === it.base)?.icon ?? 0}.png`;
-export const sellPrice = it => Math.round(20 * RARITY[it.rarity].mult * RARITY[it.rarity].mult * (1 + (it.refine || 0) * 0.5));
+export const itemName = it => `${it.refine ? '+' + it.refine + ' ' : ''}${pcOf(it)?.[1] || BASES[it.slot]?.find(b => b.key === it.base)?.name || '?'}${it.gup ? '.' + GUP[it.gup].tag : ''}`; // 原版寫法：長劍.G
+export const itemIcon = it => `assets/items/${pcOf(it)?.[4] ?? BASES[it.slot]?.find(b => b.key === it.base)?.icon ?? 0}.png`;
+export const sellPrice = it => Math.round(20 * RARITY[it.rarity].mult * RARITY[it.rarity].mult * (1 + (it.refine || 0) * 0.5) * Math.sqrt(pcTier(it)));
 
 // 隨機產生裝備（伺服器用）：bonus 越高越容易出好品質
-export function rollItem(rand = Math.random, bonus = 0, slot) {
+// PC 每個職業只能拿自己的武器（11/19 使用者：「小丑不是丟匕首嗎？為甚麼見面禮是長槍」）；盾只有騎士
+export const JOB_WEAPON = { 劍士: 'blade', 騎士: 'sword', 小丑: 'spear', 法師: 'staff', 祭司: 'mace', 鐵匠: 'hammer', 獵人: 'sling' };
+export function rollItem(rand = Math.random, bonus = 0, slot, lv = 0, job = null) { // lv：這局怪物等級（有給才挑 PC 原版道具）；job：只出這職業能用的武器
   const slots = Object.keys(BASES); const s = slot || slots[Math.floor(rand() * slots.length)];
-  const bases = BASES[s]; const b = bases[Math.floor(rand() * bases.length)];
+  let bases = BASES[s];
+  if (job && JOB_WEAPON[job]) { if (s === 'weapon') bases = bases.filter(b => b.key === JOB_WEAPON[job]); else if (s === 'armor' && job !== '騎士') bases = bases.filter(b => b.key !== 'shield'); }
+  const b = bases[Math.floor(rand() * bases.length)];
   const ws = RARITY.map((r, i) => r.w * (1 + bonus * i)); let x = rand() * ws.reduce((a, c) => a + c, 0), rarity = 0;
   for (let i = 0; i < ws.length; i++) { x -= ws[i]; if (x <= 0) { rarity = i; break; } }
-  return { slot: s, base: b.key, rarity, roll: +(0.9 + rand() * 0.2).toFixed(3), refine: 0 };
+  const it = { slot: s, base: b.key, rarity, roll: +(0.9 + rand() * 0.2).toFixed(3), refine: 0 };
+  if (lv > 0) { const pc = pickPc(b.key, lv, rand); if (pc) it.pc = pc; }
+  return it;
 }
 
 // 把身上裝備的數值加總
