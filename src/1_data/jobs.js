@@ -74,7 +74,8 @@ export function playerLook(job, gender, hair = 0, hairColor = 0, outfit = 0, ite
   const g = gender === '女' ? 'w' : 'm', s = 'abcdef'[hair] || 'a', gi = g === 'w' ? 1 : 0;
   let gear = [...playerGear(job)]; const swap = {};
   for (const it of items || []) {
-    if (!it.equipped || !it.pc) continue; const m = PC_WEAR[it.pc]?.[gi] || PC_WEAR[it.pc]?.[0]; if (!m) continue;
+    const pid = it.look || it.pc; // 衣櫥外觀複製：有 look 就顯示 look 那件的外觀
+    if (!it.equipped || !pid) continue; const m = PC_WEAR[pid]?.[gi] || PC_WEAR[pid]?.[0]; if (!m) continue;
     if (WEAR_PIECE[it.slot]) swap[WEAR_PIECE[it.slot]] = m;
     else if (it.slot === 'weapon') gear = [m, ...gear.filter(x => !/^wpn_R_/i.test(x))];
     else if (it.slot === 'shield') gear = [...gear.filter(x => !/^wpn_L_/i.test(x)), m];

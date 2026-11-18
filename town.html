@@ -1165,7 +1165,8 @@ function renderBag() {
   const title = bagMode === 'bag' && bagTab === 'stats' ? '角色' : { bag: '背包', shop: '裝備商人', smith: '強化師' }[bagMode];
   const intro = { bag: '', shop: '<p>「看看我的貨吧！每件 <b class="gold">150</b> 金幣，品質是普通到精良。不要的裝備也可以賣給我。」</p>',
     smith: `<p>「選一件裝備精煉，每次用掉 1 個礦石；也可以用寶石 <b>G 化</b>（一般 → G → DG → XG，紅寶石／鑽石／粉紅鑽）。+6 以上失敗可是會<b style="color:#c0392b">碎掉</b>的喔。」<br><small>持有：${Object.entries(ORES).filter(([, o]) => !o.scroll).map(([k, o]) => `${o.name} ${c.mats?.[k] || 0}`).join('　')}</small></p>` }[bagMode];
-  let html = intro + `<div class="tabs2"><button class="btn ${bagTab === 'items' ? 'primary' : ''}" data-tab="items">裝備</button>${bagMode === 'smith' ? ['weapon', 'armor'].map(k => `<button class="btn ${smithTab === k ? 'primary' : ''}" data-smt="${k}">${k === 'weapon' ? '武器' : '防具'}</button>`).join('') : ''}${bagMode === 'bag' ? `<button class="btn ${bagTab === 'stats' ? 'primary' : ''}" data-tab="stats">素質${c.points ? `（${c.points}）` : ''}</button>` : ''}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
+  // 背包＝PC 原版 ITEM 視窗：只有希幣列＋道具格，不放分頁、不放跳到別的視窗的按鈕（11/19 使用者：按鈕不要東串西串）
+  let html = bagMode === 'bag' ? '' : intro + `<div class="tabs2"><button class="btn ${bagTab === 'items' ? 'primary' : ''}" data-tab="items">裝備</button>${bagMode === 'smith' ? ['weapon', 'armor'].map(k => `<button class="btn ${smithTab === k ? 'primary' : ''}" data-smt="${k}">${k === 'weapon' ? '武器' : '防具'}</button>`).join('') : ''}${bagMode === 'bag' ? `<button class="btn ${bagTab === 'stats' ? 'primary' : ''}" data-tab="stats">素質${c.points ? `（${c.points}）` : ''}</button>` : ''}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
   if (bagTab === 'stats') {
     const jp = c.jobNeed ? `${c.jobExp ?? 0} / ${c.jobNeed}` : 'MAX';
     html += `<div style="margin-bottom:6px">Base Lv <b>${c.baseLv}</b>（${c.exp} / ${c.need}）　Job Lv <b>${c.jobLv}</b> / ${c.jobMax ?? 50}（${jp}）<br><small>Job 等級是天賦點數的來源：每 1 Job Lv＝1 點天賦。Job 經驗跟 Base 經驗一起拿。</small></div>`;
@@ -1224,6 +1225,8 @@ function renderBag() {
       if (refineBreaks(cur.refine) && !protect && !(await askConfirm(`+${cur.refine} → +${cur.refine + 1} 失敗會碎掉，確定要強化？`, { danger: true }))) return;
       act('/api/refine', { itemId: id, protect }, r => { if (r.result === 'broken') selItem = null; return { ok: '強化成功！', down: '強化失敗，降了一級…', broken: '強化失敗，裝備碎掉了！' }[r.result]; });
     }
+    if (a === 'elem') act('/api/elemsynth', { itemId: id, elem: +b.dataset.el }, () => `屬性合成成功：${['', '火', '水', '木', '金', '土', '光', '暗'][+b.dataset.el]}屬性`);
+    if (a === 'lookcopy') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把這件的外觀改成「${itemName(from)}」？\n「${itemName(from)}」會消失，花 1000 希幣。`, { ok: '複製外觀' }))) return; act('/api/lookcopy', { fromId: from.id, toId: id }, () => '外觀複製完成！'); }
     if (a === 'inherit') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把「${itemName(from)}」的精煉 +${from.refine || 0}、G 化 ${GUP[from.gup || 0]?.tag || '一般'} 繼承到這件？\n「${itemName(from)}」會消失，花 ${inheritCost(from)} 希幣。`, { ok: '繼承' }))) return; act('/api/inherit', { fromId: from.id, toId: id }, () => '繼承完成！'); }
     if (a === 'gup') act('/api/gup', { itemId: id, box: b.dataset.box }, r => r.result === 'ok' ? `G 化成功！變成 ${r.tag}` : 'G 化失敗，材料用掉了…');
   });
@@ -1252,6 +1255,10 @@ function itemDetail(it) {
       h += `<button class="btn" data-act="gup" data-item="${it.id}" style="border-color:#${nx.glow.toString(16)}">G 化 → ${nx.tag}（${pct}%，用 1 個${ORES[nx.gem].name}，持有 ${have}）</button>`;
       for (const bx of ['gbox80', 'gbox100']) if (CHAR.mats?.[bx] > 0) h += `<button class="btn" data-act="gup" data-box="${bx}" data-item="${it.id}">＋${ORES[bx].name}（持有 ${CHAR.mats[bx]}）</button>`;
       h += '<small>失敗只會用掉材料，裝備不變</small>'; }
+    // 指令 4-3 七大屬性合成（武器，100% 成功）＋衣櫥外觀複製（同部位另一件的外觀，來源消失）
+    if (it.slot === 'weapon') h += `<div style="flex-basis:100%;margin-top:6px"><small><b>屬性合成</b>（100% 成功，2000 希幣）目前：${['無', '火', '水', '木', '金', '土', '光', '暗'][it.elem || 0]}屬性</small></div>` + [1, 2, 3, 4, 5, 6, 7].filter(e => e !== it.elem).map(e => `<button class="btn" data-act="elem" data-el="${e}" data-item="${it.id}">${['', '火', '水', '木', '金', '土', '光', '暗'][e]}</button>`).join('');
+    { const ls = (CHAR.items || []).filter(x => x.id !== it.id && x.slot === it.slot && !x.equipped && !x.locked && (x.look || x.pc) && (x.look || x.pc) !== (it.look || it.pc));
+      if (ls.length) h += `<div style="flex-basis:100%;margin-top:6px"><small><b>衣櫥外觀複製</b>：這件改成下面那件的外觀（那件會消失，1000 希幣）</small></div>` + ls.slice(0, 8).map(x => `<button class="btn" data-act="lookcopy" data-from="${x.id}" data-item="${it.id}">👗 ${esc(itemName(x))}</button>`).join(''); }
     // 指令 4-2 裝備繼承：把同部位舊裝備的精煉等級、G 化階段搬到這件（舊裝備會消失），花希幣
     const src = (CHAR.items || []).filter(x => x.id !== it.id && x.slot === it.slot && !x.equipped && !x.locked && ((x.refine || 0) > (it.refine || 0) || (x.gup || 0) > (it.gup || 0)));
     if (src.length) h += `<div style="flex-basis:100%;margin-top:6px"><small><b>裝備繼承</b>：把下面那件的精煉＋G 化搬到這件（那件會消失）</small></div>` + src.map(x => `<button class="btn" data-act="inherit" data-from="${x.id}" data-item="${it.id}">⇦ ${esc(itemName(x))}（${inheritCost(x)} 希幣）</button>`).join('');

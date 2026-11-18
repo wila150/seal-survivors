@@ -174,6 +174,7 @@ rig.walk = (p, nx, nz) => walkMove(MAP, p, nx, nz); // 原版可走區（水、�
 // 4 爆發：時間恢復、全程無敵、可以自由走位；跑馬燈依序點亮 A → S → AS…，每段自動放出身上的技能；最後一段是終結技
 // 屬性＝局內等級最高的屬性寶石（沒有＝無屬性）；連段長度基本 3 段，升級卡「連段擴充」每張 +2（最多 12）
 const CB = { g: 0, st: 'charge', done: 0 };
+const W_ELEM = (CHAR.items || []).find(i => i.equipped && i.slot === 'weapon')?.elem || 0; // 指令 4-3 武器七大屬性合成
 const SEG = ['A', 'S', 'AS', 'D', 'AD', 'SD', 'ASD', 'SA', 'DA', 'DS', 'DSA', 'ASDA'];
 const JOB_LINE = { 劍士: '劍隨我心！', 騎士: '以盾為誓！', 法師: '元素聽我號令！', 祭司: '聖光審判！', 小丑: '表演開始～', 鐵匠: '全力打鐵！', 獵人: '百步穿楊！', 初心者: '別小看初心者！' };
 const cbStyle = document.createElement('style'); cbStyle.textContent = `#ultBtn{position:fixed;right:calc(50% - 215px);bottom:calc(max(10px,env(safe-area-inset-bottom)) + 18px);z-index:7;width:64px;height:64px;border-radius:50%;border:3px solid #fff8;--p:0;
@@ -192,7 +193,7 @@ document.head.appendChild(cbStyle);
 const ultBtn = document.createElement('button'); ultBtn.id = 'ultBtn'; ultBtn.title = '連續技（空白鍵／滑鼠右鍵）'; ultBtn.innerHTML = '<span>ASD</span>'; document.body.appendChild(ultBtn);
 const qteEl = document.createElement('div'); qteEl.id = 'qte'; document.body.appendChild(qteEl);
 const marq = document.createElement('div'); marq.id = 'cbMarq'; document.body.appendChild(marq);
-const cbElem = () => { const top = Object.entries(P.egem || {}).filter(([k]) => k !== 'combo').map(([, g]) => g).sort((a, b) => b.lv - a.lv)[0]; return top ? top.e : 0; };
+const cbElem = () => { const top = Object.entries(P.egem || {}).filter(([k]) => k !== 'combo').map(([, g]) => g).sort((a, b) => b.lv - a.lv)[0]; return top ? top.e : W_ELEM; }; // 沒有屬性寶石 → 武器屬性
 function cbCharge(n) { if (CB.st !== 'charge') return; CB.g = Math.min(100, CB.g + n); if (CB.g >= 100) { CB.st = 'ready'; ultBtn.classList.add('full'); ultBtn.style.setProperty('--ec', ELEM_COLOR[cbElem()] || '#ffd36b'); } }
 // 屬性軌跡：回傳 10 個畫面位置（比例）
 function orbPattern(e) {
@@ -542,7 +543,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   const weak = (e.slowT > 0 || e.stunT > 0) && (tags.includes('fire') || tags.includes('heavy'));
   const gm = P.gem?.[src], eg = P.egem?.[src];
   // 項目 44：屬性相剋（element.scr）；項目 23：屬性寶石改招式屬性、每級爆擊 +3%
-  const em0 = elemMult(eg ? eg.e : src === 'pet' && PET ? PETS[PET.kind].elem : skillElem(SKD.skills[src]), MONSTER_ELEM[e.type] ?? 0); // 寵物＝自己的屬性
+  const em0 = elemMult(eg ? eg.e : src === 'pet' && PET ? PETS[PET.kind].elem : (skillElem(SKD.skills[src]) || W_ELEM), MONSTER_ELEM[e.type] ?? 0); // 指令 4-3：招式本身沒屬性 → 用武器合成的屬性 // 寵物＝自己的屬性
   const em = em0 > 1 ? 1 + (em0 - 1) * 1.5 : em0; // 項目 57：提高相剋倍率（剋制的加成 ×1.5，例：1.2 → 1.3）
   const crit = weak || Math.random() < P.crit + (gm?.crit || 0) + (eg ? 0.03 * eg.lv : 0);
   // 項目 34：× 0.9～1.1 隨機；爆擊 ×1.6＋額外（技能寶石爆傷）

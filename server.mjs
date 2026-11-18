@@ -50,7 +50,9 @@ try { db.exec("UPDATE items SET equipped=0 WHERE slot='shield' AND char_id IN (S
 // 11/19：已經穿著別職業武器的（例：騎士穿彈弓）卸下
 try { for (const [job, base] of Object.entries(JOB_WEAPON)) db.prepare("UPDATE items SET equipped=0 WHERE slot='weapon' AND base!=? AND equipped=1 AND char_id IN (SELECT id FROM characters WHERE job=?)").run(base, job); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN pc INTEGER'); } catch {}
-try { db.exec('ALTER TABLE items ADD COLUMN locked INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 50：鎖定（不會被一鍵餵食／分解／賣掉） // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
+try { db.exec('ALTER TABLE items ADD COLUMN locked INTEGER NOT NULL DEFAULT 0'); } catch {}
+try { db.exec('ALTER TABLE items ADD COLUMN elem INTEGER NOT NULL DEFAULT 0'); } catch {} // 指令 4-3 武器七大屬性合成（1 火…7 暗）
+try { db.exec('ALTER TABLE items ADD COLUMN look INTEGER'); } catch {} // 指令 4-3 衣櫥外觀複製（顯示成這個 PC 道具的外觀） // 項目 50：鎖定（不會被一鍵餵食／分解／賣掉） // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
 // 項目 18：倉庫（整個帳號共用）。存進倉庫的裝備 char_id＝0、acct＝帳號、stash＝分頁 0～5
 try { db.exec('ALTER TABLE items ADD COLUMN acct INTEGER'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN stash INTEGER'); } catch {}
@@ -166,7 +168,7 @@ function auth(req) {
 }
 const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries(d.persona?.pts || {})) S0[k] = (S0[k] || 0) + v; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, pts: d.persona?.pts || {} }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])) }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
-const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
+const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
 const ownChar = (uid, cid) => db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+cid, uid);
 const ownItem = (uid, iid) => db.prepare('SELECT i.* FROM items i JOIN characters c ON c.id=i.char_id WHERE i.id=? AND c.account_id=?').get(+iid, uid);
@@ -393,6 +395,23 @@ const api = {
     else return send(res, 400, { error: '沒有這個動作' });
     db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(cost, JSON.stringify(d), c.id);
     send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
+  // 指令 4-3 七大屬性合成：武器 100% 成功變成指定屬性（火水木金土光暗），2000 希幣
+  'POST /api/elemsynth': async (req, res, _, uid) => {
+    const { itemId, elem } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
+    if (it.slot !== 'weapon') return send(res, 400, { error: '只有武器可以屬性合成' }); if (!Number.isInteger(elem) || elem < 1 || elem > 7) return send(res, 400, { error: '沒有這個屬性' });
+    const c = ownChar(uid, it.char_id); if ((c.gold ?? 0) < 2000) return send(res, 400, { error: '希幣不夠（要 2000）' });
+    db.prepare('UPDATE items SET elem=? WHERE id=?').run(elem, it.id); db.prepare('UPDATE characters SET gold=gold-2000 WHERE id=?').run(c.id);
+    send(res, 200, { char: fullChar(ownChar(uid, c.id)) });
+  },
+  // 指令 4-3 衣櫥外觀複製：把同部位另一件裝備的外觀複製到這件（來源消失），1000 希幣
+  'POST /api/lookcopy': async (req, res, _, uid) => {
+    const { fromId, toId } = await body(req); const a = ownItem(uid, fromId), b = ownItem(uid, toId);
+    if (!a || !b || a.id === b.id) return send(res, 404, { error: '找不到裝備' }); if (a.char_id !== b.char_id || a.slot !== b.slot) return send(res, 400, { error: '只能複製同部位的外觀' });
+    if (a.equipped || a.locked) return send(res, 400, { error: '來源裝備要先卸下、解鎖' }); if (!(a.look || a.pc)) return send(res, 400, { error: '這件沒有原版外觀' });
+    const c = ownChar(uid, a.char_id); if ((c.gold ?? 0) < 1000) return send(res, 400, { error: '希幣不夠（要 1000）' });
+    db.prepare('UPDATE items SET look=? WHERE id=?').run(a.look || a.pc, b.id); db.prepare('DELETE FROM items WHERE id=?').run(a.id); db.prepare('UPDATE characters SET gold=gold-1000 WHERE id=?').run(c.id);
+    send(res, 200, { char: fullChar(ownChar(uid, c.id)) });
   },
   'POST /api/inherit': async (req, res, _, uid) => {
     const { fromId, toId } = await body(req); const a = ownItem(uid, fromId), b = ownItem(uid, toId);
