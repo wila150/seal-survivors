@@ -177,7 +177,7 @@ import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
 import { PETS, PET_MAX, PET_MAX_LV, EGG_PRICE, FEED_EXP, petStage, petName, petNeed, petAtk, petBonusText } from './src/1_data/pets.js';
 import { DIFF_KEYS, DIFF_MAX, LV_MAX, cleanDiff, diffMods, diffLoot, lootBonus, legendRate, stageBaseLv, pcRef } from './src/1_data/difficulty.js';
 import { DECOMPOSE, DUST_PER_CRYSTAL } from './src/1_data/stones.js';
-import { GUIDE_CATS, buildGuide } from './src/1_data/guide.js';
+import { GUIDE_CATS, buildGuide, guideImg } from './src/1_data/guide.js';
 import { TOWER_NAME, CURSES, PICK, checkTowerSetup } from './src/1_data/tower.js';
 import { IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, IDENT_PROB, identNode, identMax } from './src/1_data/talents.js';
 // 天賦／技能資料（項目 26～28 共用）
@@ -876,15 +876,15 @@ async function openBestiary() {
 // ===== 項目 24：圖書館員＝新手指南（分類＋搜尋；怪物圖鑑是其中一個分類）=====
 let gCat = GUIDE_CATS[0], gQ = '', gSel = null, gData = null;
 async function openGuide() {
-  if (!gData) { const [T, D] = await DATA; gData = buildGuide({ JOBS, SKILLS: D, TALENTS: T, STAGES, NPCS }); }
+  if (!gData) { const [T, D] = await DATA; gData = buildGuide({ JOBS, SKILLS: D, TALENTS: T, STAGES, NPCS }); for (const x of gData) if (x.npc && NPC_ICON[x.npc] && !x.img) x.img = 'n:' + NPC_ICON[x.npc].join(','); } // 主城人物用原版小地圖 NPC 圖示
   const plain = h => h.replace(/<[^>]+>/g, '');
   const list = gQ ? gData.filter(a => (a.title + plain(a.body)).includes(gQ)) : gData.filter(a => a.cat === gCat);
   const a = list.find(x => x.title === gSel) || (gQ ? null : list[0]);
   const hl = t => gQ ? t.split(gQ).join(`<mark>${esc(gQ)}</mark>`) : t;
   const html = `<div class="tabs2"><input id="gq" placeholder="搜尋指南…（例如：精煉、二轉、碎冰）" value="${esc(gQ)}" style="flex:1"><button class="btn primary" id="gqBtn">搜尋</button>${gQ ? '<button class="btn" id="gqClr">清除</button>' : ''}</div>
     <div class="bst"><div class="rng">${GUIDE_CATS.map(c => `<button class="btn ${!gQ && c === gCat ? 'primary' : ''}" data-gc="${c}">${c}</button>`).join('')}<button class="btn" id="gBest">怪物圖鑑</button></div>
-    <div class="main"><div class="mdet" style="display:block;line-height:1.7">${a ? `<b style="font-size:17px">${esc(a.title)}</b>　<small style="color:#6b7896">${a.cat}</small><div>${gQ ? hl(plain(a.body)) : a.body}</div>` : gQ ? `<small>找到 ${list.length} 篇，點一篇來看</small>` : ''}</div>
-      <div class="mlist">${list.map(x => `<div class="mi ${a && x.title === a.title ? 'on' : ''}" data-gt="${esc(x.title)}"><b>${esc(x.title)}</b>${gQ ? `<small>${x.cat}</small>` : ''}</div>`).join('') || '<small>找不到相關的指南</small>'}</div></div></div>`;
+    <div class="main"><div class="mdet" style="display:block;line-height:1.7">${a ? `${a.img?.startsWith('b:') ? guideImg(a.img, true) : ''}<div style="display:flex;align-items:center;gap:8px">${a.img && !a.img.startsWith('b:') ? guideImg(a.img, true) : ''}<b style="font-size:17px">${esc(a.title)}</b>　<small style="color:#6b7896">${a.cat}</small></div>${a.head ? `<div style="margin:4px 0">${a.head}</div>` : ''}<div>${gQ ? hl(plain(a.body)) : a.body}</div>` : gQ ? `<small>找到 ${list.length} 篇，點一篇來看</small>` : ''}</div>
+      <div class="mlist">${list.map(x => `<div class="mi ${a && x.title === a.title ? 'on' : ''}" data-gt="${esc(x.title)}" style="display:flex;align-items:center;gap:6px">${guideImg(x.img)}<b>${esc(x.title)}</b>${gQ ? `<small>${x.cat}</small>` : ''}</div>`).join('') || '<small>找不到相關的指南</small>'}</div></div></div>`;
   openDlg('圖書館員・新手指南', html, [], true);
   const b = $('#dlgBody');
   b.querySelectorAll('[data-gc]').forEach(x => x.onclick = () => { gCat = x.dataset.gc; gQ = ''; gSel = null; openGuide(); });
@@ -1066,8 +1066,8 @@ $('#bagBtn').onclick = () => openBag('bag');
 const statLine = it => Object.entries(itemStats(it)).map(([k, v]) => `${STAT_NAMES[k]} ${fmtStat(k, v)}`).join('　');
 // ===== CHARACTER INFO（11/19 使用者：「依照 PC 版這樣的去修改，手機版我們再來調整」）=====
 // 照 PC 新版角色視窗：左 EQUIPMENT 4×4（空格畫原版剪影 interface/look.tex）＋COSTUME；右 INFO 表格＋STATUS（點數條、⊕、EDIT）
-// PC 有但我們還沒做的部位（耳環、項鍊、披風、手套、戒指）先畫鎖頭
-const LOOK_SIL = { head: [12, 81], top: [57, 81], bottom: [102, 81], shoes: [147, 81], costume: [192, 81], wing: [35, 125], neck: [80, 125], ring: [125, 125], weapon: [170, 125] };
+// 空格畫原版剪影；騎士以外的盾牌格上鎖
+const LOOK_SIL = { head: [12, 81], top: [57, 81], bottom: [102, 81], shoes: [147, 81], costume: [192, 81], acc: [35, 125], neck: [80, 125], ring: [125, 125], weapon: [170, 125], earring: [125, 125], bracelet: [125, 125], deco: [12, 81] };
 function openCharInfo() {
   const c = CHAR, items = c.items || [], eq = k => items.find(i => i.equipped && i.slot === k), hex = n => '#' + (n ?? 0).toString(16).padStart(6, '0');
   const sil = (k, lock) => { const s = LOOK_SIL[k]; return s ? `<i class="sil${lock ? ' lock' : ''}" style="background-position:-${s[0]}px -${s[1]}px"></i>` : ''; };
@@ -1075,10 +1075,11 @@ function openCharInfo() {
   const lock = (k, name) => `<div class="ci-cell locked" title="${name}（尚未開放）">${sil(k, 1)}<span class="lk">🔒</span><small>${name}</small></div>`;
   const pet = (c.pets || []).find(x => x.id === c.pet), mountOn = (c.mountUntil || 0) > Date.now();
   const other = (n, html, title) => `<div class="ci-cell${html ? ' on' : ''}" title="${title}">${html || `<b>${n}</b>`}<small>${n}</small></div>`;
-  const grid = [slot('head', '頭部'), slot('weapon', '武器'), c.job === '騎士' ? slot('shield', '盾牌') : lock('ring', '盾牌'), lock('neck', '項鍊'),
-    slot('top', '上衣'), slot('acc', '飾品'), other('寵物', pet ? `<span class="pet" style="color:${hex(PETS[pet.kind]?.color)}">●</span>` : '', pet ? `寵物：${esc(petName(pet))} Lv${pet.lv}` : '沒有出戰的寵物'), lock('wing', '披風'),
-    slot('bottom', '下衣'), other('坐騎', mountOn ? '<span class="pet">🐎</span>' : '', mountOn ? `坐騎：${MOUNT_NAMES[JOBS[c.job]?.mount] || ''}` : '沒有租坐騎'), lock('ring', '戒指'), lock('ring', '耳環'),
-    slot('shoes', '鞋子'), lock('', '手套'), lock('', '—'), lock('', '—')].join('');
+  // PC 飾品照服務端第 70 欄拆成 頭飾／耳環／項鍊／手鐲／戒指＋一般飾品（翅膀、拳套…）；PC 沒有獨立的手套、披風格（拳套算飾品、斗篷算上衣）
+  const grid = [slot('deco', '頭飾'), slot('head', '頭部'), slot('earring', '耳環'), slot('neck', '項鍊'),
+    slot('weapon', '武器'), slot('top', '上衣'), c.job === '騎士' ? slot('shield', '盾牌') : lock('', '盾牌'), slot('acc', '飾品'),
+    slot('bracelet', '手鐲'), slot('bottom', '下衣'), slot('ring', '戒指'), other('寵物', pet ? `<span class="pet" style="color:${hex(PETS[pet.kind]?.color)}">●</span>` : '', pet ? `寵物：${esc(petName(pet))} Lv${pet.lv}` : '沒有出戰的寵物'),
+    other('坐騎', mountOn ? '<span class="pet">🐎</span>' : '', mountOn ? `坐騎：${MOUNT_NAMES[JOBS[c.job]?.mount] || ''}` : '沒有租坐騎'), slot('shoes', '鞋子'), lock('', '—'), lock('', '—')].join('');
   const cos = [other('髮型', `<b style="font-size:15px">${(c.hair ?? 0) + 1}</b>`, '髮型（找造型師可以改）'), other('髮色', `<span class="sw" style="background:${HAIR_COLORS[c.hairColor ?? 0]?.hex != null ? hex(HAIR_COLORS[c.hairColor ?? 0].hex) : 'linear-gradient(135deg,#d9b48a,#7a5230)'}"></span>`, '髮色'),
     other('服裝', `<span class="sw" style="background:${OUTFITS[c.outfit] != null ? hex(OUTFITS[c.outfit]) : 'linear-gradient(135deg,#fff,#ccc)'}"></span>`, '服裝配色'), lock('costume', '時裝'), lock('costume', '時裝'), lock('', '—'), lock('', '—'), lock('', '—')].join('');
   const T = titleOf(c.title), info = [['名稱', esc(c.name)], ['等級', `Base ${c.baseLv}　Job ${c.jobLv} / ${c.jobMax ?? 50}`], ['職業', esc(c.jobName || c.job)], ['名聲稱號', T ? `【${T.name}】` : '—'],

@@ -5,7 +5,8 @@ import { PC_ITEMS } from './pc-items.js';
 // 項目 32（11/19「照建議」＋使用者：「PC 版裝備只有這三件嗎？」）：部位照 PC（服務端 item.scr 道具分類）
 // 武器（4 劍 6 大劍 7 匕首 8 榔頭 9 鎚 11 杖 46 彈弓）、盾牌 14（騎士）、頭部 17 盔／18 帽、上衣 15 盔甲／16 上衣、下衣 25 盔甲(下)／26 下褲、鞋子 19 靴／20 鞋、飾品
 // 舊資料的「armor」防具：伺服器啟動時自動搬家（盾 → shield、其他 → top）
-export const SLOTS = { weapon: '武器', shield: '盾牌', head: '頭部', top: '上衣', bottom: '下衣', shoes: '鞋子', acc: '飾品' };
+export const SLOTS = { weapon: '武器', shield: '盾牌', head: '頭部', top: '上衣', bottom: '下衣', shoes: '鞋子', acc: '飾品',
+  deco: '頭飾', earring: '耳環', neck: '項鍊', bracelet: '手鐲', ring: '戒指' }; // 11/19 飾品照 PC 第 70 欄（裝備位置）再拆 5 格
 export const ARMOR_SLOTS = ['shield', 'head', 'top', 'bottom', 'shoes']; // 防具類（精煉用鋁、可以鑑定）
 
 // 底材：stat 是 +0、普通品質時的數值
@@ -39,6 +40,12 @@ export const BASES = {
     { key: 'boots', name: '靴子', icon: 498, stat: { armor: 1, speed: 0.03 } },   // 19 靴（重裝）
     { key: 'shoe',  name: '鞋子', icon: 503, stat: { speed: 0.05, magnet: 0.1 } }, // 20 鞋（輕裝）
   ],
+  // 11/19：PC 飾品的 5 個裝備位置（服務端 item.scr 分類 21、第 70 欄）
+  deco:     [{ key: 'ribbon',  name: '蝴蝶結', icon: 641, stat: { hp: 8, magnet: 0.1 } }],
+  earring:  [{ key: 'earring', name: '耳環',   icon: 2255, stat: { crit: 0.015, hp: 6 } }],
+  neck:     [{ key: 'neck',    name: '項鍊',   icon: 3873, stat: { hp: 15, haste: 0.02 } }],
+  bracelet: [{ key: 'bangle',  name: '手鐲',   icon: 3613, stat: { haste: 0.03, armor: 0.5 } }],
+  ring:     [{ key: 'pcring',  name: '戒指',   icon: 2260, stat: { atk: 0.04 } }],
   acc: [
     { key: 'ring',    name: '幸運戒指', icon: 310, stat: { crit: 0.04 } },
     { key: 'feather', name: '疾風之羽', icon: 408, stat: { speed: 0.06 } },
@@ -87,7 +94,7 @@ export const refineBreaks = lv => lv >= 6; // 從 +6 往 +7 開始失敗會碎
 // 每種底材對到一種 PC 道具類別（src/1_data/pc-items.js，tools/build-pc-items.mjs 從服務端 item.scr 轉出）；
 // 掉落時依這局的怪物等級挑 PC 原版那件（名稱、圖示、需求等級照 PC），數值＝底材數值 × (那件的 PC 攻擊或防禦 ÷ 該類別入門款)
 // 舊裝備（沒有 pc 編號）照舊：底材名稱、倍率 1
-export const PC_TYPE_OF = { sword: 4, blade: 6, spear: 7, hammer: 8, mace: 9, staff: 11, sling: 46, leather: 16, robe: 16, chain: 15, shield: 14, helm: 17, cap: 18, greave: 25, pants: 26, boots: 19, shoe: 20 };
+export const PC_TYPE_OF = { sword: 4, blade: 6, spear: 7, hammer: 8, mace: 9, staff: 11, sling: 46, leather: 16, robe: 16, chain: 15, shield: 14, helm: 17, cap: 18, greave: 25, pants: 26, boots: 19, shoe: 20, ribbon: 'a0', earring: 'a8', neck: 'a9', bangle: 'a10', pcring: 'a11' };
 const REF = {}; for (const t in PC_ITEMS) { const v = PC_ITEMS[t].slice(0, 5).map(x => x[3]).sort((a, b) => a - b); REF[t] = v[v.length >> 1]; }
 export function pcOf(it) { const t = PC_TYPE_OF[it?.base]; return it?.pc && t ? PC_ITEMS[t]?.find(x => x[0] === it.pc) || null : null; }
 export const pcTier = it => { const p = pcOf(it); return p ? Math.max(0.5, p[3] / REF[PC_TYPE_OF[it.base]]) : 1; };
@@ -124,7 +131,7 @@ export const offJob = (it, job) => !!JOB_WEAPON[job] && ((it.slot === 'weapon' &
 export const dismantleYield = it => ({ ore1: 1 + it.rarity, ore2: (it.refine || 0) >= 4 ? 1 : 0, gold: Math.round(sellPrice(it) * 0.6) });
 export function rollItem(rand = Math.random, bonus = 0, slot, lv = 0, job = null) { // lv：這局怪物等級（有給才挑 PC 原版道具）；job：只出這職業能用的武器
   // 部位權重：武器 3、盾 1、頭 2、上衣 2、下衣 2、鞋 2、飾品 2（有給職業而且不是騎士就不出盾）
-  const SW = { weapon: 3, shield: 1, head: 2, top: 2, bottom: 2, shoes: 2, acc: 2 }, pool = Object.keys(BASES).filter(k => !(k === 'shield' && job && job !== '騎士'));
+  const SW = { weapon: 3, shield: 1, head: 2, top: 2, bottom: 2, shoes: 2, acc: 2, deco: 1, earring: 1, neck: 1, bracelet: 1, ring: 1 }, pool = Object.keys(BASES).filter(k => !(k === 'shield' && job && job !== '騎士'));
   let s = slot; if (!s) { let r = rand() * pool.reduce((a, k) => a + SW[k], 0); s = pool.find(k => (r -= SW[k]) < 0) || pool.at(-1); }
   let bases = BASES[s];
   if (job && JOB_WEAPON[job] && s === 'weapon') bases = bases.filter(b => b.key === JOB_WEAPON[job]);
