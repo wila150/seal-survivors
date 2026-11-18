@@ -379,6 +379,17 @@ const api = {
     send(res, 200, { result, char: fullChar(ownChar(uid, c.id)) });
   },
   // 項目 46：G 化（一般 → G → DG → XG）：用對應寶石（紅寶石／鑽石／粉紅鑽），可加 G 化工具箱（80%／100%）；失敗只消耗材料
+  // 指令 4-2 裝備繼承：同部位、來源沒穿沒鎖；目標的精煉、G 化取兩件較高的；來源刪除；費用 300×精煉＋1000×G 化＋200
+  'POST /api/inherit': async (req, res, _, uid) => {
+    const { fromId, toId } = await body(req); const a = ownItem(uid, fromId), b = ownItem(uid, toId);
+    if (!a || !b || a.id === b.id) return send(res, 404, { error: '找不到裝備' }); if (a.char_id !== b.char_id) return send(res, 400, { error: '要同一個角色的裝備' });
+    if (a.slot !== b.slot) return send(res, 400, { error: '只能繼承同部位的裝備' }); if (a.equipped || a.locked) return send(res, 400, { error: '來源裝備要先卸下、解鎖' });
+    const cost = 300 * (a.refine || 0) + 1000 * (a.gup || 0) + 200, c = ownChar(uid, a.char_id);
+    if ((c.gold ?? 0) < cost) return send(res, 400, { error: `希幣不夠（要 ${cost}）` });
+    db.prepare('UPDATE items SET refine=?, gup=? WHERE id=?').run(Math.max(a.refine || 0, b.refine || 0), Math.max(a.gup || 0, b.gup || 0), b.id);
+    db.prepare('DELETE FROM items WHERE id=?').run(a.id); db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(cost, c.id);
+    send(res, 200, { char: fullChar(ownChar(uid, c.id)) });
+  },
   'POST /api/gup': async (req, res, _, uid) => {
     const { itemId, box } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
     if ((it.gup || 0) >= GUP_MAX) return send(res, 400, { error: '已經是 XG 了' });

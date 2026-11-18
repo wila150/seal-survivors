@@ -1205,6 +1205,7 @@ function renderBag() {
       if (refineBreaks(cur.refine) && !protect && !(await askConfirm(`+${cur.refine} → +${cur.refine + 1} 失敗會碎掉，確定要強化？`, { danger: true }))) return;
       act('/api/refine', { itemId: id, protect }, r => { if (r.result === 'broken') selItem = null; return { ok: '強化成功！', down: '強化失敗，降了一級…', broken: '強化失敗，裝備碎掉了！' }[r.result]; });
     }
+    if (a === 'inherit') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把「${itemName(from)}」的精煉 +${from.refine || 0}、G 化 ${GUP[from.gup || 0]?.tag || '一般'} 繼承到這件？\n「${itemName(from)}」會消失，花 ${inheritCost(from)} 希幣。`, { ok: '繼承' }))) return; act('/api/inherit', { fromId: from.id, toId: id }, () => '繼承完成！'); }
     if (a === 'gup') act('/api/gup', { itemId: id, box: b.dataset.box }, r => r.result === 'ok' ? `G 化成功！變成 ${r.tag}` : 'G 化失敗，材料用掉了…');
   });
 }
@@ -1217,6 +1218,7 @@ function identLine(it) {
   const learned = own && (it.ident.tree === 0 ? CHAR.talents : it.ident.tree === CHAR.job2 ? CHAR.talents2 : null)?.[n.id] > 0;
   return `<small style="color:#2b6fd6"><b>技能屬性：${n.name} Lv+${it.ident.lv}</b>（${it.ident.job}${br ? '・' + br : ''}）${learned ? '' : '<span style="color:#c0392b">　目前沒有生效：要點過這個天賦才會提升</span>'}</small><br>`;
 }
+const inheritCost = x => 300 * (x.refine || 0) + 1000 * (x.gup || 0) + 200; // 指令 4-2 裝備繼承費用（暫定）
 function itemDetail(it) {
   // 項目 32：★ 特性與詞綴另外列一行（數值已經算進上面的總數值）
   const T = traitOf(it), AF = it.aff?.a || [], affHtml = (T || AF.length) ? `<div class="affx">${T ? `<span class="trait">${T.name} ${STAT_NAMES[T.k]} ${fmtStat(T.k, T.v)}</span>` : ''}${AF.map(([k, v]) => `<span>${STAT_NAMES[k]} ${fmtStat(k, v)}</span>`).join('')}</div>` : '';
@@ -1231,6 +1233,9 @@ function itemDetail(it) {
       h += `<button class="btn" data-act="gup" data-item="${it.id}" style="border-color:#${nx.glow.toString(16)}">G 化 → ${nx.tag}（${pct}%，用 1 個${ORES[nx.gem].name}，持有 ${have}）</button>`;
       for (const bx of ['gbox80', 'gbox100']) if (CHAR.mats?.[bx] > 0) h += `<button class="btn" data-act="gup" data-box="${bx}" data-item="${it.id}">＋${ORES[bx].name}（持有 ${CHAR.mats[bx]}）</button>`;
       h += '<small>失敗只會用掉材料，裝備不變</small>'; }
+    // 指令 4-2 裝備繼承：把同部位舊裝備的精煉等級、G 化階段搬到這件（舊裝備會消失），花希幣
+    const src = (CHAR.items || []).filter(x => x.id !== it.id && x.slot === it.slot && !x.equipped && !x.locked && ((x.refine || 0) > (it.refine || 0) || (x.gup || 0) > (it.gup || 0)));
+    if (src.length) h += `<div style="flex-basis:100%;margin-top:6px"><small><b>裝備繼承</b>：把下面那件的精煉＋G 化搬到這件（那件會消失）</small></div>` + src.map(x => `<button class="btn" data-act="inherit" data-from="${x.id}" data-item="${it.id}">⇦ ${esc(itemName(x))}（${inheritCost(x)} 希幣）</button>`).join('');
   } else {
     h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
     if (!it.equipped && !it.locked) h += `<button class="btn" data-act="sell" data-item="${it.id}">賣出（${sellPrice(it)} 金幣）</button>`;
