@@ -1,0 +1,5778 @@
+{
+ "_說明": "項目 26／27 局外天賦樹。內容＝2u 資料站 PC 版技能樹：一轉 tree_1、二轉 tree_2（A）／tree_3（B），前置＝PC 前置，由 tools/build-talents.mjs 產生。一轉點數＝min(Job Lv, 50)、二轉點數＝Job Lv − 50。gate＝要求 Job Lv。eff＝每 1 級的效果。",
+ "gates": [
+  0,
+  5,
+  10,
+  15,
+  20,
+  25,
+  30
+ ],
+ "skillMod": {
+  "dmg": 0.08,
+  "cd": -0.03
+ },
+ "jobs": {
+  "劍士": {
+   "cols": [
+    "劍技",
+    "攻擊",
+    "輔助"
+   ],
+   "nodes": [
+    {
+     "id": 6,
+     "name": "雙手劍技",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      192,
+      0
+     ],
+     "eff": {
+      "skill:b_musa": 1,
+      "atk": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "gate": 0
+    },
+    {
+     "id": 68,
+     "name": "雙手劍技2",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      160,
+      128
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": true,
+     "pre": [
+      6,
+      3
+     ],
+     "gate": 5
+    },
+    {
+     "id": 115,
+     "name": "熟練劍技",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      448,
+      192
+     ],
+     "eff": {
+      "crit": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "pre": [
+      68,
+      3
+     ],
+     "gate": 10
+    },
+    {
+     "id": 266,
+     "name": "劍影",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      192,
+      0
+     ],
+     "eff": {
+      "skill:b_musa": 1,
+      "crit": 0.03
+     },
+     "final": true,
+     "weapon": true,
+     "pre": [
+      115,
+      3
+     ],
+     "gate": 30
+    },
+    {
+     "id": 28,
+     "name": "聚氣",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      384,
+      32
+     ],
+     "eff": {
+      "haste": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      6,
+      2
+     ],
+     "gate": 5
+    },
+    {
+     "id": 29,
+     "name": "流雲斬",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      416,
+      32
+     ],
+     "eff": {
+      "skill:liuyun": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      28,
+      2
+     ],
+     "gate": 10
+    },
+    {
+     "id": 30,
+     "name": "旋風斬",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      448,
+      32
+     ],
+     "eff": {
+      "skill:xuanfeng": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      28,
+      2
+     ],
+     "gate": 15
+    },
+    {
+     "id": 31,
+     "name": "疾風斬",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      480,
+      32
+     ],
+     "eff": {
+      "skill:jifeng": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      29,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 113,
+     "name": "光速斬",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      384,
+      192
+     ],
+     "eff": {
+      "skill:guangsu": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      31,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 32,
+     "name": "颶風斬",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      0,
+      64
+     ],
+     "eff": {
+      "tag:heavy": 0.08
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      30,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 270,
+     "name": "異界斬",
+     "col": 1,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      320,
+      0
+     ],
+     "eff": {
+      "atk": 0.1
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      29,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 308,
+     "name": "劍士的鼓舞",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      0,
+      96
+     ],
+     "eff": {
+      "hp": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 48,
+     "name": "恐嚇",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      0,
+      96
+     ],
+     "eff": {
+      "armor": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      28,
+      2
+     ],
+     "gate": 10
+    },
+    {
+     "id": 49,
+     "name": "熱血",
+     "col": 2,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      32,
+      96
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      48,
+      2
+     ],
+     "gate": 15
+    },
+    {
+     "id": 103,
+     "name": "乘風破浪",
+     "col": 2,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      64,
+      192
+     ],
+     "eff": {
+      "speed": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      28,
+      2
+     ],
+     "gate": 15
+    },
+    {
+     "id": 69,
+     "name": "團體熱血",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      64,
+      160
+     ],
+     "eff": {
+      "hp": 0.04
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      49,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 114,
+     "name": "範圍恐嚇",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill1.png",
+      416,
+      192
+     ],
+     "eff": {
+      "armor": 3
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      48,
+      2
+     ],
+     "gate": 25
+    },
+    {
+     "id": 264,
+     "name": "鐵血",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill3.png",
+      128,
+      0
+     ],
+     "eff": {
+      "hp": 0.05,
+      "regen": 0.3
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      49,
+      3
+     ],
+     "gate": 30
+    }
+   ],
+   "branches": [
+    {
+     "key": "A",
+     "name": "狂劍士",
+     "third": "劍聖",
+     "skills": [
+      "k2_yiwang",
+      "k2_fennu"
+     ],
+     "skill3": "k3_renjian",
+     "nodes": [
+      {
+       "id": 158,
+       "name": "威嚇",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        320,
+        288
+       ],
+       "eff": {
+        "armor": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 159,
+       "name": "覺醒",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        352,
+        288
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 160,
+       "name": "本能",
+       "gate": 55,
+       "max": 6,
+       "icon": [
+        "skill1.png",
+        384,
+        288
+       ],
+       "eff": {
+        "crit": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        159,
+        1
+       ]
+      },
+      {
+       "id": 161,
+       "name": "反擊",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        416,
+        288
+       ],
+       "eff": {
+        "hp": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        158,
+        1
+       ]
+      },
+      {
+       "id": 163,
+       "name": "雙手劍大師",
+       "gate": 60,
+       "max": 6,
+       "icon": [
+        "skill1.png",
+        480,
+        288
+       ],
+       "eff": {
+        "skill:b_musa": 0.5,
+        "atk": 0.01
+       },
+       "final": false,
+       "weapon": true,
+       "pre": [
+        159,
+        1
+       ]
+      },
+      {
+       "id": 162,
+       "name": "憤怒之力",
+       "gate": 65,
+       "max": 7,
+       "icon": [
+        "skill1.png",
+        448,
+        288
+       ],
+       "eff": {
+        "skill:k2_fennu": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        160,
+        1
+       ]
+      },
+      {
+       "id": 265,
+       "name": "連續的奧義",
+       "gate": 65,
+       "max": 6,
+       "icon": [
+        "skill3.png",
+        160,
+        0
+       ],
+       "eff": {
+        "haste": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        163,
+        4
+       ]
+      },
+      {
+       "id": 267,
+       "name": "一網打盡",
+       "gate": 70,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        224,
+        0
+       ],
+       "eff": {
+        "skill:k2_yiwang": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        160,
+        1
+       ]
+      },
+      {
+       "id": 331,
+       "name": "人劍合一",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        160,
+        128
+       ],
+       "eff": {
+        "skill:k3_renjian": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true
+      },
+      {
+       "id": 332,
+       "name": "精神集中",
+       "gate": 101,
+       "max": 7,
+       "icon": [
+        "skill3.png",
+        192,
+        128
+       ],
+       "eff": {
+        "crit": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    },
+    {
+     "key": "B",
+     "name": "魔劍士",
+     "third": "修羅",
+     "skills": [
+      "k2_tuji",
+      "k2_xixue"
+     ],
+     "skill3": "k3_yuanhua",
+     "nodes": [
+      {
+       "id": 164,
+       "name": "劍舞",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        0,
+        320
+       ],
+       "eff": {
+        "tag:heavy": 0.03
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 165,
+       "name": "突擊",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        32,
+        320
+       ],
+       "eff": {
+        "skill:k2_tuji": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 166,
+       "name": "秋風掃落葉",
+       "gate": 55,
+       "max": 5,
+       "icon": [
+        "skill1.png",
+        64,
+        320
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        164,
+        1
+       ]
+      },
+      {
+       "id": 169,
+       "name": "疾風斬之光",
+       "gate": 55,
+       "max": 1,
+       "icon": [
+        "skill1.png",
+        160,
+        320
+       ],
+       "eff": {
+        "skill:jifeng": 2
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        165,
+        1
+       ]
+      },
+      {
+       "id": 167,
+       "name": "風之神速",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        96,
+        320
+       ],
+       "eff": {
+        "speed": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        165,
+        1
+       ]
+      },
+      {
+       "id": 268,
+       "name": "堅忍",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        256,
+        0
+       ],
+       "eff": {
+        "hp": 0.015,
+        "armor": 0.3
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        165,
+        3
+       ]
+      },
+      {
+       "id": 168,
+       "name": "興奮",
+       "gate": 65,
+       "max": 1,
+       "icon": [
+        "skill1.png",
+        128,
+        320
+       ],
+       "eff": {
+        "haste": 0.05
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        166,
+        1
+       ]
+      },
+      {
+       "id": 269,
+       "name": "吸血斬",
+       "gate": 70,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        288,
+        0
+       ],
+       "eff": {
+        "skill:k2_xixue": 0.5,
+        "regen": 0.1
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        166,
+        1
+       ]
+      },
+      {
+       "id": 333,
+       "name": "圓滑刀刃",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        224,
+        128
+       ],
+       "eff": {
+        "skill:k3_yuanhua": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        166,
+        1
+       ]
+      },
+      {
+       "id": 334,
+       "name": "狂怒",
+       "gate": 101,
+       "max": 7,
+       "icon": [
+        "skill3.png",
+        256,
+        128
+       ],
+       "eff": {
+        "haste": 0.01,
+        "skill:xuanfeng": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    }
+   ]
+  },
+  "騎士": {
+   "cols": [
+    "劍術",
+    "攻擊",
+    "盾牌"
+   ],
+   "nodes": [
+    {
+     "id": 7,
+     "name": "單手劍技",
+     "col": 0,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      224,
+      0
+     ],
+     "eff": {
+      "skill:b_knight": 1,
+      "atk": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "gate": 0
+    },
+    {
+     "id": 309,
+     "name": "騎士的智慧",
+     "col": 0,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      32,
+      96
+     ],
+     "eff": {
+      "magnet": 0.1
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 35,
+     "name": "砍擊",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      96,
+      64
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      33,
+      2
+     ],
+     "gate": 10
+    },
+    {
+     "id": 37,
+     "name": "爆擊",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      160,
+      64
+     ],
+     "eff": {
+      "crit": 0.02
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      35,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 110,
+     "name": "點擊",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      288,
+      192
+     ],
+     "eff": {
+      "phys": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      37,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 111,
+     "name": "大霹靂",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      320,
+      192
+     ],
+     "eff": {
+      "tag:heavy": 0.08
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      110,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 34,
+     "name": "十字攻擊",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      64,
+      64
+     ],
+     "eff": {
+      "skill:shizi": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      33,
+      2
+     ],
+     "gate": 10
+    },
+    {
+     "id": 36,
+     "name": "八方攻擊",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      128,
+      64
+     ],
+     "eff": {
+      "skill:bafang": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      34,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 106,
+     "name": "十字神劍",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      160,
+      192
+     ],
+     "eff": {
+      "skill:shenjian": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      36,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 112,
+     "name": "石破天驚",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      352,
+      192
+     ],
+     "eff": {
+      "atk": 0.04
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      106,
+      3
+     ],
+     "gate": 30
+    },
+    {
+     "id": 33,
+     "name": "淨化",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      32,
+      64
+     ],
+     "eff": {
+      "regen": 0.2
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      7,
+      2
+     ],
+     "gate": 5
+    },
+    {
+     "id": 50,
+     "name": "挑釁",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      64,
+      96
+     ],
+     "eff": {
+      "armor": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      33,
+      2
+     ],
+     "gate": 10
+    },
+    {
+     "id": 51,
+     "name": "盾擋",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      96,
+      96
+     ],
+     "eff": {
+      "armor": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      50,
+      2
+     ],
+     "gate": 15
+    },
+    {
+     "id": 52,
+     "name": "盾擊",
+     "col": 2,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      128,
+      96
+     ],
+     "eff": {
+      "phys": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      50,
+      2
+     ],
+     "gate": 15
+    },
+    {
+     "id": 65,
+     "name": "範圍挑釁",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      128,
+      128
+     ],
+     "eff": {
+      "hp": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      50,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 144,
+     "name": "飛毛腿",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      352,
+      256
+     ],
+     "eff": {
+      "speed": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      50,
+      2
+     ],
+     "gate": 20
+    },
+    {
+     "id": 271,
+     "name": "盾牌投擲",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      352,
+      0
+     ],
+     "eff": {
+      "skill:dunpai": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      50,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 272,
+     "name": "盾牌術大師",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill3.png",
+      384,
+      0
+     ],
+     "eff": {
+      "armor": 2,
+      "hp": 0.04
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      52,
+      3
+     ],
+     "gate": 30
+    }
+   ],
+   "branches": [
+    {
+     "key": "A",
+     "name": "闇騎士",
+     "third": "督軍",
+     "skills": [
+      "k2_chongji",
+      "k2_quanli"
+     ],
+     "skill3": "k3_heizhou",
+     "nodes": [
+      {
+       "id": 150,
+       "name": "復仇之心",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        64,
+        288
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 145,
+       "name": "武器破壞",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        416,
+        256
+       ],
+       "eff": {
+        "phys": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 273,
+       "name": "潛力",
+       "gate": 55,
+       "max": 1,
+       "icon": [
+        "skill3.png",
+        448,
+        0
+       ],
+       "eff": {
+        "hp": 0.06
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        150,
+        1
+       ]
+      },
+      {
+       "id": 146,
+       "name": "防具破壞",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        448,
+        256
+       ],
+       "eff": {
+        "crit": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        145,
+        1
+       ]
+      },
+      {
+       "id": 147,
+       "name": "衝擊波",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        480,
+        256
+       ],
+       "eff": {
+        "skill:k2_chongji": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        146,
+        1
+       ]
+      },
+      {
+       "id": 148,
+       "name": "全力一擊",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        0,
+        288
+       ],
+       "eff": {
+        "skill:k2_quanli": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        150,
+        1
+       ]
+      },
+      {
+       "id": 149,
+       "name": "勃然大怒",
+       "gate": 65,
+       "max": 1,
+       "icon": [
+        "skill1.png",
+        32,
+        288
+       ],
+       "eff": {
+        "atk": 0.06
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        148,
+        1
+       ]
+      },
+      {
+       "id": 151,
+       "name": "割傷",
+       "gate": 70,
+       "max": 1,
+       "icon": [
+        "skill1.png",
+        96,
+        288
+       ],
+       "eff": {
+        "tag:heavy": 0.06
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        150,
+        1
+       ]
+      },
+      {
+       "id": 336,
+       "name": "黑色詛咒",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        320,
+        128
+       ],
+       "eff": {
+        "skill:k3_heizhou": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true
+      },
+      {
+       "id": 335,
+       "name": "黑色狂潮",
+       "gate": 101,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        288,
+        128
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    },
+    {
+     "key": "B",
+     "name": "聖騎士",
+     "third": "聖殿騎士",
+     "skills": [
+      "k2_baofeng",
+      "k2_tianbeng"
+     ],
+     "skill3": "k3_tianfa",
+     "nodes": [
+      {
+       "id": 152,
+       "name": "暴風神劍",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        128,
+        288
+       ],
+       "eff": {
+        "skill:k2_baofeng": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 157,
+       "name": "神聖防護",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        288,
+        288
+       ],
+       "eff": {
+        "armor": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 156,
+       "name": "反射之盾",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        256,
+        288
+       ],
+       "eff": {
+        "hp": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        157,
+        1
+       ]
+      },
+      {
+       "id": 155,
+       "name": "神癒",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        224,
+        288
+       ],
+       "eff": {
+        "regen": 0.15
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        157,
+        1
+       ]
+      },
+      {
+       "id": 153,
+       "name": "天崩地裂",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        160,
+        288
+       ],
+       "eff": {
+        "skill:k2_tianbeng": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        152,
+        1
+       ]
+      },
+      {
+       "id": 154,
+       "name": "神撼大地",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        192,
+        288
+       ],
+       "eff": {
+        "tag:heavy": 0.03
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        153,
+        1
+       ]
+      },
+      {
+       "id": 274,
+       "name": "防護罩",
+       "gate": 65,
+       "max": 6,
+       "icon": [
+        "skill3.png",
+        416,
+        0
+       ],
+       "eff": {
+        "armor": 1,
+        "hp": 0.02
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        157,
+        1
+       ]
+      },
+      {
+       "id": 338,
+       "name": "天罰",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        384,
+        128
+       ],
+       "eff": {
+        "skill:k3_tianfa": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        154,
+        1
+       ]
+      },
+      {
+       "id": 337,
+       "name": "神之體魄",
+       "gate": 101,
+       "max": 7,
+       "icon": [
+        "skill3.png",
+        352,
+        128
+       ],
+       "eff": {
+        "atk": 0.01,
+        "armor": 0.3,
+        "hp": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    }
+   ]
+  },
+  "小丑": {
+   "cols": [
+    "投擲",
+    "戲法",
+    "輔助"
+   ],
+   "nodes": [
+    {
+     "id": 8,
+     "name": "匕首技",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      256,
+      0
+     ],
+     "eff": {
+      "skill:b_clown": 1,
+      "atk": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "gate": 0
+    },
+    {
+     "id": 59,
+     "name": "熱情",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      352,
+      96
+     ],
+     "eff": {
+      "haste": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      8,
+      3
+     ],
+     "gate": 5
+    },
+    {
+     "id": 61,
+     "name": "任意投擲",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      416,
+      96
+     ],
+     "eff": {
+      "skill:renyi": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      59,
+      2
+     ],
+     "gate": 10
+    },
+    {
+     "id": 117,
+     "name": "隨意投擲",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      0,
+      224
+     ],
+     "eff": {
+      "skill:suiyi": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      61,
+      3
+     ],
+     "gate": 25
+    },
+    {
+     "id": 143,
+     "name": "毒匕首",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      320,
+      256
+     ],
+     "eff": {
+      "skill:duzhi": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      59,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 118,
+     "name": "俄羅斯輪盤",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      32,
+      224
+     ],
+     "eff": {
+      "crit": 0.03
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      61,
+      2
+     ],
+     "gate": 30
+    },
+    {
+     "id": 312,
+     "name": "小丑的催促",
+     "col": 1,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      128,
+      96
+     ],
+     "eff": {
+      "speed": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 58,
+     "name": "滑稽",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      320,
+      96
+     ],
+     "eff": {
+      "magnet": 0.08
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 60,
+     "name": "跳躍",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      384,
+      96
+     ],
+     "eff": {
+      "speed": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      59,
+      2
+     ],
+     "gate": 10
+    },
+    {
+     "id": 62,
+     "name": "裝死",
+     "col": 1,
+     "max": 1,
+     "icon": [
+      "skill1.png",
+      448,
+      96
+     ],
+     "eff": {
+      "hp": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      58,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 116,
+     "name": "大跳躍",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      480,
+      192
+     ],
+     "eff": {
+      "speed": 0.03,
+      "armor": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      60,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 119,
+     "name": "爬行",
+     "col": 1,
+     "max": 1,
+     "icon": [
+      "skill1.png",
+      64,
+      224
+     ],
+     "eff": {
+      "regen": 1
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      62,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 63,
+     "name": "啦啦隊",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      480,
+      96
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      58,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 64,
+     "name": "催眠曲",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      0,
+      128
+     ],
+     "eff": {
+      "skill:cuimian": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      58,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 79,
+     "name": "加速",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill1.png",
+      32,
+      128
+     ],
+     "eff": {
+      "haste": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      64,
+      2
+     ],
+     "gate": 15
+    },
+    {
+     "id": 80,
+     "name": "團體加速",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill1.png",
+      192,
+      160
+     ],
+     "eff": {
+      "speed": 0.06
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      79,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 100,
+     "name": "假面遊戲",
+     "col": 2,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      480,
+      160
+     ],
+     "eff": {
+      "crit": 0.02,
+      "atk": 0.03
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      63,
+      1
+     ],
+     "gate": 30
+    }
+   ],
+   "branches": [
+    {
+     "key": "A",
+     "name": "刺客",
+     "third": "暗夜行者",
+     "skills": [
+      "k2_anying",
+      "k2_judu"
+     ],
+     "skill3": "k3_duanjue",
+     "nodes": [
+      {
+       "id": 182,
+       "name": "突襲",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        64,
+        352
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 185,
+       "name": "暗殺術",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        160,
+        352
+       ],
+       "eff": {
+        "crit": 0.01
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 316,
+       "name": "死亡劇毒",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        256,
+        96
+       ],
+       "eff": {
+        "skill:k2_judu": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 183,
+       "name": "闇影之牙",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        96,
+        352
+       ],
+       "eff": {
+        "skill:k2_anying": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        182,
+        1
+       ]
+      },
+      {
+       "id": 188,
+       "name": "草上飛",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        256,
+        352
+       ],
+       "eff": {
+        "speed": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        185,
+        1
+       ]
+      },
+      {
+       "id": 186,
+       "name": "混亂",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        192,
+        352
+       ],
+       "eff": {
+        "haste": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        185,
+        1
+       ]
+      },
+      {
+       "id": 189,
+       "name": "刺刀大師",
+       "gate": 60,
+       "max": 7,
+       "icon": [
+        "skill1.png",
+        288,
+        352
+       ],
+       "eff": {
+        "skill:b_clown": 0.5,
+        "atk": 0.01
+       },
+       "final": false,
+       "weapon": true,
+       "pre": [
+        183,
+        1
+       ]
+      },
+      {
+       "id": 184,
+       "name": "強襲",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        128,
+        352
+       ],
+       "eff": {
+        "phys": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        182,
+        1
+       ]
+      },
+      {
+       "id": 187,
+       "name": "分身術",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        224,
+        352
+       ],
+       "eff": {
+        "atk": 0.02,
+        "crit": 0.01
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        186,
+        1
+       ]
+      },
+      {
+       "id": 340,
+       "name": "斷絕",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        448,
+        128
+       ],
+       "eff": {
+        "skill:k3_duanjue": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        184,
+        1
+       ]
+      },
+      {
+       "id": 339,
+       "name": "速戰速決",
+       "gate": 101,
+       "max": 7,
+       "icon": [
+        "skill3.png",
+        416,
+        128
+       ],
+       "eff": {
+        "haste": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        187,
+        1
+       ]
+      }
+     ]
+    },
+    {
+     "key": "B",
+     "name": "藝者",
+     "third": "命運牌手",
+     "skills": [
+      "k2_fenli",
+      "k2_heijieke"
+     ],
+     "skill3": "k3_weixie",
+     "nodes": [
+      {
+       "id": 192,
+       "name": "虛張聲勢",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        384,
+        352
+       ],
+       "eff": {
+        "armor": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 194,
+       "name": "奮力投擲",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        448,
+        352
+       ],
+       "eff": {
+        "skill:k2_fenli": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 317,
+       "name": "亞洲第一快手",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        288,
+        96
+       ],
+       "eff": {
+        "haste": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 193,
+       "name": "雙重攻擊",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        416,
+        352
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        194,
+        1
+       ]
+      },
+      {
+       "id": 190,
+       "name": "天女散花",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        320,
+        352
+       ],
+       "eff": {
+        "skill:renyi": 0.5,
+        "skill:suiyi": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        192,
+        1
+       ]
+      },
+      {
+       "id": 196,
+       "name": "一石二鳥",
+       "gate": 60,
+       "max": 7,
+       "icon": [
+        "skill1.png",
+        0,
+        384
+       ],
+       "eff": {
+        "crit": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        194,
+        1
+       ]
+      },
+      {
+       "id": 191,
+       "name": "黑傑克",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        352,
+        352
+       ],
+       "eff": {
+        "skill:k2_heijieke": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        190,
+        1
+       ]
+      },
+      {
+       "id": 195,
+       "name": "吃角子老虎",
+       "gate": 65,
+       "max": 7,
+       "icon": [
+        "skill1.png",
+        480,
+        352
+       ],
+       "eff": {
+        "magnet": 0.04
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        193,
+        1
+       ]
+      },
+      {
+       "id": 197,
+       "name": "投擲訓練",
+       "gate": 65,
+       "max": 5,
+       "icon": [
+        "skill1.png",
+        32,
+        384
+       ],
+       "eff": {
+        "phys": 0.03
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        196,
+        1
+       ]
+      },
+      {
+       "id": 342,
+       "name": "威脅之卡",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        0,
+        160
+       ],
+       "eff": {
+        "skill:k3_weixie": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        197,
+        1
+       ]
+      },
+      {
+       "id": 341,
+       "name": "停止動作",
+       "gate": 101,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        480,
+        128
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    }
+   ]
+  },
+  "法師": {
+   "cols": [
+    "火",
+    "冰",
+    "奧術"
+   ],
+   "nodes": [
+    {
+     "id": 18,
+     "name": "火柴棒",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      64,
+      32
+     ],
+     "eff": {
+      "tag:fire": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      17,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 19,
+     "name": "火風暴",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      96,
+      32
+     ],
+     "eff": {
+      "skill:huofeng": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      18,
+      1
+     ],
+     "gate": 10
+    },
+    {
+     "id": 44,
+     "name": "火柴棒連擊",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      384,
+      64
+     ],
+     "eff": {
+      "tag:fire": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      18,
+      1
+     ],
+     "gate": 10
+    },
+    {
+     "id": 20,
+     "name": "火精靈",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      128,
+      32
+     ],
+     "eff": {
+      "skill:huojing": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      19,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 45,
+     "name": "狂暴火精靈",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      416,
+      64
+     ],
+     "eff": {
+      "skill:huojing": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      44,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 128,
+     "name": "狂暴烈焰",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      352,
+      224
+     ],
+     "eff": {
+      "tag:fire": 0.06
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      45,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 22,
+     "name": "隕石召喚",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      192,
+      32
+     ],
+     "eff": {
+      "tag:fire": 0.08
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      20,
+      3
+     ],
+     "gate": 30
+    },
+    {
+     "id": 129,
+     "name": "烈火鳳凰",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      384,
+      224
+     ],
+     "eff": {
+      "tag:fire": 0.08
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      124,
+      3
+     ],
+     "gate": 30
+    },
+    {
+     "id": 23,
+     "name": "冰劍術",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      224,
+      32
+     ],
+     "eff": {
+      "skill:bingjian": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      17,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 24,
+     "name": "冰柱術",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      256,
+      32
+     ],
+     "eff": {
+      "skill:bingzhu": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      23,
+      1
+     ],
+     "gate": 10
+    },
+    {
+     "id": 46,
+     "name": "冰瀑術",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      448,
+      64
+     ],
+     "eff": {
+      "tag:ice": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      23,
+      1
+     ],
+     "gate": 10
+    },
+    {
+     "id": 25,
+     "name": "冰凍術",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      288,
+      32
+     ],
+     "eff": {
+      "tag:ice": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      24,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 47,
+     "name": "凍結術",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      480,
+      64
+     ],
+     "eff": {
+      "tag:ice": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      46,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 130,
+     "name": "狂暴寒冰",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      416,
+      224
+     ],
+     "eff": {
+      "tag:ice": 0.06
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      47,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 27,
+     "name": "暴風雪",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      352,
+      32
+     ],
+     "eff": {
+      "tag:ice": 0.08
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      25,
+      3
+     ],
+     "gate": 30
+    },
+    {
+     "id": 131,
+     "name": "冰雪瀑布",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      448,
+      224
+     ],
+     "eff": {
+      "tag:ice": 0.08
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      123,
+      3
+     ],
+     "gate": 30
+    },
+    {
+     "id": 9,
+     "name": "持杖技",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      288,
+      0
+     ],
+     "eff": {
+      "skill:b_magic": 1,
+      "magic": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "gate": 0
+    },
+    {
+     "id": 310,
+     "name": "法師的策略",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      64,
+      96
+     ],
+     "eff": {
+      "haste": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 17,
+     "name": "熟讀咒語",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      32,
+      32
+     ],
+     "eff": {
+      "magic": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 105,
+     "name": "魔人附體",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      128,
+      192
+     ],
+     "eff": {
+      "magic": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      17,
+      3
+     ],
+     "gate": 15
+    },
+    {
+     "id": 127,
+     "name": "瞬間移動",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      320,
+      224
+     ],
+     "eff": {
+      "speed": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      105,
+      2
+     ],
+     "gate": 20
+    },
+    {
+     "id": 123,
+     "name": "馭冰術",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      192,
+      224
+     ],
+     "eff": {
+      "tag:ice": 0.04
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      17,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 124,
+     "name": "馭火術",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      224,
+      224
+     ],
+     "eff": {
+      "tag:fire": 0.04
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      17,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 125,
+     "name": "馭冰潔心",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      256,
+      224
+     ],
+     "eff": {
+      "hp": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      123,
+      3
+     ],
+     "gate": 25
+    },
+    {
+     "id": 126,
+     "name": "馭火焚身",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      288,
+      224
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      124,
+      3
+     ],
+     "gate": 25
+    }
+   ],
+   "branches": [
+    {
+     "key": "A",
+     "name": "冰魔導",
+     "third": "冰霜領主",
+     "skills": [
+      "k2_bingfeng",
+      "k2_qixuan"
+     ],
+     "skill3": "k3_bingleng",
+     "nodes": [
+      {
+       "id": 170,
+       "name": "寒冰炮彈術",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        192,
+        320
+       ],
+       "eff": {
+        "tag:ice": 0.02
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 171,
+       "name": "完美冰封術",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        224,
+        320
+       ],
+       "eff": {
+        "skill:k2_bingfeng": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        170,
+        1
+       ]
+      },
+      {
+       "id": 175,
+       "name": "寒冰之盾",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        352,
+        320
+       ],
+       "eff": {
+        "armor": 0.5,
+        "hp": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        170,
+        1
+       ]
+      },
+      {
+       "id": 172,
+       "name": "永凍術",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        256,
+        320
+       ],
+       "eff": {
+        "tag:ice": 0.02
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        175,
+        1
+       ]
+      },
+      {
+       "id": 173,
+       "name": "寒冰氣旋",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        288,
+        320
+       ],
+       "eff": {
+        "skill:k2_qixuan": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        171,
+        1
+       ]
+      },
+      {
+       "id": 174,
+       "name": "時間扭轉術",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        320,
+        320
+       ],
+       "eff": {
+        "haste": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        173,
+        1
+       ]
+      },
+      {
+       "id": 275,
+       "name": "正義風暴",
+       "gate": 70,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        480,
+        0
+       ],
+       "eff": {
+        "tag:ice": 0.03,
+        "magic": 0.01
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        172,
+        1
+       ]
+      },
+      {
+       "id": 343,
+       "name": "冰冷疾風",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        32,
+        160
+       ],
+       "eff": {
+        "skill:k3_bingleng": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        275,
+        1
+       ]
+      },
+      {
+       "id": 344,
+       "name": "冷風強化",
+       "gate": 101,
+       "max": 7,
+       "icon": [
+        "skill3.png",
+        64,
+        160
+       ],
+       "eff": {
+        "magic": 0.012,
+        "tag:ice": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    },
+    {
+     "key": "B",
+     "name": "炎魔導",
+     "third": "烈焰領主",
+     "skills": [
+      "k2_huochong",
+      "k2_dihuo"
+     ],
+     "skill3": "k3_huoyan",
+     "nodes": [
+      {
+       "id": 176,
+       "name": "火焰衝擊",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        384,
+        320
+       ],
+       "eff": {
+        "skill:k2_huochong": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 177,
+       "name": "地獄烈火",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        416,
+        320
+       ],
+       "eff": {
+        "tag:fire": 0.02
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        176,
+        1
+       ]
+      },
+      {
+       "id": 180,
+       "name": "火焰之盾",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        0,
+        352
+       ],
+       "eff": {
+        "armor": 0.5,
+        "hp": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        176,
+        1
+       ]
+      },
+      {
+       "id": 178,
+       "name": "地火震天",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        448,
+        320
+       ],
+       "eff": {
+        "skill:k2_dihuo": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        177,
+        1
+       ]
+      },
+      {
+       "id": 181,
+       "name": "烈炎反擊",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        32,
+        352
+       ],
+       "eff": {
+        "hp": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        180,
+        1
+       ]
+      },
+      {
+       "id": 179,
+       "name": "火焰之心",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        480,
+        320
+       ],
+       "eff": {
+        "magic": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        181,
+        1
+       ]
+      },
+      {
+       "id": 276,
+       "name": "火焰亂舞",
+       "gate": 70,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        0,
+        32
+       ],
+       "eff": {
+        "tag:fire": 0.03,
+        "magic": 0.01
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        178,
+        1
+       ]
+      },
+      {
+       "id": 345,
+       "name": "火焰疾風",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        96,
+        160
+       ],
+       "eff": {
+        "skill:k3_huoyan": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        179,
+        1
+       ]
+      },
+      {
+       "id": 346,
+       "name": "火焰強化",
+       "gate": 101,
+       "max": 7,
+       "icon": [
+        "skill3.png",
+        128,
+        160
+       ],
+       "eff": {
+        "magic": 0.012,
+        "tag:fire": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    }
+   ]
+  },
+  "祭司": {
+   "cols": [
+    "神聖",
+    "治癒",
+    "祝福"
+   ],
+   "nodes": [
+    {
+     "id": 10,
+     "name": "鎚技",
+     "col": 0,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      320,
+      0
+     ],
+     "eff": {
+      "skill:b_cleric": 1,
+      "atk": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "gate": 0
+    },
+    {
+     "id": 41,
+     "name": "勇敢",
+     "col": 0,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      288,
+      64
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      10,
+      3
+     ],
+     "gate": 5
+    },
+    {
+     "id": 43,
+     "name": "譴責",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      352,
+      64
+     ],
+     "eff": {
+      "skill:qianze": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      41,
+      2
+     ],
+     "gate": 10
+    },
+    {
+     "id": 326,
+     "name": "審判之力",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      0,
+      128
+     ],
+     "eff": {
+      "skill:shenpan": 1
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 15
+    },
+    {
+     "id": 133,
+     "name": "天譴",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      0,
+      256
+     ],
+     "eff": {
+      "skill:tianqian": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      43,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 132,
+     "name": "聖光",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      480,
+      224
+     ],
+     "eff": {
+      "skill:shengguang": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      42,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 327,
+     "name": "堅定信念",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      32,
+      128
+     ],
+     "eff": {
+      "atk": 0.04
+     },
+     "final": true,
+     "weapon": false,
+     "gate": 30
+    },
+    {
+     "id": 311,
+     "name": "祭司的激勵",
+     "col": 1,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      96,
+      96
+     ],
+     "eff": {
+      "hp": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 39,
+     "name": "祈禱",
+     "col": 1,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      224,
+      64
+     ],
+     "eff": {
+      "regen": 0.2
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 40,
+     "name": "治癒",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      256,
+      64
+     ],
+     "eff": {
+      "regen": 0.2
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      39,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 42,
+     "name": "治療",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      320,
+      64
+     ],
+     "eff": {
+      "hp": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      40,
+      1
+     ],
+     "gate": 10
+    },
+    {
+     "id": 55,
+     "name": "隊伍治癒術",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      224,
+      96
+     ],
+     "eff": {
+      "regen": 0.3
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      42,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 56,
+     "name": "馬斯治癒術",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      256,
+      96
+     ],
+     "eff": {
+      "hp": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      42,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 77,
+     "name": "狀態消除",
+     "col": 1,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      64,
+      128
+     ],
+     "eff": {
+      "armor": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      56,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 78,
+     "name": "復活",
+     "col": 1,
+     "max": 1,
+     "icon": [
+      "skill1.png",
+      96,
+      128
+     ],
+     "eff": {
+      "hp": 0.1
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      77,
+      3
+     ],
+     "gate": 30
+    },
+    {
+     "id": 53,
+     "name": "鼓勵",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      160,
+      96
+     ],
+     "eff": {
+      "magnet": 0.08
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      39,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 137,
+     "name": "隊伍祝福",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      128,
+      256
+     ],
+     "eff": {
+      "haste": 0.02
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 5
+    },
+    {
+     "id": 54,
+     "name": "保護術",
+     "col": 2,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      192,
+      96
+     ],
+     "eff": {
+      "armor": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      53,
+      1
+     ],
+     "gate": 10
+    },
+    {
+     "id": 102,
+     "name": "聖靈之力",
+     "col": 2,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      32,
+      192
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      53,
+      1
+     ],
+     "gate": 10
+    },
+    {
+     "id": 104,
+     "name": "瞬間加速",
+     "col": 2,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      96,
+      192
+     ],
+     "eff": {
+      "speed": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      53,
+      1
+     ],
+     "gate": 10
+    },
+    {
+     "id": 134,
+     "name": "神聖祝福術",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      32,
+      256
+     ],
+     "eff": {
+      "crit": 0.02
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      41,
+      3
+     ],
+     "gate": 20
+    },
+    {
+     "id": 135,
+     "name": "HP祝福術",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      64,
+      256
+     ],
+     "eff": {
+      "hp": 0.04
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      77,
+      3
+     ],
+     "gate": 25
+    },
+    {
+     "id": 136,
+     "name": "AP祝福術",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      96,
+      256
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      77,
+      3
+     ],
+     "gate": 25
+    },
+    {
+     "id": 138,
+     "name": "隊伍保護術",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      160,
+      256
+     ],
+     "eff": {
+      "armor": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      54,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 139,
+     "name": "隊伍聖靈之力",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      192,
+      256
+     ],
+     "eff": {
+      "atk": 0.04
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      102,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 140,
+     "name": "隊伍瞬間加速",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      224,
+      256
+     ],
+     "eff": {
+      "speed": 0.03
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      104,
+      1
+     ],
+     "gate": 30
+    }
+   ],
+   "branches": [
+    {
+     "key": "A",
+     "name": "審判者",
+     "third": "裁決者",
+     "skills": [
+      "k2_chanhui",
+      "k2_shangdi"
+     ],
+     "skill3": "k3_shengyu",
+     "nodes": [
+      {
+       "id": 198,
+       "name": "懺悔",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        64,
+        384
+       ],
+       "eff": {
+        "skill:k2_chanhui": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 202,
+       "name": "狂熱",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        192,
+        384
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 328,
+       "name": "上帝之手",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        64,
+        128
+       ],
+       "eff": {
+        "skill:k2_shangdi": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 204,
+       "name": "贖罪",
+       "gate": 55,
+       "max": 6,
+       "icon": [
+        "skill1.png",
+        256,
+        384
+       ],
+       "eff": {
+        "hp": 0.02
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        202,
+        1
+       ]
+      },
+      {
+       "id": 200,
+       "name": "預知",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        128,
+        384
+       ],
+       "eff": {
+        "crit": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        198,
+        1
+       ]
+      },
+      {
+       "id": 203,
+       "name": "聖鎚大師",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        224,
+        384
+       ],
+       "eff": {
+        "skill:b_cleric": 0.5,
+        "atk": 0.01
+       },
+       "final": false,
+       "weapon": true,
+       "pre": [
+        202,
+        1
+       ]
+      },
+      {
+       "id": 199,
+       "name": "審判",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        96,
+        384
+       ],
+       "eff": {
+        "skill:qianze": 0.5,
+        "skill:shenpan": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        200,
+        1
+       ]
+      },
+      {
+       "id": 201,
+       "name": "鞭策",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        160,
+        384
+       ],
+       "eff": {
+        "atk": 0.02,
+        "haste": 0.01
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        204,
+        1
+       ]
+      },
+      {
+       "id": 348,
+       "name": "聖域",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        192,
+        160
+       ],
+       "eff": {
+        "skill:k3_shengyu": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true
+      },
+      {
+       "id": 347,
+       "name": "福音",
+       "gate": 101,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        160,
+        160
+       ],
+       "eff": {
+        "regen": 0.1,
+        "atk": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    },
+    {
+     "key": "B",
+     "name": "聖賢者",
+     "third": "大主教",
+     "skills": [
+      "k2_qumo",
+      "k2_tianshi"
+     ],
+     "skill3": "k3_jiahu",
+     "nodes": [
+      {
+       "id": 205,
+       "name": "終極治療術",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        288,
+        384
+       ],
+       "eff": {
+        "regen": 0.15
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 212,
+       "name": "聖靈治癒",
+       "gate": 50,
+       "max": 5,
+       "icon": [
+        "skill1.png",
+        0,
+        416
+       ],
+       "eff": {
+        "hp": 0.03
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 330,
+       "name": "驅魔術",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        128,
+        128
+       ],
+       "eff": {
+        "skill:k2_qumo": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 206,
+       "name": "聖靈護盾",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        320,
+        384
+       ],
+       "eff": {
+        "armor": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        205,
+        1
+       ]
+      },
+      {
+       "id": 209,
+       "name": "聖靈魔力",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        416,
+        384
+       ],
+       "eff": {
+        "magic": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        212,
+        1
+       ]
+      },
+      {
+       "id": 329,
+       "name": "天使的呢喃",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        96,
+        128
+       ],
+       "eff": {
+        "skill:k2_tianshi": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 208,
+       "name": "聖靈力量",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        384,
+        384
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        209,
+        1
+       ]
+      },
+      {
+       "id": 210,
+       "name": "聖靈疾速",
+       "gate": 60,
+       "max": 7,
+       "icon": [
+        "skill1.png",
+        448,
+        384
+       ],
+       "eff": {
+        "speed": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        212,
+        1
+       ]
+      },
+      {
+       "id": 207,
+       "name": "聖靈祝福",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        352,
+        384
+       ],
+       "eff": {
+        "hp": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        208,
+        1
+       ]
+      },
+      {
+       "id": 211,
+       "name": "聖靈加速",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        480,
+        384
+       ],
+       "eff": {
+        "haste": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        210,
+        1
+       ]
+      },
+      {
+       "id": 213,
+       "name": "祈願",
+       "gate": 65,
+       "max": 7,
+       "icon": [
+        "skill1.png",
+        32,
+        416
+       ],
+       "eff": {
+        "regen": 0.2,
+        "hp": 0.01
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        206,
+        1
+       ]
+      },
+      {
+       "id": 350,
+       "name": "神的加護",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        256,
+        160
+       ],
+       "eff": {
+        "skill:k3_jiahu": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true
+      },
+      {
+       "id": 349,
+       "name": "恩寵",
+       "gate": 101,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        224,
+        160
+       ],
+       "eff": {
+        "hp": 0.02,
+        "regen": 0.1
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    }
+   ]
+  },
+  "鐵匠": {
+   "cols": [
+    "粉碎",
+    "炸彈",
+    "工匠"
+   ],
+   "nodes": [
+    {
+     "id": 11,
+     "name": "鐵槌技",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      352,
+      0
+     ],
+     "eff": {
+      "skill:b_smith": 1,
+      "atk": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "gate": 0
+    },
+    {
+     "id": 82,
+     "name": "致命一擊",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      224,
+      160
+     ],
+     "eff": {
+      "skill:zhiming": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      81,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 120,
+     "name": "一擊粉碎",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      96,
+      224
+     ],
+     "eff": {
+      "crit": 0.02
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      82,
+      1
+     ],
+     "gate": 10
+    },
+    {
+     "id": 141,
+     "name": "多重粉碎",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      256,
+      256
+     ],
+     "eff": {
+      "skill:duozhong": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      82,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 142,
+     "name": "一擊毀滅",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      288,
+      256
+     ],
+     "eff": {
+      "skill:huimie": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      120,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 122,
+     "name": "毀滅術",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      160,
+      224
+     ],
+     "eff": {
+      "tag:heavy": 0.08
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      82,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 83,
+     "name": "投擲炸彈",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      224,
+      128
+     ],
+     "eff": {
+      "skill:zhadan": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      81,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 121,
+     "name": "狂暴衝擊",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      128,
+      224
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      81,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 94,
+     "name": "鍊金術",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      288,
+      128
+     ],
+     "eff": {
+      "tag:fire": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      81,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 96,
+     "name": "熔解",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      448,
+      128
+     ],
+     "eff": {
+      "tag:fire": 0.04
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      81,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 313,
+     "name": "鐵匠的眼光",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      160,
+      96
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 81,
+     "name": "鐵匠精神",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill1.png",
+      192,
+      128
+     ],
+     "eff": {
+      "hp": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "gate": 0
+    },
+    {
+     "id": 84,
+     "name": "料理",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      256,
+      128
+     ],
+     "eff": {
+      "regen": 0.2
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      81,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 85,
+     "name": "高級料理",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      256,
+      160
+     ],
+     "eff": {
+      "regen": 0.4
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      84,
+      3
+     ],
+     "gate": 30
+    },
+    {
+     "id": 86,
+     "name": "收集",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill1.png",
+      288,
+      160
+     ],
+     "eff": {
+      "magnet": 0.15
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      81,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 101,
+     "name": "鑑定道具",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      0,
+      192
+     ],
+     "eff": {
+      "crit": 0.02
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      86,
+      1
+     ],
+     "gate": 10
+    }
+   ],
+   "branches": [
+    {
+     "key": "A",
+     "name": "爆破士",
+     "third": "毀滅者",
+     "skills": [
+      "k2_dingshi",
+      "k2_zhiming2"
+     ],
+     "skill3": "k3_feitian",
+     "nodes": [
+      {
+       "id": 217,
+       "name": "爆破傷害",
+       "gate": 50,
+       "max": 1,
+       "icon": [
+        "skill1.png",
+        160,
+        416
+       ],
+       "eff": {
+        "tag:fire": 0.08
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 218,
+       "name": "餘波盪漾",
+       "gate": 50,
+       "max": 1,
+       "icon": [
+        "skill1.png",
+        192,
+        416
+       ],
+       "eff": {
+        "atk": 0.06
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 215,
+       "name": "全面毀滅",
+       "gate": 55,
+       "max": 11,
+       "icon": [
+        "skill1.png",
+        96,
+        416
+       ],
+       "eff": {
+        "tag:heavy": 0.02
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        218,
+        1
+       ]
+      },
+      {
+       "id": 325,
+       "name": "炸彈製作專家",
+       "gate": 60,
+       "max": 1,
+       "icon": [
+        "skill1.png",
+        224,
+        416
+       ],
+       "eff": {
+        "skill:zhadan": 3
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        217,
+        1
+       ]
+      },
+      {
+       "id": 216,
+       "name": "定時炸彈",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        128,
+        416
+       ],
+       "eff": {
+        "skill:k2_dingshi": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        217,
+        1
+       ]
+      },
+      {
+       "id": 214,
+       "name": "致命毀滅",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        64,
+        416
+       ],
+       "eff": {
+        "skill:k2_zhiming2": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        215,
+        1
+       ]
+      },
+      {
+       "id": 220,
+       "name": "炸彈強化",
+       "gate": 65,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        256,
+        416
+       ],
+       "eff": {
+        "tag:fire": 0.03
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        325,
+        1
+       ]
+      },
+      {
+       "id": 351,
+       "name": "飛天槌擊",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        288,
+        160
+       ],
+       "eff": {
+        "skill:k3_feitian": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        216,
+        1
+       ]
+      },
+      {
+       "id": 352,
+       "name": "縝密監定",
+       "gate": 101,
+       "max": 1,
+       "icon": [
+        "skill3.png",
+        320,
+        160
+       ],
+       "eff": {
+        "crit": 0.03
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    },
+    {
+     "key": "B",
+     "name": "匠師",
+     "third": "神匠",
+     "skills": [
+      "k2_jiangchui",
+      "k2_zhilian"
+     ],
+     "skill3": "k3_quanlei",
+     "nodes": [
+      {
+       "id": 221,
+       "name": "匠槌訓練",
+       "gate": 50,
+       "max": 11,
+       "icon": [
+        "skill1.png",
+        288,
+        416
+       ],
+       "eff": {
+        "skill:k2_jiangchui": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 224,
+       "name": "制鏈專家",
+       "gate": 50,
+       "max": 7,
+       "icon": [
+        "skill1.png",
+        384,
+        416
+       ],
+       "eff": {
+        "skill:k2_zhilian": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 222,
+       "name": "盔甲強化術",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        320,
+        416
+       ],
+       "eff": {
+        "armor": 0.5,
+        "hp": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        221,
+        1
+       ]
+      },
+      {
+       "id": 223,
+       "name": "武器強化術",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        352,
+        416
+       ],
+       "eff": {
+        "atk": 0.02
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        222,
+        1
+       ]
+      },
+      {
+       "id": 227,
+       "name": "制鏈秘笈",
+       "gate": 65,
+       "max": 5,
+       "icon": [
+        "skill1.png",
+        480,
+        416
+       ],
+       "eff": {
+        "skill:k2_zhilian": 1
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        224,
+        1
+       ]
+      },
+      {
+       "id": 324,
+       "name": "高級道具監定",
+       "gate": 70,
+       "max": 1,
+       "icon": [
+        "skill3.png",
+        160,
+        192
+       ],
+       "eff": {
+        "crit": 0.05,
+        "magnet": 0.1
+       },
+       "final": true,
+       "weapon": false
+      },
+      {
+       "id": 353,
+       "name": "全壘打擊",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        352,
+        160
+       ],
+       "eff": {
+        "skill:k3_quanlei": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        223,
+        1
+       ]
+      },
+      {
+       "id": 354,
+       "name": "超縝密監定",
+       "gate": 101,
+       "max": 1,
+       "icon": [
+        "skill3.png",
+        192,
+        192
+       ],
+       "eff": {
+        "crit": 0.03,
+        "magnet": 0.05
+       },
+       "final": false,
+       "weapon": false,
+       "third": true
+      }
+     ]
+    }
+   ]
+  },
+  "獵人": {
+   "cols": [
+    "射擊",
+    "爆破",
+    "求生"
+   ],
+   "nodes": [
+    {
+     "id": 231,
+     "name": "彈弓精通",
+     "col": 0,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      96,
+      448
+     ],
+     "eff": {
+      "skill:b_hunter": 1,
+      "atk": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "gate": 0
+    },
+    {
+     "id": 234,
+     "name": "亂擊",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      192,
+      448
+     ],
+     "eff": {
+      "phys": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      232,
+      3
+     ],
+     "gate": 10
+    },
+    {
+     "id": 235,
+     "name": "弱點攻擊",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      224,
+      448
+     ],
+     "eff": {
+      "crit": 0.02
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      234,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 237,
+     "name": "亂射",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      288,
+      448
+     ],
+     "eff": {
+      "skill:luanshe": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      234,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 241,
+     "name": "雙子爆發",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      416,
+      448
+     ],
+     "eff": {
+      "skill:shuangzi": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      232,
+      3
+     ],
+     "gate": 10
+    },
+    {
+     "id": 236,
+     "name": "全力一擊",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      256,
+      448
+     ],
+     "eff": {
+      "tag:heavy": 0.08
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      235,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 232,
+     "name": "殺氣",
+     "col": 1,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      128,
+      448
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      231,
+      3
+     ],
+     "gate": 5
+    },
+    {
+     "id": 233,
+     "name": "霸氣",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      160,
+      448
+     ],
+     "eff": {
+      "crit": 0.02
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      232,
+      3
+     ],
+     "gate": 10
+    },
+    {
+     "id": 242,
+     "name": "爆彈分裂",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      448,
+      448
+     ],
+     "eff": {
+      "skill:baodan": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      241,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 244,
+     "name": "紅心連擊",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      0,
+      480
+     ],
+     "eff": {
+      "skill:luanshe": 0.5,
+      "skill:shuangzi": 0.5
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      242,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 243,
+     "name": "魔力之雨",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      480,
+      448
+     ],
+     "eff": {
+      "atk": 0.04
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      242,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 238,
+     "name": "纏繞樹根",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      320,
+      448
+     ],
+     "eff": {
+      "skill:chanrao": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      235,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 239,
+     "name": "鴿眼",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      352,
+      448
+     ],
+     "eff": {
+      "magnet": 0.08
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      236,
+      1
+     ],
+     "gate": 25
+    },
+    {
+     "id": 240,
+     "name": "鷹眼",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      384,
+      448
+     ],
+     "eff": {
+      "crit": 0.02
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      239,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 245,
+     "name": "閃擊之舞",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      32,
+      480
+     ],
+     "eff": {
+      "haste": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      242,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 246,
+     "name": "誘騙之餌",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill1.png",
+      64,
+      480
+     ],
+     "eff": {
+      "armor": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      243,
+      1
+     ],
+     "gate": 25
+    },
+    {
+     "id": 247,
+     "name": "瞬息閃身",
+     "col": 2,
+     "max": 3,
+     "icon": [
+      "skill1.png",
+      96,
+      480
+     ],
+     "eff": {
+      "speed": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      245,
+      3
+     ],
+     "gate": 25
+    },
+    {
+     "id": 314,
+     "name": "獵人的知識",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      192,
+      96
+     ],
+     "eff": {
+      "hp": 0.05
+     },
+     "final": true,
+     "weapon": false,
+     "gate": 30
+    }
+   ],
+   "branches": [
+    {
+     "key": "A",
+     "name": "弓箭手",
+     "third": "風暴獵手",
+     "skills": [
+      "k2_guanchuan",
+      "k2_baoyu"
+     ],
+     "skill3": "k3_jianshi",
+     "nodes": [
+      {
+       "id": 256,
+       "name": "貫穿攻擊",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        384,
+        480
+       ],
+       "eff": {
+        "skill:k2_guanchuan": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 257,
+       "name": "爆雨梨花",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        416,
+        480
+       ],
+       "eff": {
+        "skill:k2_baoyu": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        256,
+        2
+       ]
+      },
+      {
+       "id": 258,
+       "name": "穿甲之箭",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        448,
+        480
+       ],
+       "eff": {
+        "phys": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        257,
+        2
+       ]
+      },
+      {
+       "id": 259,
+       "name": "魔性殺器",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        480,
+        480
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 260,
+       "name": "毒氣環繞",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        32,
+        0
+       ],
+       "eff": {
+        "regen": 0.15
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        259,
+        2
+       ]
+      },
+      {
+       "id": 261,
+       "name": "迷幻空間",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        64,
+        0
+       ],
+       "eff": {
+        "armor": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        257,
+        2
+       ]
+      },
+      {
+       "id": 262,
+       "name": "強襲之弓",
+       "gate": 65,
+       "max": 6,
+       "icon": [
+        "skill3.png",
+        96,
+        0
+       ],
+       "eff": {
+        "skill:b_hunter": 0.5,
+        "atk": 0.01
+       },
+       "final": false,
+       "weapon": true,
+       "pre": [
+        258,
+        2
+       ]
+      },
+      {
+       "id": 318,
+       "name": "魔法之箭",
+       "gate": 50,
+       "max": 5,
+       "icon": [
+        "skill3.png",
+        320,
+        96
+       ],
+       "eff": {
+        "crit": 0.01
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 319,
+       "name": "弓箭改造",
+       "gate": 65,
+       "max": 5,
+       "icon": [
+        "skill3.png",
+        352,
+        96
+       ],
+       "eff": {
+        "haste": 0.03,
+        "atk": 0.01
+       },
+       "final": true,
+       "weapon": false
+      },
+      {
+       "id": 355,
+       "name": "箭矢雨",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        416,
+        160
+       ],
+       "eff": {
+        "skill:k3_jianshi": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true
+      },
+      {
+       "id": 356,
+       "name": "一箭三雕",
+       "gate": 101,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        448,
+        160
+       ],
+       "eff": {
+        "crit": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        262,
+        1
+       ]
+      }
+     ]
+    },
+    {
+     "key": "B",
+     "name": "槍手",
+     "third": "魔彈射手",
+     "skills": [
+      "k2_zhimiao",
+      "k2_hunxuan"
+     ],
+     "skill3": "k3_huoli",
+     "nodes": [
+      {
+       "id": 248,
+       "name": "弱點精準",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        128,
+        480
+       ],
+       "eff": {
+        "crit": 0.01
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 249,
+       "name": "會心一擊",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        160,
+        480
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        248,
+        2
+       ]
+      },
+      {
+       "id": 250,
+       "name": "致命瞄準",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        192,
+        480
+       ],
+       "eff": {
+        "skill:k2_zhimiao": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        249,
+        2
+       ]
+      },
+      {
+       "id": 251,
+       "name": "狂暴亂舞",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        224,
+        480
+       ],
+       "eff": {
+        "haste": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 252,
+       "name": "奪目炫光",
+       "gate": 55,
+       "max": 7,
+       "icon": [
+        "skill1.png",
+        256,
+        480
+       ],
+       "eff": {
+        "armor": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        248,
+        2
+       ]
+      },
+      {
+       "id": 253,
+       "name": "昏眩射擊",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill1.png",
+        288,
+        480
+       ],
+       "eff": {
+        "skill:k2_hunxuan": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        249,
+        2
+       ]
+      },
+      {
+       "id": 255,
+       "name": "遠程火力",
+       "gate": 65,
+       "max": 6,
+       "icon": [
+        "skill1.png",
+        352,
+        480
+       ],
+       "eff": {
+        "phys": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        250,
+        2
+       ]
+      },
+      {
+       "id": 320,
+       "name": "狙擊模式",
+       "gate": 50,
+       "max": 7,
+       "icon": [
+        "skill3.png",
+        384,
+        96
+       ],
+       "eff": {
+        "tag:heavy": 0.03
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 321,
+       "name": "瞬間爆發",
+       "gate": 65,
+       "max": 6,
+       "icon": [
+        "skill3.png",
+        416,
+        96
+       ],
+       "eff": {
+        "speed": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 322,
+       "name": "速戰之力",
+       "gate": 65,
+       "max": 7,
+       "icon": [
+        "skill1.png",
+        320,
+        480
+       ],
+       "eff": {
+        "haste": 0.02,
+        "crit": 0.01
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        253,
+        2
+       ]
+      },
+      {
+       "id": 357,
+       "name": "火力集中",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        480,
+        160
+       ],
+       "eff": {
+        "skill:k3_huoli": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        320,
+        1
+       ]
+      },
+      {
+       "id": 358,
+       "name": "第二次機會",
+       "gate": 101,
+       "max": 1,
+       "icon": [
+        "skill3.png",
+        0,
+        192
+       ],
+       "eff": {
+        "hp": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        320,
+        1
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

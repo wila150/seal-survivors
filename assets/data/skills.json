@@ -1,0 +1,2816 @@
+{
+ "_說明": "職業技能表（企劃_技能系統.md）。名稱與屬性取自 PC 版（2u 希望資料站 skill_v6）。第 l 級數值 = base + per × (l − 1)。icon = [圖檔, x, y]（assets/skill/ 32px 圖示表）。basic = 普攻（開局只有普攻，第一次升級才選第一招技能；普攻也能升到 Lv5）",
+ "fx": {
+  "slash": "assets/fx/vfx_shockwave_fireR.png",
+  "shock": "assets/fx/vfx_shockwave_blue.png",
+  "wind": "assets/fx/E_Wind_A001_03_purple.png",
+  "ice": "assets/fx/SFX_ice_Fire_a04.png",
+  "fire": "assets/fx/vfx_fire014_b.png",
+  "fireball": "assets/fx/eff_fireball_re_01.png",
+  "holy": "assets/fx/eff_sunlight_01.png",
+  "cross": "assets/fx/sfx_magic_box_yellow01.png",
+  "circle": "assets/fx/sfx_magic_cycle_yellow01.png",
+  "bomb": "assets/fx/e_trap_explosion_green.png",
+  "dagger": "assets/fx/vfx_bullet_03_Blue.png",
+  "card": "assets/fx/sfx_magic_box_red01.png",
+  "note": "assets/fx/eff_hana_re_g.png",
+  "poison": "assets/fx/volumsmoke_Green.png",
+  "shield": "assets/fx/vfx_choi_light_02_Blue.png",
+  "spirit": "assets/fx/e_fireball_Green.png",
+  "beam": "assets/fx/vfx_beam_1.png",
+  "light": "assets/fx/eff_lightballP01.png",
+  "dot": "assets/fx/vfx_dot10_Blue.png"
+ },
+ "jobs": {
+  "劍士": {
+   "start": "b_musa",
+   "pool": [
+    "liuyun",
+    "xuanfeng",
+    "jifeng",
+    "guangsu"
+   ],
+   "musou": {
+    "name": "異界斬",
+    "icon": [
+     "skill3.png",
+     320,
+     0
+    ],
+    "fx": "slash",
+    "color": "#ff7050",
+    "radius": 8,
+    "dmg": 90
+   },
+   "basic": "b_musa"
+  },
+  "騎士": {
+   "start": "b_knight",
+   "pool": [
+    "shizi",
+    "bafang",
+    "dunpai",
+    "shenjian"
+   ],
+   "musou": {
+    "name": "天罰",
+    "icon": [
+     "skill3.png",
+     384,
+     128
+    ],
+    "fx": "beam",
+    "color": "#9fd8ff",
+    "radius": 8,
+    "dmg": 85
+   },
+   "basic": "b_knight"
+  },
+  "小丑": {
+   "start": "b_clown",
+   "pool": [
+    "renyi",
+    "suiyi",
+    "duzhi",
+    "cuimian"
+   ],
+   "musou": {
+    "name": "停止動作",
+    "icon": [
+     "skill3.png",
+     480,
+     128
+    ],
+    "fx": "card",
+    "color": "#ffb0e0",
+    "radius": 9,
+    "dmg": 80
+   },
+   "basic": "b_clown"
+  },
+  "法師": {
+   "start": "b_magic",
+   "pool": [
+    "bingjian",
+    "huofeng",
+    "bingzhu",
+    "huojing"
+   ],
+   "musou": {
+    "name": "冰冷疾風",
+    "icon": [
+     "skill3.png",
+     32,
+     160
+    ],
+    "fx": "ice",
+    "color": "#a0e0ff",
+    "radius": 10,
+    "dmg": 80
+   },
+   "basic": "b_magic"
+  },
+  "祭司": {
+   "start": "b_cleric",
+   "pool": [
+    "qianze",
+    "shengguang",
+    "shenpan",
+    "tianqian"
+   ],
+   "musou": {
+    "name": "聖域",
+    "icon": [
+     "skill3.png",
+     192,
+     160
+    ],
+    "fx": "circle",
+    "color": "#fff2a0",
+    "radius": 9,
+    "dmg": 80
+   },
+   "basic": "b_cleric"
+  },
+  "鐵匠": {
+   "start": "b_smith",
+   "pool": [
+    "zhiming",
+    "zhadan",
+    "duozhong",
+    "huimie"
+   ],
+   "musou": {
+    "name": "飛天槌擊",
+    "icon": [
+     "skill3.png",
+     288,
+     160
+    ],
+    "fx": "bomb",
+    "color": "#ffc060",
+    "radius": 8,
+    "dmg": 95
+   },
+   "basic": "b_smith"
+  },
+  "獵人": {
+   "start": "b_hunter",
+   "pool": [
+    "luanshe",
+    "shuangzi",
+    "baodan",
+    "chanrao"
+   ],
+   "musou": {
+    "name": "魔力之雨",
+    "icon": [
+     "skill1.png",
+     480,
+     448
+    ],
+    "fx": "dot",
+    "color": "#a0c0ff",
+    "radius": 9,
+    "dmg": 80
+   },
+   "basic": "b_hunter"
+  }
+ },
+ "skills": {
+  "liuyun": {
+   "name": "流雲斬",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    416,
+    32
+   ],
+   "fx": "slash",
+   "color": "#ffd0a0",
+   "pc": "利用大剑极速砍掉对象",
+   "base": {
+    "dmg": 15,
+    "cd": 1.1,
+    "range": 2.8,
+    "arc": 1.3
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.05,
+    "range": 0.25,
+    "arc": 0.12
+   }
+  },
+  "xuanfeng": {
+   "name": "旋風斬",
+   "type": "ORBIT_AURA",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    448,
+    32
+   ],
+   "fx": "wind",
+   "color": "#ffe0b0",
+   "pc": "旋转大剑引起剑风",
+   "status": {
+    "slow": [
+     0.35,
+     1.5
+    ]
+   },
+   "base": {
+    "dmg": 6,
+    "count": 2,
+    "radius": 2.4,
+    "spin": 3.2
+   },
+   "per": {
+    "dmg": 2,
+    "count": 0.5,
+    "radius": 0.15,
+    "spin": 0.2
+   }
+  },
+  "jifeng": {
+   "name": "疾風斬",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    480,
+    32
+   ],
+   "fx": "slash",
+   "color": "#fff0c0",
+   "pc": "砍向目标后马上改变方向冲回来再砍",
+   "base": {
+    "dmg": 12,
+    "cd": 1.6,
+    "count": 1,
+    "speed": 15,
+    "bounce": 2,
+    "pierce": 1,
+    "size": 1.8
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.08,
+    "count": 0.34,
+    "bounce": 0.5,
+    "pierce": 0.25
+   }
+  },
+  "guangsu": {
+   "name": "光速斬",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    384,
+    192
+   ],
+   "fx": "beam",
+   "color": "#ffffff",
+   "pc": "像光速般直接斩掉对象",
+   "base": {
+    "dmg": 32,
+    "cd": 3.2,
+    "count": 1,
+    "radius": 1.6,
+    "at": "nearest"
+   },
+   "per": {
+    "dmg": 10,
+    "cd": -0.15,
+    "count": 0.5,
+    "radius": 0.1
+   }
+  },
+  "shizi": {
+   "name": "十字攻擊",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    64,
+    64
+   ],
+   "fx": "cross",
+   "color": "#cfe6ff",
+   "pc": "把剑刺进地面震动四周的敌人",
+   "base": {
+    "dmg": 13,
+    "cd": 2.2,
+    "count": 1,
+    "radius": 3,
+    "at": "self"
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.12,
+    "radius": 0.35
+   }
+  },
+  "bafang": {
+   "name": "八方攻擊",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    128,
+    64
+   ],
+   "fx": "shock",
+   "color": "#9fd8ff",
+   "pc": "地面产生十字形裂痕与震动",
+   "status": {
+    "slow": [
+     0.4,
+     2
+    ]
+   },
+   "base": {
+    "dmg": 11,
+    "cd": 2.8,
+    "range": 3.4,
+    "arc": 6.3
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.15,
+    "range": 0.35
+   }
+  },
+  "dunpai": {
+   "name": "盾牌投擲",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    352,
+    0
+   ],
+   "fx": "shield",
+   "color": "#bfe0ff",
+   "pc": "利用回转力发出的风刃攻击",
+   "base": {
+    "dmg": 14,
+    "cd": 1.8,
+    "count": 1,
+    "speed": 13,
+    "bounce": 3,
+    "pierce": 0,
+    "size": 1.5
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.1,
+    "bounce": 1,
+    "count": 0.25
+   }
+  },
+  "shenjian": {
+   "name": "十字神劍",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    160,
+    192
+   ],
+   "fx": "cross",
+   "color": "#ffffff",
+   "pc": "将剑插入地面出现十字型光",
+   "base": {
+    "dmg": 24,
+    "cd": 4.5,
+    "count": 1,
+    "radius": 2.4,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 7,
+    "cd": -0.25,
+    "count": 0.6,
+    "radius": 0.15
+   }
+  },
+  "renyi": {
+   "name": "任意投擲",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    416,
+    96
+   ],
+   "fx": "dagger",
+   "color": "#ffd080",
+   "pc": "任何东西都能丢（标枪类）",
+   "base": {
+    "dmg": 9,
+    "cd": 0.9,
+    "count": 1,
+    "speed": 18,
+    "bounce": 0,
+    "pierce": 1,
+    "size": 1.1
+   },
+   "per": {
+    "dmg": 3,
+    "cd": -0.05,
+    "count": 0.5,
+    "pierce": 0.25
+   }
+  },
+  "suiyi": {
+   "name": "隨意投擲",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    0,
+    224
+   ],
+   "fx": "card",
+   "color": "#ffffff",
+   "pc": "卡片那样薄的物品都能造成强大伤害",
+   "base": {
+    "dmg": 11,
+    "cd": 1.5,
+    "count": 2,
+    "speed": 16,
+    "bounce": 3,
+    "pierce": 0,
+    "size": 1
+   },
+   "per": {
+    "dmg": 3,
+    "cd": -0.08,
+    "count": 0.5,
+    "bounce": 0.5
+   }
+  },
+  "duzhi": {
+   "name": "毒匕首",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    320,
+    256
+   ],
+   "fx": "dagger",
+   "color": "#90ff90",
+   "pc": "中毒的对象10秒内每2秒受到伤害",
+   "status": {
+    "poison": [
+     4,
+     6
+    ]
+   },
+   "base": {
+    "dmg": 8,
+    "cd": 1.8,
+    "count": 1,
+    "speed": 16,
+    "bounce": 1,
+    "pierce": 0,
+    "size": 1.1
+   },
+   "per": {
+    "dmg": 2,
+    "cd": -0.1,
+    "count": 0.5,
+    "bounce": 0.25
+   }
+  },
+  "cuimian": {
+   "name": "催眠曲",
+   "type": "ORBIT_AURA",
+   "kind": "magic",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    0,
+    128
+   ],
+   "fx": "note",
+   "color": "#ffc0f0",
+   "pc": "让敌人昏昏欲睡",
+   "status": {
+    "slow": [
+     0.5,
+     2
+    ]
+   },
+   "base": {
+    "dmg": 4,
+    "count": 2,
+    "radius": 2.6,
+    "spin": 2.6
+   },
+   "per": {
+    "dmg": 1.5,
+    "count": 0.5,
+    "radius": 0.2
+   }
+  },
+  "bingjian": {
+   "name": "冰劍術",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "magic",
+   "tags": [
+    "ice"
+   ],
+   "icon": [
+    "skill1.png",
+    224,
+    32
+   ],
+   "fx": "ice",
+   "color": "#bfe8ff",
+   "pc": "水属性。将水分冰成冰刺扔在对方身上",
+   "status": {
+    "slow": [
+     0.4,
+     2
+    ]
+   },
+   "base": {
+    "dmg": 10,
+    "cd": 1,
+    "count": 1,
+    "speed": 17,
+    "bounce": 1,
+    "pierce": 0,
+    "size": 1.3
+   },
+   "per": {
+    "dmg": 3,
+    "cd": -0.06,
+    "count": 0.4,
+    "bounce": 0.4
+   }
+  },
+  "huofeng": {
+   "name": "火風暴",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [
+    "fire"
+   ],
+   "icon": [
+    "skill1.png",
+    96,
+    32
+   ],
+   "fx": "fire",
+   "color": "#ffa050",
+   "pc": "火属性。引起火风暴攻击周围的敌人",
+   "base": {
+    "dmg": 14,
+    "cd": 2.4,
+    "count": 1,
+    "radius": 2.2,
+    "at": "nearest"
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.12,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "bingzhu": {
+   "name": "冰柱術",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [
+    "ice"
+   ],
+   "icon": [
+    "skill1.png",
+    256,
+    32
+   ],
+   "fx": "ice",
+   "color": "#d0f0ff",
+   "pc": "水属性。冰刺在对方周围打破",
+   "status": {
+    "slow": [
+     0.45,
+     2.5
+    ]
+   },
+   "base": {
+    "dmg": 10,
+    "cd": 2.6,
+    "count": 2,
+    "radius": 2,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 3,
+    "cd": -0.12,
+    "count": 0.6,
+    "radius": 0.15
+   }
+  },
+  "huojing": {
+   "name": "火精靈",
+   "type": "ORBIT_AURA",
+   "kind": "magic",
+   "tags": [
+    "fire"
+   ],
+   "icon": [
+    "skill1.png",
+    128,
+    32
+   ],
+   "fx": "spirit",
+   "color": "#ffb060",
+   "pc": "火属性。召唤火妖精让周围燃烧",
+   "base": {
+    "dmg": 6,
+    "count": 2,
+    "radius": 2.8,
+    "spin": 2.4
+   },
+   "per": {
+    "dmg": 2,
+    "count": 0.5,
+    "radius": 0.15
+   }
+  },
+  "qianze": {
+   "name": "譴責",
+   "type": "MELEE_ARC",
+   "kind": "magic",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    352,
+    64
+   ],
+   "fx": "holy",
+   "color": "#fff0b0",
+   "pc": "光属性。以圣人的力量强力挥击，对象爆发",
+   "base": {
+    "dmg": 14,
+    "cd": 1.2,
+    "range": 2.6,
+    "arc": 1.6
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.06,
+    "range": 0.2,
+    "arc": 0.15
+   }
+  },
+  "shengguang": {
+   "name": "聖光",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    480,
+    224
+   ],
+   "fx": "light",
+   "color": "#fff6c0",
+   "pc": "依据圣灵之力量引发爆炸",
+   "base": {
+    "dmg": 12,
+    "cd": 1.8,
+    "count": 1,
+    "radius": 1.8,
+    "at": "nearest"
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.08,
+    "count": 0.5,
+    "radius": 0.12
+   }
+  },
+  "shenpan": {
+   "name": "審判之力",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    0,
+    128
+   ],
+   "fx": "circle",
+   "color": "#ffe9a0",
+   "pc": "对周围敌人造成伤害，1.5秒内移动速度减少50%",
+   "status": {
+    "slow": [
+     0.5,
+     1.5
+    ]
+   },
+   "base": {
+    "dmg": 10,
+    "cd": 3.2,
+    "count": 1,
+    "radius": 3.4,
+    "at": "self"
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.15,
+    "radius": 0.35
+   }
+  },
+  "tianqian": {
+   "name": "天譴",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    0,
+    256
+   ],
+   "fx": "beam",
+   "color": "#fff2a0",
+   "pc": "使用天神赐予的力量，让敌人受到更大伤害",
+   "base": {
+    "dmg": 26,
+    "cd": 3.6,
+    "count": 1,
+    "radius": 1.6,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 8,
+    "cd": -0.2,
+    "count": 0.5
+   }
+  },
+  "zhiming": {
+   "name": "致命一擊",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    224,
+    160
+   ],
+   "fx": "bomb",
+   "color": "#ffc070",
+   "pc": "像在打热铁一样敲打敌人",
+   "base": {
+    "dmg": 20,
+    "cd": 1.4,
+    "range": 2.4,
+    "arc": 1.2
+   },
+   "per": {
+    "dmg": 7,
+    "cd": -0.07,
+    "range": 0.2,
+    "arc": 0.1
+   }
+  },
+  "zhadan": {
+   "name": "投擲炸彈",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "fire"
+   ],
+   "icon": [
+    "skill1.png",
+    224,
+    128
+   ],
+   "fx": "bomb",
+   "color": "#ffa040",
+   "pc": "投掷炸弹攻击敌人，必须小心使用",
+   "base": {
+    "dmg": 14,
+    "cd": 2,
+    "count": 1,
+    "radius": 2.2,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.1,
+    "count": 0.5,
+    "radius": 0.15
+   }
+  },
+  "duozhong": {
+   "name": "多重粉碎",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    256,
+    256
+   ],
+   "fx": "shock",
+   "color": "#ffd090",
+   "pc": "产生强烈的冲击波攻击周围的敌人",
+   "status": {
+    "slow": [
+     0.4,
+     1.5
+    ]
+   },
+   "base": {
+    "dmg": 12,
+    "cd": 2.6,
+    "count": 1,
+    "radius": 3.2,
+    "at": "self"
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.12,
+    "radius": 0.35
+   }
+  },
+  "huimie": {
+   "name": "一擊毀滅",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    288,
+    256
+   ],
+   "fx": "bomb",
+   "color": "#ff9050",
+   "pc": "毁灭的一击，20%机率晕眩3秒",
+   "status": {
+    "stun": [
+     0.2,
+     1.5
+    ]
+   },
+   "base": {
+    "dmg": 30,
+    "cd": 3,
+    "count": 1,
+    "radius": 1.5,
+    "at": "nearest"
+   },
+   "per": {
+    "dmg": 9,
+    "cd": -0.15,
+    "count": 0.4
+   }
+  },
+  "jianwu": {
+   "name": "劍舞",
+   "super": true,
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    0,
+    320
+   ],
+   "fx": "slash",
+   "color": "#ff9070",
+   "pc": "二转魔剑士技能",
+   "base": {
+    "dmg": 42,
+    "cd": 0.9,
+    "range": 5,
+    "arc": 6.3,
+    "hits": 2
+   }
+  },
+  "shenhan": {
+   "name": "神撼大地",
+   "super": true,
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    192,
+    288
+   ],
+   "fx": "cross",
+   "color": "#d0f0ff",
+   "pc": "二转圣骑士技能",
+   "status": {
+    "slow": [
+     0.5,
+     2
+    ]
+   },
+   "base": {
+    "dmg": 40,
+    "cd": 1.6,
+    "count": 1,
+    "radius": 6,
+    "at": "self"
+   }
+  },
+  "tiannv": {
+   "name": "天女散花",
+   "super": true,
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    320,
+    352
+   ],
+   "fx": "card",
+   "color": "#ffd0f0",
+   "pc": "二转技能",
+   "base": {
+    "dmg": 22,
+    "cd": 0.8,
+    "count": 10,
+    "speed": 17,
+    "bounce": 2,
+    "pierce": 1,
+    "size": 1.1,
+    "ring": 1
+   }
+  },
+  "hanbing": {
+   "name": "寒冰炮彈術",
+   "super": true,
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "magic",
+   "tags": [
+    "ice"
+   ],
+   "icon": [
+    "skill1.png",
+    192,
+    320
+   ],
+   "fx": "ice",
+   "color": "#a0e8ff",
+   "pc": "二转冰系技能",
+   "status": {
+    "slow": [
+     0.6,
+     3
+    ]
+   },
+   "base": {
+    "dmg": 30,
+    "cd": 0.8,
+    "count": 4,
+    "speed": 15,
+    "bounce": 4,
+    "pierce": 1,
+    "size": 2,
+    "blast": 2.2
+   }
+  },
+  "shenpan2": {
+   "name": "審判",
+   "super": true,
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    96,
+    384
+   ],
+   "fx": "beam",
+   "color": "#fff2a0",
+   "pc": "二转大祭司技能",
+   "status": {
+    "slow": [
+     0.5,
+     1.5
+    ]
+   },
+   "base": {
+    "dmg": 38,
+    "cd": 0.9,
+    "count": 4,
+    "radius": 2.6,
+    "at": "random"
+   }
+  },
+  "quanmian": {
+   "name": "全面毀滅",
+   "super": true,
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy",
+    "fire"
+   ],
+   "icon": [
+    "skill1.png",
+    96,
+    416
+   ],
+   "fx": "bomb",
+   "color": "#ffb050",
+   "pc": "二转铁匠技能",
+   "status": {
+    "stun": [
+     0.25,
+     1.5
+    ]
+   },
+   "base": {
+    "dmg": 48,
+    "cd": 1.4,
+    "count": 3,
+    "radius": 3,
+    "at": "random"
+   }
+  },
+  "b_musa": {
+   "name": "雙手劍技",
+   "basic": true,
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    192,
+    0
+   ],
+   "fx": "slash",
+   "color": "#ffe0c0",
+   "pc": "双手剑基本攻击",
+   "base": {
+    "dmg": 10,
+    "cd": 0.9,
+    "range": 2.4,
+    "arc": 1.4
+   },
+   "per": {
+    "dmg": 3,
+    "cd": -0.04,
+    "range": 0.15
+   }
+  },
+  "b_knight": {
+   "name": "單手劍技",
+   "basic": true,
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    224,
+    0
+   ],
+   "fx": "slash",
+   "color": "#d0e8ff",
+   "pc": "单手剑基本攻击",
+   "base": {
+    "dmg": 9,
+    "cd": 0.85,
+    "range": 2.2,
+    "arc": 1.3
+   },
+   "per": {
+    "dmg": 3,
+    "cd": -0.04,
+    "range": 0.15
+   }
+  },
+  "b_clown": {
+   "name": "匕首技",
+   "basic": true,
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    256,
+    0
+   ],
+   "fx": "dagger",
+   "color": "#ffe0a0",
+   "pc": "匕首基本攻击",
+   "base": {
+    "dmg": 6,
+    "cd": 0.7,
+    "count": 1,
+    "speed": 18,
+    "bounce": 0,
+    "pierce": 0,
+    "size": 1
+   },
+   "per": {
+    "dmg": 2,
+    "cd": -0.04,
+    "count": 0.25
+   }
+  },
+  "b_magic": {
+   "name": "持杖技",
+   "basic": true,
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "magic",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    288,
+    0
+   ],
+   "fx": "light",
+   "color": "#d8c8ff",
+   "pc": "持杖基本攻击",
+   "base": {
+    "dmg": 7,
+    "cd": 0.8,
+    "count": 1,
+    "speed": 16,
+    "bounce": 0,
+    "pierce": 0,
+    "size": 1.1
+   },
+   "per": {
+    "dmg": 2,
+    "cd": -0.04,
+    "count": 0.25
+   }
+  },
+  "b_cleric": {
+   "name": "鎚技",
+   "basic": true,
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    320,
+    0
+   ],
+   "fx": "holy",
+   "color": "#fff0c0",
+   "pc": "鎚基本攻击",
+   "base": {
+    "dmg": 9,
+    "cd": 0.9,
+    "range": 2.2,
+    "arc": 1.3
+   },
+   "per": {
+    "dmg": 3,
+    "cd": -0.04,
+    "range": 0.15
+   }
+  },
+  "b_smith": {
+   "name": "鐵槌技",
+   "basic": true,
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    352,
+    0
+   ],
+   "fx": "bomb",
+   "color": "#ffd0a0",
+   "pc": "铁槌基本攻击",
+   "base": {
+    "dmg": 12,
+    "cd": 1.1,
+    "range": 2.2,
+    "arc": 1.2
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.05,
+    "range": 0.15
+   }
+  },
+  "k2_yiwang": {
+   "name": "一網打盡",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    224,
+    0
+   ],
+   "fx": "slash",
+   "color": "#ff8060",
+   "pc": "二轉狂劍士：揮劍掃倒周圍所有敵人",
+   "job2": true,
+   "base": {
+    "dmg": 20,
+    "cd": 2.4,
+    "range": 3.8,
+    "arc": 6.3
+   },
+   "per": {
+    "dmg": 6,
+    "cd": -0.12,
+    "range": 0.3
+   }
+  },
+  "k2_fennu": {
+   "name": "憤怒之力",
+   "type": "ORBIT_AURA",
+   "kind": "phys",
+   "tags": [
+    "fire"
+   ],
+   "icon": [
+    "skill1.png",
+    448,
+    288
+   ],
+   "fx": "fire",
+   "color": "#ff5030",
+   "pc": "二轉狂劍士：怒氣化成火焰繞身",
+   "job2": true,
+   "base": {
+    "dmg": 9,
+    "count": 2,
+    "radius": 2.8,
+    "spin": 3.4
+   },
+   "per": {
+    "dmg": 3,
+    "count": 0.5,
+    "radius": 0.2,
+    "spin": 0.2
+   }
+  },
+  "k2_tuji": {
+   "name": "突擊",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    32,
+    320
+   ],
+   "fx": "wind",
+   "color": "#c0e0ff",
+   "pc": "二轉魔劍士：朝敵人突進貫穿",
+   "job2": true,
+   "base": {
+    "dmg": 18,
+    "cd": 1.6,
+    "count": 1,
+    "speed": 18,
+    "bounce": 1,
+    "pierce": 2,
+    "size": 2
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4,
+    "pierce": 0.25
+   }
+  },
+  "k2_xixue": {
+   "name": "吸血斬",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    288,
+    0
+   ],
+   "fx": "slash",
+   "color": "#d02040",
+   "pc": "二轉魔劍士：吸取敵人生命的斬擊",
+   "job2": true,
+   "base": {
+    "dmg": 22,
+    "cd": 1.5,
+    "range": 3.2,
+    "arc": 1.8
+   },
+   "per": {
+    "dmg": 6,
+    "cd": -0.12,
+    "range": 0.25
+   }
+  },
+  "k2_chongji": {
+   "name": "衝擊波",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    480,
+    256
+   ],
+   "fx": "shock",
+   "color": "#9080ff",
+   "pc": "二轉闇騎士：劍氣衝擊波貫穿前方",
+   "job2": true,
+   "base": {
+    "dmg": 16,
+    "cd": 1.8,
+    "count": 1,
+    "speed": 14,
+    "bounce": 0,
+    "pierce": 3,
+    "size": 2.4
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4,
+    "pierce": 0.25
+   }
+  },
+  "k2_quanli": {
+   "name": "全力一擊",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    0,
+    288
+   ],
+   "fx": "shock",
+   "color": "#a060ff",
+   "pc": "二轉闇騎士：用盡全力重擊地面",
+   "job2": true,
+   "status": {
+    "stun": [
+     0.3,
+     0.8
+    ]
+   },
+   "base": {
+    "dmg": 26,
+    "cd": 3,
+    "count": 1,
+    "radius": 2.6,
+    "at": "nearest"
+   },
+   "per": {
+    "dmg": 8,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_baofeng": {
+   "name": "暴風神劍",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    128,
+    288
+   ],
+   "fx": "holy",
+   "color": "#fff0a0",
+   "pc": "二轉聖騎士：神聖之劍在敵人間彈射",
+   "job2": true,
+   "base": {
+    "dmg": 15,
+    "cd": 1.7,
+    "count": 1,
+    "speed": 16,
+    "bounce": 3,
+    "pierce": 0,
+    "size": 1.8
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4,
+    "pierce": 0.25
+   }
+  },
+  "k2_tianbeng": {
+   "name": "天崩地裂",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    160,
+    288
+   ],
+   "fx": "cross",
+   "color": "#ffe080",
+   "pc": "二轉聖騎士：天地崩裂的十字衝擊",
+   "job2": true,
+   "status": {
+    "slow": [
+     0.4,
+     2
+    ]
+   },
+   "base": {
+    "dmg": 22,
+    "cd": 2.8,
+    "count": 2,
+    "radius": 2.4,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 7,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_anying": {
+   "name": "闇影之牙",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    96,
+    352
+   ],
+   "fx": "dagger",
+   "color": "#a070ff",
+   "pc": "二轉刺客：暗影匕首貫穿敵人",
+   "job2": true,
+   "base": {
+    "dmg": 12,
+    "cd": 1.2,
+    "count": 2,
+    "speed": 20,
+    "bounce": 0,
+    "pierce": 2,
+    "size": 1.2
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4,
+    "pierce": 0.25
+   }
+  },
+  "k2_judu": {
+   "name": "死亡劇毒",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    256,
+    96
+   ],
+   "fx": "poison",
+   "color": "#70ff70",
+   "pc": "二轉刺客：散布劇毒的毒霧",
+   "job2": true,
+   "status": {
+    "poison": [
+     6,
+     6
+    ]
+   },
+   "base": {
+    "dmg": 10,
+    "cd": 2.6,
+    "count": 2,
+    "radius": 2.6,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 3,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_fenli": {
+   "name": "奮力投擲",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    448,
+    352
+   ],
+   "fx": "card",
+   "color": "#ffd070",
+   "pc": "二轉藝者：用力擲出的飛牌",
+   "job2": true,
+   "base": {
+    "dmg": 20,
+    "cd": 1.6,
+    "count": 1,
+    "speed": 17,
+    "bounce": 2,
+    "pierce": 1,
+    "size": 1.6
+   },
+   "per": {
+    "dmg": 6,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4,
+    "pierce": 0.25
+   }
+  },
+  "k2_heijieke": {
+   "name": "黑傑克",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    352,
+    352
+   ],
+   "fx": "card",
+   "color": "#ff70c0",
+   "pc": "二轉藝者：撲克牌陣在敵人頭上炸開",
+   "job2": true,
+   "base": {
+    "dmg": 18,
+    "cd": 2.4,
+    "count": 3,
+    "radius": 2,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_bingfeng": {
+   "name": "完美冰封術",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [
+    "ice"
+   ],
+   "icon": [
+    "skill1.png",
+    224,
+    320
+   ],
+   "fx": "ice",
+   "color": "#b0f0ff",
+   "pc": "二轉冰魔導：把一片敵人完全冰封",
+   "job2": true,
+   "status": {
+    "slow": [
+     0.7,
+     3
+    ]
+   },
+   "base": {
+    "dmg": 18,
+    "cd": 3,
+    "count": 2,
+    "radius": 2.6,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 6,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_qixuan": {
+   "name": "寒冰氣旋",
+   "type": "ORBIT_AURA",
+   "kind": "magic",
+   "tags": [
+    "ice"
+   ],
+   "icon": [
+    "skill1.png",
+    288,
+    320
+   ],
+   "fx": "ice",
+   "color": "#90e0ff",
+   "pc": "二轉冰魔導：寒冰氣旋繞身旋轉",
+   "job2": true,
+   "status": {
+    "slow": [
+     0.4,
+     1.5
+    ]
+   },
+   "base": {
+    "dmg": 9,
+    "count": 3,
+    "radius": 3,
+    "spin": 3
+   },
+   "per": {
+    "dmg": 3,
+    "count": 0.5,
+    "radius": 0.2,
+    "spin": 0.2
+   }
+  },
+  "k2_huochong": {
+   "name": "火焰衝擊",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "magic",
+   "tags": [
+    "fire"
+   ],
+   "icon": [
+    "skill1.png",
+    384,
+    320
+   ],
+   "fx": "fireball",
+   "color": "#ff8030",
+   "pc": "二轉炎魔導：火球衝擊並爆開",
+   "job2": true,
+   "base": {
+    "dmg": 20,
+    "cd": 1.5,
+    "count": 1,
+    "speed": 15,
+    "bounce": 1,
+    "pierce": 0,
+    "size": 2
+   },
+   "per": {
+    "dmg": 6,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4,
+    "pierce": 0.25
+   }
+  },
+  "k2_dihuo": {
+   "name": "地火震天",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [
+    "fire"
+   ],
+   "icon": [
+    "skill1.png",
+    448,
+    320
+   ],
+   "fx": "fire",
+   "color": "#ff6020",
+   "pc": "二轉炎魔導：地底烈火噴發",
+   "job2": true,
+   "base": {
+    "dmg": 24,
+    "cd": 2.8,
+    "count": 2,
+    "radius": 2.6,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 7,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_chanhui": {
+   "name": "懺悔",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    64,
+    384
+   ],
+   "fx": "light",
+   "color": "#fff5c0",
+   "pc": "二轉審判者：讓敵人跪地懺悔的聖光",
+   "job2": true,
+   "status": {
+    "stun": [
+     0.3,
+     0.8
+    ]
+   },
+   "base": {
+    "dmg": 20,
+    "cd": 2.6,
+    "count": 1,
+    "radius": 2.6,
+    "at": "nearest"
+   },
+   "per": {
+    "dmg": 6,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_shangdi": {
+   "name": "上帝之手",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    64,
+    128
+   ],
+   "fx": "holy",
+   "color": "#ffffff",
+   "pc": "二轉審判者：神之手從天而降",
+   "job2": true,
+   "base": {
+    "dmg": 16,
+    "cd": 2.2,
+    "count": 2,
+    "radius": 2.2,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_qumo": {
+   "name": "驅魔術",
+   "type": "ORBIT_AURA",
+   "kind": "magic",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    128,
+    128
+   ],
+   "fx": "holy",
+   "color": "#fff8d0",
+   "pc": "二轉聖賢者：驅魔聖光繞身",
+   "job2": true,
+   "base": {
+    "dmg": 8,
+    "count": 3,
+    "radius": 2.8,
+    "spin": 2.8
+   },
+   "per": {
+    "dmg": 2.5,
+    "count": 0.5,
+    "radius": 0.2,
+    "spin": 0.2
+   }
+  },
+  "k2_tianshi": {
+   "name": "天使的呢喃",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    96,
+    128
+   ],
+   "fx": "light",
+   "color": "#ffe8ff",
+   "pc": "二轉聖賢者：天使之聲淨化周圍",
+   "job2": true,
+   "status": {
+    "slow": [
+     0.4,
+     2
+    ]
+   },
+   "base": {
+    "dmg": 14,
+    "cd": 2.4,
+    "count": 3,
+    "radius": 2.2,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_dingshi": {
+   "name": "定時炸彈",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "fire"
+   ],
+   "icon": [
+    "skill1.png",
+    128,
+    416
+   ],
+   "fx": "bomb",
+   "color": "#ff9040",
+   "pc": "二轉爆破士：丟下會爆炸的定時炸彈",
+   "job2": true,
+   "base": {
+    "dmg": 26,
+    "cd": 3,
+    "count": 2,
+    "radius": 2.6,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 8,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_zhiming2": {
+   "name": "致命毀滅",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    64,
+    416
+   ],
+   "fx": "shock",
+   "color": "#ff5050",
+   "pc": "二轉爆破士：毀滅性的鐵鎚重擊",
+   "job2": true,
+   "status": {
+    "stun": [
+     0.3,
+     0.8
+    ]
+   },
+   "base": {
+    "dmg": 28,
+    "cd": 3.2,
+    "count": 1,
+    "radius": 3,
+    "at": "nearest"
+   },
+   "per": {
+    "dmg": 8,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.2
+   }
+  },
+  "k2_jiangchui": {
+   "name": "匠槌訓練",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    288,
+    416
+   ],
+   "fx": "shock",
+   "color": "#ffc080",
+   "pc": "二轉匠師：千錘百鍊的鐵鎚連打（PC 為被動，割草版改主動）",
+   "job2": true,
+   "base": {
+    "dmg": 22,
+    "cd": 1.6,
+    "range": 3,
+    "arc": 2.2
+   },
+   "per": {
+    "dmg": 6,
+    "cd": -0.12,
+    "range": 0.25
+   }
+  },
+  "k2_zhilian": {
+   "name": "制鏈專家",
+   "type": "ORBIT_AURA",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    384,
+    416
+   ],
+   "fx": "spirit",
+   "color": "#d0d0e0",
+   "pc": "二轉匠師：打造的鎖鏈繞身甩動（PC 為製作技，割草版改主動）",
+   "job2": true,
+   "base": {
+    "dmg": 9,
+    "count": 3,
+    "radius": 2.8,
+    "spin": 3.2
+   },
+   "per": {
+    "dmg": 3,
+    "count": 0.5,
+    "radius": 0.2,
+    "spin": 0.2
+   }
+  },
+  "k3_renjian": {
+   "name": "人劍合一",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    160,
+    128
+   ],
+   "fx": "slash",
+   "color": "#ffd0a0",
+   "pc": "三轉劍聖：劍氣不碰敵人就能重擊（單體，原版射程 8 碼）",
+   "job3": true,
+   "base": {
+    "dmg": 28,
+    "cd": 1.4,
+    "count": 1,
+    "speed": 20,
+    "bounce": 0,
+    "pierce": 3,
+    "size": 2.4
+   },
+   "per": {
+    "dmg": 8,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4,
+    "pierce": 0.25
+   }
+  },
+  "k3_yuanhua": {
+   "name": "圓滑刀刃",
+   "type": "ORBIT_AURA",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    224,
+    128
+   ],
+   "fx": "slash",
+   "color": "#ff9070",
+   "pc": "三轉修羅：向周圍畫大圓連續揮砍",
+   "job3": true,
+   "base": {
+    "dmg": 14,
+    "count": 4,
+    "radius": 3.2,
+    "spin": 4
+   },
+   "per": {
+    "dmg": 4,
+    "count": 0.5,
+    "radius": 0.25,
+    "spin": 0.2
+   }
+  },
+  "k3_heizhou": {
+   "name": "黑色詛咒",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    320,
+    128
+   ],
+   "fx": "shock",
+   "color": "#8040c0",
+   "pc": "三轉督軍：以自身為中心的靈魂攻擊，有機率詛咒（原版無屬性）",
+   "job3": true,
+   "status": {
+    "slow": [
+     0.5,
+     2
+    ]
+   },
+   "base": {
+    "dmg": 34,
+    "cd": 2.6,
+    "count": 1,
+    "radius": 4,
+    "at": "self"
+   },
+   "per": {
+    "dmg": 10,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.25
+   }
+  },
+  "k3_tianfa": {
+   "name": "天罰",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "holy"
+   ],
+   "icon": [
+    "skill3.png",
+    384,
+    128
+   ],
+   "fx": "holy",
+   "color": "#fff0a0",
+   "pc": "三轉聖殿騎士：光屬性天罰，暗屬性敵人受到更大傷害",
+   "job3": true,
+   "base": {
+    "dmg": 32,
+    "cd": 2.6,
+    "count": 2,
+    "radius": 3,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 9,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.25
+   }
+  },
+  "k3_duanjue": {
+   "name": "斷絕",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    448,
+    128
+   ],
+   "fx": "slash",
+   "color": "#c060ff",
+   "pc": "三轉暗夜行者：斷絕敵人的強力一擊（原版 2964%）",
+   "job3": true,
+   "base": {
+    "dmg": 42,
+    "cd": 1.6,
+    "range": 3,
+    "arc": 1.6
+   },
+   "per": {
+    "dmg": 12,
+    "cd": -0.12,
+    "range": 0.3
+   }
+  },
+  "k3_weixie": {
+   "name": "威脅之卡",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    0,
+    160
+   ],
+   "fx": "card",
+   "color": "#ff70c0",
+   "pc": "三轉命運牌手：灌注信念的飛牌",
+   "job3": true,
+   "base": {
+    "dmg": 26,
+    "cd": 1.3,
+    "count": 2,
+    "speed": 19,
+    "bounce": 2,
+    "pierce": 1,
+    "size": 1.8
+   },
+   "per": {
+    "dmg": 7,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4,
+    "pierce": 0.25
+   }
+  },
+  "k3_bingleng": {
+   "name": "冰冷疾風",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [
+    "ice"
+   ],
+   "icon": [
+    "skill3.png",
+    32,
+    160
+   ],
+   "fx": "ice",
+   "color": "#a0e8ff",
+   "pc": "三轉冰霜領主：冰疾風攻擊周圍並緩速 5 秒（水屬性）",
+   "job3": true,
+   "status": {
+    "slow": [
+     0.6,
+     5
+    ]
+   },
+   "base": {
+    "dmg": 30,
+    "cd": 2.8,
+    "count": 1,
+    "radius": 5,
+    "at": "self"
+   },
+   "per": {
+    "dmg": 9,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.25
+   }
+  },
+  "k3_huoyan": {
+   "name": "火焰疾風",
+   "type": "ZONE_AOE",
+   "kind": "magic",
+   "tags": [
+    "fire"
+   ],
+   "icon": [
+    "skill3.png",
+    96,
+    160
+   ],
+   "fx": "fire",
+   "color": "#ff6020",
+   "pc": "三轉烈焰領主：火疾風攻擊周圍並燒傷（火屬性）",
+   "job3": true,
+   "status": {
+    "poison": [
+     6,
+     8
+    ]
+   },
+   "base": {
+    "dmg": 30,
+    "cd": 2.8,
+    "count": 1,
+    "radius": 5,
+    "at": "self"
+   },
+   "per": {
+    "dmg": 9,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.25
+   }
+  },
+  "k3_shengyu": {
+   "name": "聖域",
+   "type": "ORBIT_AURA",
+   "kind": "magic",
+   "tags": [
+    "holy"
+   ],
+   "icon": [
+    "skill3.png",
+    192,
+    160
+   ],
+   "fx": "holy",
+   "color": "#fff8c0",
+   "pc": "三轉裁決者：以自身為中心的聖域（光屬性，剋暗）",
+   "job3": true,
+   "base": {
+    "dmg": 12,
+    "count": 4,
+    "radius": 3.4,
+    "spin": 2.6
+   },
+   "per": {
+    "dmg": 4,
+    "count": 0.5,
+    "radius": 0.25,
+    "spin": 0.2
+   }
+  },
+  "k3_jiahu": {
+   "name": "神的加護",
+   "type": "ORBIT_AURA",
+   "kind": "magic",
+   "tags": [
+    "holy"
+   ],
+   "icon": [
+    "skill3.png",
+    256,
+    160
+   ],
+   "fx": "light",
+   "color": "#ffe8ff",
+   "pc": "三轉大主教：神的保佑化成光環（PC 為無敵輔助技，割草版改主動）",
+   "job3": true,
+   "base": {
+    "dmg": 10,
+    "count": 4,
+    "radius": 3,
+    "spin": 3
+   },
+   "per": {
+    "dmg": 3.5,
+    "count": 0.5,
+    "radius": 0.25,
+    "spin": 0.2
+   }
+  },
+  "k3_feitian": {
+   "name": "飛天槌擊",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    288,
+    160
+   ],
+   "fx": "shock",
+   "color": "#ffb060",
+   "pc": "三轉毀滅者：跳向敵人用鎚猛擊並引爆，機率暈眩 2 秒",
+   "job3": true,
+   "status": {
+    "stun": [
+     0.3,
+     2
+    ]
+   },
+   "base": {
+    "dmg": 36,
+    "cd": 2.6,
+    "count": 1,
+    "radius": 3.2,
+    "at": "nearest"
+   },
+   "per": {
+    "dmg": 11,
+    "cd": -0.14,
+    "count": 0.4,
+    "radius": 0.25
+   }
+  },
+  "k3_quanlei": {
+   "name": "全壘打擊",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    352,
+    160
+   ],
+   "fx": "bomb",
+   "color": "#ffd080",
+   "pc": "三轉神匠：把鐵球打向遠方，多次傷害",
+   "job3": true,
+   "base": {
+    "dmg": 30,
+    "cd": 1.6,
+    "count": 1,
+    "speed": 22,
+    "bounce": 3,
+    "pierce": 1,
+    "size": 2.2
+   },
+   "per": {
+    "dmg": 9,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4,
+    "pierce": 0.25
+   }
+  },
+  "b_hunter": {
+   "name": "彈弓技",
+   "basic": true,
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    96,
+    448
+   ],
+   "fx": "dot",
+   "color": "#ffe0a0",
+   "pc": "彈弓精通：彈弓基本攻擊",
+   "base": {
+    "dmg": 7,
+    "cd": 0.75,
+    "count": 1,
+    "speed": 24,
+    "bounce": 0,
+    "pierce": 0,
+    "size": 0.9
+   },
+   "per": {
+    "dmg": 2,
+    "cd": -0.04,
+    "count": 0.25
+   }
+  },
+  "luanshe": {
+   "name": "亂射",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    288,
+    448
+   ],
+   "fx": "dot",
+   "color": "#fff0b0",
+   "pc": "朝前方連續射出多發彈丸（原版 387%）",
+   "base": {
+    "dmg": 7,
+    "cd": 1.1,
+    "count": 3,
+    "speed": 24,
+    "bounce": 0,
+    "pierce": 0,
+    "size": 0.9
+   },
+   "per": {
+    "dmg": 2,
+    "cd": -0.06,
+    "count": 0.6
+   },
+   "motion": "multishot"
+  },
+  "shuangzi": {
+   "name": "雙子爆發",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    416,
+    448
+   ],
+   "fx": "fireball",
+   "color": "#ffb060",
+   "pc": "兩發強力彈丸、貫穿敵人（原版 800%）",
+   "base": {
+    "dmg": 16,
+    "cd": 1.8,
+    "count": 2,
+    "speed": 22,
+    "bounce": 0,
+    "pierce": 2,
+    "size": 1.2
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.1,
+    "count": 0.25,
+    "pierce": 0.25
+   },
+   "motion": "doubleshot"
+  },
+  "baodan": {
+   "name": "爆彈分裂",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "fire"
+   ],
+   "icon": [
+    "skill1.png",
+    448,
+    448
+   ],
+   "fx": "bomb",
+   "color": "#ff8040",
+   "pc": "彈丸落地分裂爆炸（原版 502%）",
+   "base": {
+    "dmg": 12,
+    "cd": 2.4,
+    "count": 2,
+    "radius": 2.2,
+    "at": "nearest"
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.12,
+    "count": 0.5,
+    "radius": 0.15
+   },
+   "motion": "pointshot"
+  },
+  "chanrao": {
+   "name": "纏繞樹根",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    320,
+    448
+   ],
+   "fx": "poison",
+   "color": "#80d060",
+   "pc": "地面竄出樹根纏住敵人（緩速）",
+   "status": {
+    "slow": [
+     0.55,
+     2.5
+    ]
+   },
+   "base": {
+    "dmg": 6,
+    "cd": 2.6,
+    "count": 2,
+    "radius": 2.4,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 2,
+    "cd": -0.12,
+    "count": 0.5,
+    "radius": 0.2
+   }
+  },
+  "hongxin": {
+   "name": "紅心連擊",
+   "super": true,
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    0,
+    480
+   ],
+   "fx": "fireball",
+   "color": "#ff6080",
+   "pc": "超武：亂射＋雙子爆發，連續射出貫穿的紅心彈",
+   "base": {
+    "dmg": 20,
+    "cd": 0.7,
+    "count": 8,
+    "speed": 26,
+    "bounce": 1,
+    "pierce": 2,
+    "size": 1.1,
+    "ring": 1
+   },
+   "motion": "overdriveshot"
+  },
+  "k2_guanchuan": {
+   "name": "貫穿攻擊",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    384,
+    480
+   ],
+   "fx": "beam",
+   "color": "#c0e0ff",
+   "pc": "二轉弓箭手：一箭貫穿整排敵人（原版 851%）",
+   "job2": true,
+   "base": {
+    "dmg": 18,
+    "cd": 1.4,
+    "count": 1,
+    "speed": 30,
+    "bounce": 0,
+    "pierce": 6,
+    "size": 1.3
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.1,
+    "count": 0.3,
+    "pierce": 0.5
+   },
+   "motion": "powershot"
+  },
+  "k2_baoyu": {
+   "name": "爆雨梨花",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    416,
+    480
+   ],
+   "fx": "dagger",
+   "color": "#ffe0f0",
+   "pc": "二轉弓箭手：箭雨灑落（原版 486%）",
+   "job2": true,
+   "base": {
+    "dmg": 12,
+    "cd": 2.4,
+    "count": 3,
+    "radius": 2.4,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.12,
+    "count": 0.5,
+    "radius": 0.2
+   },
+   "motion": "shotshot"
+  },
+  "k2_zhimiao": {
+   "name": "致命瞄準",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    192,
+    480
+   ],
+   "fx": "fireball",
+   "color": "#ff4040",
+   "pc": "二轉槍手：瞄準要害的一擊（原版 2933%）",
+   "job2": true,
+   "base": {
+    "dmg": 40,
+    "cd": 2.2,
+    "count": 1,
+    "speed": 32,
+    "bounce": 0,
+    "pierce": 1,
+    "size": 1.4
+   },
+   "per": {
+    "dmg": 12,
+    "cd": -0.12,
+    "count": 0.25,
+    "pierce": 0.25
+   },
+   "motion": "powershot"
+  },
+  "k2_hunxuan": {
+   "name": "昏眩射擊",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill1.png",
+    288,
+    480
+   ],
+   "fx": "shock",
+   "color": "#ffff80",
+   "pc": "二轉槍手：打中會暈眩（原版 2829%）",
+   "job2": true,
+   "status": {
+    "stun": [
+     0.35,
+     1
+    ]
+   },
+   "base": {
+    "dmg": 14,
+    "cd": 1.6,
+    "count": 2,
+    "speed": 26,
+    "bounce": 1,
+    "pierce": 0,
+    "size": 1.1
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.1,
+    "count": 0.4,
+    "bounce": 0.4
+   },
+   "motion": "pointshot"
+  },
+  "k3_jianshi": {
+   "name": "箭矢雨",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    416,
+    160
+   ],
+   "fx": "dagger",
+   "color": "#d0e8ff",
+   "pc": "三轉風暴獵手：大範圍箭矢雨（原版 2318%）",
+   "job3": true,
+   "base": {
+    "dmg": 30,
+    "cd": 2.6,
+    "count": 4,
+    "radius": 3,
+    "at": "random"
+   },
+   "per": {
+    "dmg": 9,
+    "cd": -0.14,
+    "count": 0.5,
+    "radius": 0.2
+   },
+   "motion": "rapid"
+  },
+  "k3_huoli": {
+   "name": "火力集中",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy",
+    "fire"
+   ],
+   "icon": [
+    "skill3.png",
+    480,
+    160
+   ],
+   "fx": "fireball",
+   "color": "#ff7030",
+   "pc": "三轉魔彈射手：集中火力連射（原版 2933%）",
+   "job3": true,
+   "base": {
+    "dmg": 34,
+    "cd": 1.2,
+    "count": 3,
+    "speed": 30,
+    "bounce": 0,
+    "pierce": 2,
+    "size": 1.3
+   },
+   "per": {
+    "dmg": 10,
+    "cd": -0.1,
+    "count": 0.4,
+    "pierce": 0.25
+   },
+   "motion": "rapid"
+  }
+ },
+ "fusions": [
+  {
+   "a": "liuyun",
+   "b": "jifeng",
+   "into": "jianwu"
+  },
+  {
+   "a": "shizi",
+   "b": "bafang",
+   "into": "shenhan"
+  },
+  {
+   "a": "renyi",
+   "b": "suiyi",
+   "into": "tiannv"
+  },
+  {
+   "a": "bingjian",
+   "b": "bingzhu",
+   "into": "hanbing"
+  },
+  {
+   "a": "qianze",
+   "b": "shenpan",
+   "into": "shenpan2"
+  },
+  {
+   "a": "zhiming",
+   "b": "zhadan",
+   "into": "quanmian"
+  },
+  {
+   "a": "luanshe",
+   "b": "shuangzi",
+   "into": "hongxin"
+  }
+ ],
+ "status": {
+  "_說明": "緩速／暈眩中的怪被 heavy 或 fire 技能打到：必定爆擊並額外 ×1.5（碎冰！）；連擊無雙 11/18 取消（enabled=false，程式保留不呼叫）",
+  "combo": {
+   "breakSecs": 3,
+   "musouEvery": 50,
+   "enabled": false
+  },
+  "shatterMult": 1.5,
+  "perLevel": {
+   "dmg": 0.03,
+   "hp": 0.005,
+   "_說明": "每升 1 級：傷害 ×(1+dmg)、最大 HP ×(1+hp)，並補同樣多的 HP（項目 15，參考 RO 倖存者）"
+  }
+ }
+}
