@@ -41,7 +41,7 @@ body #ssSet header::before, body #ssSet header::after, body #ssAsk header::befor
 #dlg .body::-webkit-scrollbar { width: 10px } #dlg .body::-webkit-scrollbar-track { background: #e6dcc6; border-radius: 10px }
 #dlg .body::-webkit-scrollbar-thumb { background: linear-gradient(90deg, var(--th-gold2), var(--th-gold)); border-radius: 10px; border: 2px solid #e6dcc6 }
 #dlg .body small, #dlg .body .sub { color: var(--th-sub) }
-#dlg .body b { color: #2a3a78 }
+#dlg .body b:not(.hero b):not([style*="color"]) { color: #2a3a78 } /* 深色底（地圖橫幅 .hero）的白字不要蓋掉 */
 #dlg .body p { margin: 0 0 10px }
 
 /* ===== 按鈕 ===== */
@@ -162,3 +162,12 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .ci-st .ci-plus:not(:disabled) { background: linear-gradient(#7fb0ff, var(--th-blue) 52%, #2a4fb8) !important; color: #fff !important; }
 #dlg .ci-st .ci-edit { padding: 4px 0 !important; font-size: 11px !important; letter-spacing: 1px; }
 @media (min-width: 721px) { #dlg .box.wide .body { max-height: min(78vh, 760px) !important; } } /* 桌機寬視窗（CHARACTER INFO、遠征…）高一點，不用一直捲 */
+
+/* 手機：視窗拉到接近全高（原本從畫面 30% 才開始，內容要捲很多）——claude-13 建議 */
+@media (max-width: 640px) {
+  #dlg { align-items: stretch !important; padding: max(8px, env(safe-area-inset-top)) 6px max(8px, env(safe-area-inset-bottom)) !important; }
+  #dlg .box { display: flex; flex-direction: column; max-height: calc(100dvh - 16px); width: 100% !important; }
+  #dlg .body { flex: 1 1 auto; min-height: 0; max-height: none !important; }
+  #dlg .opts { flex: none; padding-top: 8px !important; }
+  #dlgX { right: -4px !important; top: -6px !important; }
+}
