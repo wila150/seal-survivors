@@ -76,6 +76,7 @@ if (CHAR) document.getElementById('stageName').insertAdjacentHTML('afterend', `<
 // ===== 基本場景 =====
 const renderer = new THREE.WebGLRenderer({ antialias: !matchMedia('(pointer:coarse)').matches, powerPreference: 'high-performance' }); // 手機關反鋸齒（省很多 GPU）
 renderer.setPixelRatio(pixelRatio());
+const AQ = { lvl: 0, acc: 0, n: 0, low: 0, q: null }; // 項目 7 自動畫質（說明在 autoQuality）
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(STAGE.fog);
@@ -627,7 +628,8 @@ const opts = { nums: true, meter: true, shake: true, autoPick: false };
 onSettings(G => {
   opts.nums = G.nums; opts.meter = G.meter; opts.shake = G.shake; opts.autoPick = G.autoPick;
   bgm.volume = 0.5 * G.master * G.bgm; applyHud(['hud']);
-  if (renderer.getPixelRatio() !== pixelRatio()) { renderer.setPixelRatio(pixelRatio()); resize(); }
+  if (AQ.q !== G.quality) { AQ.q = G.quality; AQ.lvl = 0; AQ.low = 0; } // 自己改畫質 → 自動降級重設
+  if (renderer.getPixelRatio() !== pixelRatio() && !AQ.lvl) { renderer.setPixelRatio(pixelRatio()); resize(); }
   if (typeof drawMeter === 'function' && P) drawMeter();
 });
 // 底部技能列：普攻大格＋4 格技能（空格顯示＋），上面一排 5 個小格是被動
@@ -736,9 +738,10 @@ function update(dt) {
   for (const e of enemies) { const k = `${Math.floor(e.mesh.position.x / 1.2)},${Math.floor(e.mesh.position.z / 1.2)}`; (grid.get(k) || grid.set(k, []).get(k)).push(e); }
   // 怪物動作：畫面外（離玩家 40 公尺以上）不更新，省效能
   // 怪很多（> 120）時每隻隔一幀更新一次（時間加倍），動作看起來一樣、骨架計算少一半（項目 7 效能）
-  animFrame++; const half = enemies.length > 120;
-  for (let i = 0; i < enemies.length; i++) { const e = enemies[i], A = e.mesh.userData.actor; if (!A || e.dead) continue; if (half && (i + animFrame) % 2) continue;
-    const dx = e.mesh.position.x - pp.x, dz = e.mesh.position.z - pp.z; if (dx * dx + dz * dz < 1600) A.update(half ? dt * 2 : dt); }
+  // 怪很多時隔幀更新（時間補回）；自動畫質降到最低檔時再隔更多（項目 7）
+  animFrame++; const skip = (enemies.length > 120 ? 2 : 1) * (AQ.lvl >= 2 ? 2 : 1);
+  for (let i = 0; i < enemies.length; i++) { const e = enemies[i], A = e.mesh.userData.actor; if (!A || e.dead) continue; if (skip > 1 && (i + animFrame) % skip) continue;
+    const dx = e.mesh.position.x - pp.x, dz = e.mesh.position.z - pp.z; if (dx * dx + dz * dz < 1600) A.update(dt * skip); }
   for (const e of enemies) {
     if (e.dead) continue; const p = e.mesh.position;
     tmp.subVectors(e.evT || pp, p).setY(0); const d = tmp.length(); // 項目 53：商隊附近的怪改追咕咕
@@ -862,8 +865,18 @@ function render() {
   if (boss) bossEl.querySelector('i').style.width = Math.max(0, boss.hp / boss.maxHp * 100) + '%';
 }
 
+// ===== 項目 7：自動畫質（中低階手機不用自己調）：出征中連續 4 秒平均低於 40 fps → 解析度降一檔（最多 2 檔：×0.8、×0.6）並減少怪物動作更新；
+// 只往下調、不會自己調回來（避免一直跳）；設定裡改畫質會重設
+function autoQuality(dt) {
+  if (state !== 'play' || AQ.lvl >= 2) return;
+  AQ.acc += dt; AQ.n++; if (AQ.acc < 1) return;
+  const fps = AQ.n / AQ.acc; AQ.acc = 0; AQ.n = 0;
+  AQ.low = fps < 40 ? AQ.low + 1 : 0;
+  if (AQ.low >= 4) { AQ.low = 0; AQ.lvl++; renderer.setPixelRatio(pixelRatio() * (AQ.lvl === 1 ? 0.8 : 0.6)); resize();
+    showBanner(`<small>畫面不夠順</small><b>自動降低畫質</b><span>可以在設定 → 畫質調整</span>`, 1600); }
+}
 function loop(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; autoQuality(dt);
   const t0 = performance.now();
   if (state === 'play') { if (bossFx.slow > 0) bossFx.slow -= dt; update(bossFx.slow > 0 ? dt * 0.3 : dt); }
   else if (state === 'over') rig.actor?.mixer.update(dt); // 倒下動作
