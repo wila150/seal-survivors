@@ -140,6 +140,17 @@ function setMounted(on) {
 // 項目 54：坐騎衝鋒 triggerMountDash()：切換上下坐騎；上坐騎那一下（冷卻 15 秒）撞飛身邊的怪＋傷害＋1.5 秒加速
 // 綁定：R 鍵、戰場滑鼠右鍵「點一下」（右鍵拖曳照舊轉視角）、手機右側馬頭鈕
 const DASH_CD = 15; let dashCd = 0;
+// 初心者開局（docs/企劃_初心者開局.md 第 2、4 節）：Lv1～10 經驗表、開局 30 秒溫和第一波、拾取 3 公尺、受擊無敵 0.8 秒、前 20 秒受傷減半
+const NOVICE_RUN = CHAR.job === '初心者', NOVICE_NEED = [6, 9, 13, 17, 22, 27, 33, 39, 46];
+const needFor = lv => NOVICE_RUN && lv <= NOVICE_NEED.length ? NOVICE_NEED[lv - 1] : Math.floor(5 + lv * 3.5 + lv ** 1.5);
+let novWave = 0;
+function noviceWave(dt) {
+  if (!NOVICE_RUN || TOWER || t > 30 || state !== 'play') return; if ((novWave -= dt) > 0) return; novWave = 0.8;
+  if (enemies.filter(e => !e.dead).length >= 12) return;
+  const types = STAGE.monsters || []; const e = spawnEnemy(types[Math.random() * types.length | 0] || Object.keys(ENEMY_TYPES)[0]);
+  const a = Math.random() * 6.283, r = 12 + Math.random() * 4, x = player.position.x + Math.cos(a) * r, z = player.position.z + Math.sin(a) * r;
+  if (MAP.canWalk(x, z)) e.mesh.position.set(x, 0, z); e.hp = e.maxHp = 6; e.speed = 2.2; e.dmg = Math.min(e.dmg, 3); e.xp = 1;
+}
 function triggerMountDash() {
   if (state !== 'play') return; const on = !rig.mounted; setMounted(on);
   if (!on || dashCd > 0 || !rig.mounted) return;
@@ -373,7 +384,7 @@ function reset() {
   // 項目 34：威力 近戰＝力量 3%／點；遠程（獵人）＝力量 1%＋敏捷 3%（PC 沒有 DEX → 用敏捷）；魔法＝智力 3%
   P = { hp, maxHp: hp, speed: JOB.speed, might: 1, phys: 1 + (CHAR.job === '獵人' ? ST.str * 0.01 + ST.agi * 0.03 : ST.str * 0.03), magic: 1 + ST.int * 0.03, crit: ST.agi * 0.01 + ST.luk * 0.003,
         dodge: Math.min(0.4, ST.agi * 0.005), vitDr: Math.min(0.3, ST.vit * 0.003),
-        armor: JOB.armor + (B.armor || 0), regen: JOB.regen || 0, magnet: 2.5 * (1 + (B.magnet || 0)), hasteV: (ST.wis || 1) + (B.haste || 0) * 100, lv: 1, xp: 0, need: 5, inv: 0, face: 0 };
+        armor: JOB.armor + (B.armor || 0), regen: JOB.regen || 0, magnet: (CHAR.job === '初心者' ? 3 : 2.5) * (1 + (B.magnet || 0)), hasteV: (ST.wis || 1) + (B.haste || 0) * 100, lv: 1, xp: 0, need: CHAR.job === '初心者' ? 6 : 5, inv: 0, face: 0 };
   // 項目 34 遞減收益：急速值 → 冷卻倍率＝1／(1＋急速／100)（急速 100＝冷卻剩 50%；精神 1 點＝急速 1、裝備／天賦／石頭／稱號的冷卻 % 換成急速值）
   Object.defineProperty(P, 'haste', { get() { return 1 / (1 + Math.max(0, this.hasteV + (this.tmp.haste > 0 ? 30 : 0)) / 100); } });
   P.tmp = { dmg: 0, haste: 0, speed: 0, dash: 0 }; // 項目 37：菁英寶箱的局內道具（剩餘秒數）
@@ -538,7 +549,7 @@ function hitPlayer(dmg) {
   if (P.inv > 0) return;
   if (Math.random() < (P.dodge || 0)) { P.inv = 0.25; dmgNum(player.position, 0, false, 2, true, 'MISS'); return; } // 項目 35：敏捷迴避
   // 項目 34：受傷＝max(1,(攻擊−護甲)×(1−減傷，所有減傷加總上限 60%))；迴避先判定（上面）。護甲維持 ×2（我們的護甲數字小）
-  const taken = Math.max(1, Math.round((dmg - P.armor * 2) * (1 - Math.min(0.6, (P.dr || 0) + (P.vitDr || 0))))); P.hp -= taken; P.inv = 0.5;
+  const taken = Math.max(1, Math.round((dmg - P.armor * 2) * (1 - Math.min(0.6, (P.dr || 0) + (P.vitDr || 0))) * (NOVICE_RUN && t < 20 ? 0.5 : 1))); // 初心者前 20 秒受傷減半 P.hp -= taken; P.inv = NOVICE_RUN ? 0.8 : 0.5;
   if (P.feign && P.hp > 0 && P.hp < P.maxHp * 0.25 && !(P.feignCd > 0)) { P.inv = 2; P.feignCd = Math.max(20, 60 - 10 * (P.feign - 1)); showBanner('<small>裝死</small><b>…（不動）</b><span>2 秒無敵</span>', 900); } // 裝死 play('hurt', 0.5, 200); dmgNum(player.position, taken, false, 2, true);
   bossFx.shake = Math.max(bossFx.shake, 0.25);
 }
@@ -795,10 +806,13 @@ function update(dt) {
   for (let i = corpses.length - 1; i >= 0; i--) { const c = corpses[i]; c.t -= dt; c.m.userData.actor.update(dt); if (c.t < 0.3) c.m.position.y -= dt * 2; if (c.t <= 0) { enemyPool.release(c.m); corpses.splice(i, 1); } }
 
   // 經驗寶石：磁吸（player.js），撿到回收進池子
+  noviceWave(dt);
+  const mg0 = P.magnet; if (rig.moving) P.magnet *= 1.3; // 移動中拾取範圍 ×1.3（鼓勵走位）
   magnetGems(gems, pp, P, dt, g => {
     gemPool.release(g.mesh); P.xp += g.xp * (P.expMul || 1); play('gem', 0.2, 50); // 初心者鼓舞：經驗 +10%
-    if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = Math.floor(5 + P.lv * 3.5 + P.lv ** 1.5); levelBonus(); if (!finalDown) levelUp(); } // 項目 37：打倒最後的首領後不再跳升級卡（以前 MVP 倒下後 3 秒內升級會卡在選卡、通關不觸發）
+    if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = needFor(P.lv); levelBonus(); if (!finalDown) levelUp(); } // 項目 37：打倒最後的首領後不再跳升級卡（以前 MVP 倒下後 3 秒內升級會卡在選卡、通關不觸發）
   });
+  P.magnet = mg0;
 
   // 寶箱：走過去撿
   for (let i = chestsArr.length - 1; i >= 0; i--) {
