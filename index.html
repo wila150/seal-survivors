@@ -50,7 +50,7 @@
   .quit{align-self:flex-end;padding:6px 14px;font-size:13px}
   /* 角色欄位：15 格角色卡 */
   #slots{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;max-height:max(260px,calc(100vh - 230px));overflow:auto;padding:2px}
-  @media (max-width:760px){#slots{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}}
+  @media (max-width:760px){#slots{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));max-height:max(200px,calc(100dvh - 470px))}} /* 手機：留位置給下面的按鈕列 */
   .slot{aspect-ratio:1/1.08;border-radius:12px;border:1px dashed #b8c6e8;background:repeating-linear-gradient(135deg,#f6f8fd 0 10px,#eef2fb 10px 20px);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#a7b3cf;cursor:pointer;font-size:13px;gap:2px;padding:8px;text-align:center;min-width:0}
   .slot .plus{font-size:28px;line-height:1}
   .slot.char{background:linear-gradient(#ffffff,#e6edfb);border:1px solid #c9d5f0;color:var(--ink);justify-content:flex-start}
@@ -338,7 +338,7 @@ function render() {
     el.innerHTML = c ? `<div class="face"></div><b></b><small>${c.jobName || c.job}</small><span class="lv">Lv ${c.baseLv}</span>` : `<span class="plus">＋</span>空欄位`;
     if (c) { el.querySelector('b').textContent = c.name; const f = el.querySelector('.face'), url = faceCache.get(faceKey(c));
       f.innerHTML = url ? `<img src="${url}" alt="">` : `<img class="ico" src="${JOBS[c.job]?.icon || ''}" alt="">`; if (!url) headshot(c); }
-    el.onclick = () => { sel = i; render(); };
+    el.onclick = () => { const again = sel === i; sel = i; render(); if (!c) openCreate(); else if (again && matchMedia('(pointer:coarse)').matches) play(); }; // 手機沒有雙擊 → 點空欄位直接開建立角色
     el.ondblclick = () => c ? play() : openCreate();
     box.appendChild(el);
   }
@@ -428,7 +428,8 @@ async function showPreview() {
   if (pv.cur) pv.sc.remove(pv.cur); pv.cur = m; if (m) pv.sc.add(m);
   $('#pvLoad').style.display = m ? 'none' : 'flex'; if (!m) $('#pvLoad').textContent = '模型載入失敗';
 }
-function openCreate() { gender = '男'; job = '劍士'; look = { hair: 0, hairColor: 0, outfit: 0 }; stats = defaultStats(); $('#cname').value = ''; $('#createErr').textContent = ''; drawCreate(); $('#createDlg').showModal(); $('#cname').focus(); }
+function openCreate() { if (sel === null || chars.find(x => x.slot === sel)) { sel = [...Array(max).keys()].find(i => !chars.find(x => x.slot === i)) ?? null; if (sel === null) return; render(); }
+  gender = '男'; job = '劍士'; look = { hair: 0, hairColor: 0, outfit: 0 }; stats = defaultStats(); $('#cname').value = ''; $('#createErr').textContent = ''; drawCreate(); $('#createDlg').showModal(); $('#cname').focus(); }
 $('#newBtn').onclick = openCreate;
 $('#cancelCreate').onclick = () => $('#createDlg').close();
 document.querySelectorAll('.gender button').forEach(b => b.onclick = () => { gender = b.dataset.g; drawCreate(); });
