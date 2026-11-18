@@ -574,7 +574,9 @@ function levelUp() {
     const cells = [J.basic, ...[0, 1, 2, 3].map(i => others[i])].map(k => k ? `<span class="c on">${iconHtml(SKD.skills[k].icon, 30)}</span>` : '<span class="c">＋</span>').join('');
     const L = SKD.status.perLevel || { dmg: 0, hp: 0 };
     document.getElementById('luInfo').innerHTML = `<span class="lv">▲ Lv ${P.lv}：傷害 +${+(L.dmg * 100).toFixed(1)}%・HP +${+(L.hp * 100).toFixed(1)}%</span><div class="strip">技能 ${others.length}/4 ${cells}</div>`; }
-  SM.choices(PASSIVES).forEach((c, i) => {
+  const CH = SM.choices(PASSIVES);
+  if (!CH.length) { document.getElementById('levelup').classList.remove('on'); state = 'play'; last = performance.now(); return; } // 防呆：沒有卡可以選就直接繼續（11/19 手機卡在升級畫面）
+  CH.forEach((c, i) => {
     const el = document.createElement('div');
     let html;
     if (c.kind === 'f') { // 超武融合

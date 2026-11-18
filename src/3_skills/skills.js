@@ -142,7 +142,8 @@ export class SkillManager {
     const owned = Object.keys(this.skills).filter(k => !this.def(k).basic).length, cap = this.maxCarry || 4;
     for (const k of this.J.pool) { if (fused.has(k)) continue; const lv = this.skills[k]?.lv ?? 0; if (!lv && owned >= cap) continue; if (lv < 5) pool.push({ kind: 's', k, lv }); }
     // 開局只有普攻：第一次升級只出技能卡，讓玩家先選第一招
-    if (!owned) { const first = pool.filter(p => p.kind === 's'); for (let i = first.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [first[i], first[j]] = [first[j], first[i]]; } return first.slice(0, 3); }
+    // 11/19 修：初心者技能池是空的 → 以前這裡回傳 0 張卡，升級畫面卡住
+    if (!owned && this.J.pool.length) { const first = pool.filter(p => p.kind === 's'); for (let i = first.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [first[i], first[j]] = [first[j], first[i]]; } return first.slice(0, 3); }
     if (this.J.basic && (this.skills[this.J.basic]?.lv ?? 0) < 5) pool.push({ kind: 's', k: this.J.basic, lv: this.skills[this.J.basic].lv });
     // 項目 36：已學會的招式出強化卡（Lv5 之後也會一直出；數量到上限就不出數量）
     for (const k of Object.keys(this.skills)) { const d = this.def(k); if (!d || d.basic && !this.skills[k].lv) continue;
