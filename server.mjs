@@ -19,7 +19,7 @@ import { PETS, PET_MAX, EGG_PRICE, MVP_EGG_RATE, FEED_EXP, addPetExp, petNeed } 
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from './src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from './src/1_data/talents.js';
 import { RODS, BAIT, CATCH, rollCatch } from './src/1_data/fishing.js';
-import { rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
+import { JOB_WEAPON, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 
 const PORT = +process.env.PORT || 8765;
 let _skills = null; const SKILLS = () => (_skills ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'data', 'skills.json'), 'utf8')));
@@ -47,6 +47,8 @@ try { db.exec('ALTER TABLE items ADD COLUMN aff TEXT'); } catch {} try { db.exec
 // 項目 32：裝備部位照 PC（防具拆成盾牌／頭部／上衣／下衣／鞋子）→ 舊的 armor 搬家：盾 → shield、其他 → top；非騎士身上的盾卸下
 for (const t of ['items', 'auctions']) { try { db.exec(`UPDATE ${t} SET slot='shield' WHERE slot='armor' AND base='shield'`); db.exec(`UPDATE ${t} SET slot='top' WHERE slot='armor'`); } catch {} }
 try { db.exec("UPDATE items SET equipped=0 WHERE slot='shield' AND char_id IN (SELECT id FROM characters WHERE job!='騎士')"); } catch {}
+// 11/19：已經穿著別職業武器的（例：騎士穿彈弓）卸下
+try { for (const [job, base] of Object.entries(JOB_WEAPON)) db.prepare("UPDATE items SET equipped=0 WHERE slot='weapon' AND base!=? AND equipped=1 AND char_id IN (SELECT id FROM characters WHERE job=?)").run(base, job); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN pc INTEGER'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN locked INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 50：鎖定（不會被一鍵餵食／分解／賣掉） // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
 // 項目 18：倉庫（整個帳號共用）。存進倉庫的裝備 char_id＝0、acct＝帳號、stash＝分頁 0～5
@@ -321,6 +323,7 @@ const api = {
   'POST /api/equip': async (req, res, _, uid) => {
     const { itemId } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
     if (it.slot === 'shield' && ownChar(uid, it.char_id)?.job !== '騎士') return send(res, 400, { error: '盾牌只有騎士能裝備' }); // 項目 32：PC 只有騎士拿盾
+    { const job = ownChar(uid, it.char_id)?.job, want = JOB_WEAPON[job]; if (it.slot === 'weapon' && want && it.base !== want) return send(res, 400, { error: `${job}不能裝備這種武器（PC 每個職業只能用自己的武器）` }); }
     db.prepare('UPDATE items SET equipped=0 WHERE char_id=? AND slot=?').run(it.char_id, it.slot);
     db.prepare('UPDATE items SET equipped=1 WHERE id=?').run(it.id);
     send(res, 200, fullChar(ownChar(uid, it.char_id)));

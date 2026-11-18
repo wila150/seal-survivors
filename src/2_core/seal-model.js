@@ -106,12 +106,13 @@ export async function sealActor(modelName, setKey, height = 1.7, gear = [], opts
   const skeleton = new THREE.Skeleton(bones, worlds.map(m => m.clone().invert()));
   // 網格
   const mats = new Map();
+  const texWait = []; // 貼圖載入（拍頭像前要等，不然新裝備是灰白的）
   const matFor = t => { if (!mats.has(t)) { const m = new THREE.MeshLambertMaterial({ color: t ? 0xffffff : 0xcccccc, alphaTest: 0.5, side: THREE.DoubleSide });
-    if (t) texLoader.loadAsync(`assets/models/${t}`).then(map => { map.colorSpace = THREE.SRGBColorSpace; map.flipY = false; m.map = map; m.needsUpdate = true; }).catch(() => {}); mats.set(t, m); } return mats.get(t); };
+    if (t) texWait.push(texLoader.loadAsync(`assets/models/${t}`).then(map => { map.colorSpace = THREE.SRGBColorSpace; map.flipY = false; m.map = map; m.needsUpdate = true; }).catch(() => {})); mats.set(t, m); } return mats.get(t); };
   const box = new THREE.Box3();
   const tintMats = new Map();
   const tintFor = t => { if (!tintMats.has(t)) { const m = matFor(t).clone(); m.color.set(0xffffff).lerp(new THREE.Color(opts.tint), 0.55);
-    if (t) texLoader.loadAsync(`assets/models/${t}`).then(map => { map.colorSpace = THREE.SRGBColorSpace; map.flipY = false; m.map = map; m.needsUpdate = true; }).catch(() => {}); tintMats.set(t, m); } return tintMats.get(t); };
+    if (t) texWait.push(texLoader.loadAsync(`assets/models/${t}`).then(map => { map.colorSpace = THREE.SRGBColorSpace; map.flipY = false; m.map = map; m.needsUpdate = true; }).catch(() => {})); tintMats.set(t, m); } return tintMats.get(t); };
   // 穿裝備換外觀（opts.swap：{ head／body／leg／foot: 'pcw_…' }）：拿掉職業初始服裝的那個部位、換成原版裝備的模型
   let allParts = d.parts;
   if (opts.swap && Object.keys(opts.swap).length) {
@@ -204,6 +205,7 @@ export async function sealActor(modelName, setKey, height = 1.7, gear = [], opts
     mixer.update(dt);
   }
   play('pi', 0);
+  group.userData.texReady = Promise.all(texWait);
   group.userData.actor = { play, attack, update, mixer, get busy() { return busy > 0; }, get current() { return curKey; } };
   return group;
 }

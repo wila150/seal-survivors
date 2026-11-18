@@ -70,7 +70,8 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
   // 坐騎：上坐騎時人坐到坐騎背上
   const mountReady = MOUNT_ON ? sealModel(JOB.mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; group.add(m); rig.mountObj = m; rig.riderLift = 0.85; }).catch(() => {}) : Promise.resolve();
   const LOOK = playerLook(CHAR.job, CHAR.gender, CHAR.hair ?? 0, CHAR.hairColor ?? 0, CHAR.outfit ?? 0, CHAR.items);
-  const actorReady = sealActor(playerModelId(CHAR.job, CHAR.gender), playerAnimSet(CHAR.job, CHAR.gender), 1.7, LOOK.gear, LOOK.opts).then(m => {
+  const actorReady = sealActor(playerModelId(CHAR.job, CHAR.gender), playerAnimSet(CHAR.job, CHAR.gender), 1.7, LOOK.gear, LOOK.opts).then(async m => {
+    await Promise.race([m.userData.texReady, new Promise(r => setTimeout(r, 4000))]); // 等貼圖載好再拍頭像
     { const w = (CHAR.items || []).find(i => i.equipped && i.slot === 'weapon'); if (w?.gup) glowGear(m, GUP[w.gup].glow); } // 項目 46：G 化武器發光
     m.children[0].rotation.y = Math.PI; group.remove(group.children[0], group.children[1]); group.add(m); group.userData.model = m; rig.actor = m.userData.actor;
     // 頭像：用自己的模型拍一張大頭照（先 update 一次，不然貼圖／骨架還沒套上會拍成白的）

@@ -169,7 +169,7 @@ import { loadSealMap, buildSealMap, liftScene, walkMove, addWalkSurfaces } from 
 import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
 import { offJob, dismantleYield } from './src/1_data/items.js';
-import { traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
+import { JOB_WEAPON, traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 import { STATS, HAIR_COLORS } from './src/1_data/jobs.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime, bossTimes, GS_REQ, EARLY_WEAK } from './src/1_data/stages.js';
 import { MONSTER_MODELS } from './src/1_data/monsters.js';
@@ -337,7 +337,8 @@ const lookOf = c => playerLook(c?.job, c?.gender, c?.hair ?? 0, c?.hairColor ?? 
 let playerLoadId = 0, BODY_SHOT = '';
 function loadPlayer() {
   const id = ++playerLoadId, L = lookOf(CHAR);
-  return sealActor(playerModelId(CHAR?.job, CHAR?.gender), playerAnimSet(CHAR?.job, CHAR?.gender), 1.7, L.gear, L.opts).then(m => {
+  return sealActor(playerModelId(CHAR?.job, CHAR?.gender), playerAnimSet(CHAR?.job, CHAR?.gender), 1.7, L.gear, L.opts).then(async m => {
+    await Promise.race([m.userData.texReady, new Promise(r => setTimeout(r, 4000))]); // 等貼圖載好再換上、拍頭像（不然新裝備是灰白的）
     if (id !== playerLoadId) return;
     { const w = (CHAR.items || []).find(i => i.equipped && i.slot === 'weapon'); if (w?.gup) glowGear(m, GUP[w.gup].glow); } // 項目 46：G 化武器發光（換裝後重進主城生效）
     m.children[0].rotation.y = Math.PI; for (const ch of [...player.children]) if (ch !== townMount) player.remove(ch);
@@ -1255,7 +1256,8 @@ function itemDetail(it) {
     const src = (CHAR.items || []).filter(x => x.id !== it.id && x.slot === it.slot && !x.equipped && !x.locked && ((x.refine || 0) > (it.refine || 0) || (x.gup || 0) > (it.gup || 0)));
     if (src.length) h += `<div style="flex-basis:100%;margin-top:6px"><small><b>裝備繼承</b>：把下面那件的精煉＋G 化搬到這件（那件會消失）</small></div>` + src.map(x => `<button class="btn" data-act="inherit" data-from="${x.id}" data-item="${it.id}">⇦ ${esc(itemName(x))}（${inheritCost(x)} 希幣）</button>`).join('');
   } else {
-    h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
+    const cant = !it.equipped && ((it.slot === 'weapon' && JOB_WEAPON[CHAR.job] && it.base !== JOB_WEAPON[CHAR.job]) || (it.slot === 'shield' && CHAR.job !== '騎士')); // PC：每個職業只能用自己的武器、盾只有騎士
+    h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : cant ? `<button class="btn" disabled title="${CHAR.job}不能裝備">${CHAR.job}不能裝備</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
     if (!it.equipped && !it.locked) h += `<button class="btn" data-act="sell" data-item="${it.id}">賣出（${sellPrice(it)} 金幣）</button>`;
     h += `<button class="btn" data-act="lock" data-item="${it.id}">${it.locked ? '🔓 解鎖' : '🔒 鎖定'}</button>${offJob(it, CHAR.job) ? '<small style="color:#8a7a6a">非本職業</small>' : ''}`;
   }
