@@ -347,7 +347,7 @@ function checkUnfinishedRun() {
   openDlg('未完成的一局', `你在 <b>${esc(snap.stageName)}</b> 的第 <b>${tm}</b> 分（Lv ${snap.lv}）離開了一局，要繼續嗎？<br><small>放棄的話，會先結算已經拿到的經驗與金幣。</small>`, [
     ['放棄', async () => {
       try { localStorage.removeItem(key); } catch {}
-      try { const j = await call('POST', '/api/runs', { charId: CHAR.id, secs: Math.floor(snap.t), kills: snap.kills | 0, lv: snap.lv | 0, cleared: false, chests: snap.chests | 0, bossChests: snap.bossChests | 0, stage: snap.stageKey });
+      try { const j = await call('POST', '/api/runs', { charId: CHAR.id, secs: Math.floor(snap.t), kills: snap.kills | 0, lv: snap.lv | 0, cleared: false, chests: snap.chests | 0, bossChests: snap.bossChests | 0, stage: snap.stageKey, spent: snap.spent | 0 });
         openDlg('已結算這一局', `你已領取的部分：經驗 <b>+${j.gain}</b>、金幣 <b>+${j.gold}</b>${j.items?.length ? `、裝備 ${j.items.length} 件` : ''}${j.levelUps ? `<br>角色升級！Lv ${j.baseLv}` : ''}${j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}` : ''}`, []);
         refreshChar();
       } catch (e) { openDlg('結算失敗', esc(e.message), []); }
