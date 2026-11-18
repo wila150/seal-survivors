@@ -350,6 +350,11 @@ const PASSIVES = {
   vital: { name: '體魄', img: FX.hit, desc: () => '最大 HP +25，並回滿血', apply: () => { P.maxHp += 25; P.hp = P.maxHp; } },
   magnet: { name: '磁力', img: FX.gem, desc: () => '經驗吸取範圍 +40%', apply: () => P.magnet *= 1.4 },
   haste: { name: '急速', img: FX.lightning, desc: () => '急速 +12（冷卻約 -10%，越疊越少）', apply: () => { P.hasteV += 12; } }, // 項目 34 遞減收益
+  // 11/19 使用者企劃「初心者共通技」（一轉後保留，所有職業都會出現）
+  run: { name: '快跑', img: FX.gem, desc: () => '移動速度 +10%、經驗吸取範圍 +20%', apply: () => { P.speed *= 1.1; P.magnet *= 1.2; } },
+  aid: { name: '緊急治療', img: FX.hit, desc: () => '每 10 秒自動回復 6% 最大 HP（可疊加）', apply: () => { P.aid = (P.aid || 0) + 1; } },
+  feign: { name: '裝死', img: FX.hit, desc: () => 'HP 低於 25% 時倒地裝死：2 秒無敵（冷卻 60 秒，每多一級 −10 秒）', apply: () => { P.feign = (P.feign || 0) + 1; } },
+  cheer: { name: '初心者鼓舞', img: FX.lightning, desc: () => '所有傷害 +10%、經驗 +10%', apply: () => { P.might *= 1.1; P.expMul = (P.expMul || 1) + 0.1; } },
 };
 
 // ===== 物件池（src/2_core/pool.js）=====
@@ -530,7 +535,8 @@ function hitPlayer(dmg) {
   if (P.inv > 0) return;
   if (Math.random() < (P.dodge || 0)) { P.inv = 0.25; dmgNum(player.position, 0, false, 2, true, 'MISS'); return; } // 項目 35：敏捷迴避
   // 項目 34：受傷＝max(1,(攻擊−護甲)×(1−減傷，所有減傷加總上限 60%))；迴避先判定（上面）。護甲維持 ×2（我們的護甲數字小）
-  const taken = Math.max(1, Math.round((dmg - P.armor * 2) * (1 - Math.min(0.6, (P.dr || 0) + (P.vitDr || 0))))); P.hp -= taken; P.inv = 0.5; play('hurt', 0.5, 200); dmgNum(player.position, taken, false, 2, true);
+  const taken = Math.max(1, Math.round((dmg - P.armor * 2) * (1 - Math.min(0.6, (P.dr || 0) + (P.vitDr || 0))))); P.hp -= taken; P.inv = 0.5;
+  if (P.feign && P.hp > 0 && P.hp < P.maxHp * 0.25 && !(P.feignCd > 0)) { P.inv = 2; P.feignCd = Math.max(20, 60 - 10 * (P.feign - 1)); showBanner('<small>裝死</small><b>…（不動）</b><span>2 秒無敵</span>', 900); } // 裝死 play('hurt', 0.5, 200); dmgNum(player.position, taken, false, 2, true);
   bossFx.shake = Math.max(bossFx.shake, 0.25);
 }
 // 首領（src/2_core/game-manager.js）
@@ -738,6 +744,8 @@ function update(dt) {
   spawner.tick(dt * (CURSE.spawn || 1), t, () => enemies.length, spawnEnemy, enterBoss);
   if (!CURSE.noRegen) P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   for (const k in P.tmp) if (P.tmp[k] > 0) P.tmp[k] -= dt; // 局內道具倒數
+  if (P.aid && (P.aidT = (P.aidT ?? 10) - dt) <= 0) { P.aidT = 10; const h = P.maxHp * 0.06 * P.aid; P.hp = Math.min(P.maxHp, P.hp + h); dmgNum(player.position, Math.round(h), false, 2, true, '+' + Math.round(h)); } // 緊急治療
+  if (P.feignCd > 0) P.feignCd -= dt;
   if (dashCd > 0) { dashCd -= dt; const mb = document.getElementById('mountBtn'); if (mb) { mb.style.setProperty('--cd', Math.max(0, dashCd / DASH_CD)); mb.classList.toggle('ready', dashCd <= 0); } }
 
   SM.update(dt, !rig.mounted); // 騎乘時不能攻擊
@@ -785,7 +793,7 @@ function update(dt) {
 
   // 經驗寶石：磁吸（player.js），撿到回收進池子
   magnetGems(gems, pp, P, dt, g => {
-    gemPool.release(g.mesh); P.xp += g.xp; play('gem', 0.2, 50);
+    gemPool.release(g.mesh); P.xp += g.xp * (P.expMul || 1); play('gem', 0.2, 50); // 初心者鼓舞：經驗 +10%
     if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = Math.floor(5 + P.lv * 3.5 + P.lv ** 1.5); levelBonus(); if (!finalDown) levelUp(); } // 項目 37：打倒最後的首領後不再跳升級卡（以前 MVP 倒下後 3 秒內升級會卡在選卡、通關不觸發）
   });
 

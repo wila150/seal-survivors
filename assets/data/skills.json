@@ -179,13 +179,8 @@
   "初心者": {
    "start": "b_novice",
    "pool": [
-    "n_slash",
-    "n_shield",
-    "n_fire",
-    "n_pray",
-    "n_knife",
-    "n_hammer",
-    "n_sling"
+    "n_stone",
+    "n_power"
    ],
    "musou": {
     "name": "驚嚇",
@@ -200,7 +195,7 @@
     "dmg": 90
    },
    "basic": "b_novice",
-   "extra": [
+   "startAlso": [
     "n_stone"
    ]
   }
@@ -3052,6 +3047,35 @@
     "dmg": 2,
     "cd": -0.06,
     "pierce": 0.25
+   }
+  },
+  "n_power": {
+   "name": "全力一擊",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill1.png",
+    0,
+    288
+   ],
+   "fx": "shock",
+   "color": "#ffb060",
+   "pcfx": "k2_quanli",
+   "pc": "初心者共通技（11/19 使用者企劃：前方扇形重擊）",
+   "base": {
+    "dmg": 14,
+    "cd": 2.2,
+    "range": 3,
+    "arc": 2.0
+   },
+   "per": {
+    "dmg": 5,
+    "cd": -0.12,
+    "range": 0.2,
+    "arc": 0.1
    }
   }
  },

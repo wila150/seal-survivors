@@ -86,7 +86,7 @@ export class SkillManager {
     if (ctx.pool?.length) this.J = { ...this.J, pool: ctx.pool.filter(k => this.data.skills[k]) };
     this.skills = {}; // key → { lv, cd, ang, tick, orbs:[] }
     this.shots = []; this.lobs = []; this.combo = 0; this.comboT = 0; this.bestCombo = 0; this.musouCount = 0; this.musouCd = 0; this.nextMusou = this.data.status.combo.musouEvery;
-    this.add(this.J.start); for (const k of this.J.extra || []) if (this.def(k)) this.add(k); // 初心者另外有「丟石頭」
+    this.add(this.J.start); for (const k of this.J.startAlso || []) if (this.def(k)) this.add(k); // 初心者開局就有「投擲石頭」（也在技能池，可以升級）
   }
   def(k) { return this.data.skills[k]; }
   // 原版特效（seal-fx.js；this.pcfx 有給、而且這招轉得出來才用；沒有就用原本的貼圖特效）
@@ -145,7 +145,7 @@ export class SkillManager {
     // 開局只有普攻：第一次升級只出技能卡，讓玩家先選第一招
     // 11/19 修：初心者技能池是空的 → 以前這裡回傳 0 張卡，升級畫面卡住
     if (!owned && this.J.pool.length) { const first = pool.filter(p => p.kind === 's'); for (let i = first.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [first[i], first[j]] = [first[j], first[i]]; } return first.slice(0, 3); }
-    for (const b of [this.J.basic, ...(this.J.extra || [])]) if (b && this.skills[b] && this.skills[b].lv < 5) pool.push({ kind: 's', k: b, lv: this.skills[b].lv });
+    if (this.J.basic && this.skills[this.J.basic] && this.skills[this.J.basic].lv < 5) pool.push({ kind: 's', k: this.J.basic, lv: this.skills[this.J.basic].lv });
     // 項目 36：已學會的招式出強化卡（Lv5 之後也會一直出；數量到上限就不出數量）
     for (const k of Object.keys(this.skills)) { const d = this.def(k); if (!d || d.basic && !this.skills[k].lv) continue;
       const keys = enhKeys(d).filter(e => !(ENH[e].max && (this.skills[k].mods?.[e] || 0) >= ENH[e].max) && !(ENH[e].cap && (this.skills[k].mods?.[e] || 0) >= ENH[e].cap));

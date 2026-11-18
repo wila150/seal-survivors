@@ -213,10 +213,11 @@ const api = {
   'POST /api/job1': async (req, res, _, uid) => {
     const { charId, job } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     if (c.job !== NOVICE) return send(res, 400, { error: '已經一轉了' });
-    if (c.base_lv < JOB1_AT) return send(res, 400, { error: `要 Base Lv ${JOB1_AT} 才能一轉` });
+    if (c.base_lv < JOB1_AT || c.job_lv < 10) return send(res, 400, { error: `要 Base Lv ${JOB1_AT} 而且 Job Lv 10 才能一轉（目前 Base ${c.base_lv}／Job ${c.job_lv}）` }); // 11/19 使用者企劃：雙條件
     if (!FIRST_JOBS.includes(job)) return send(res, 400, { error: '沒有這個職業' });
     const d = JSON.parse(c.data || '{}'); delete d.novice; d.jobExp = 0; d.talents = {};
     db.prepare('UPDATE characters SET job=?, job_lv=1, data=? WHERE id=?').run(job, JSON.stringify(d), c.id);
+    { const w = rollItem(Math.random, 0, 'weapon', Math.max(1, c.base_lv), job); w.rarity = 1; sendMail(c.id, { sender: '百業宗師', title: `轉職賀禮：${job}的新手武器`, body: `恭喜你成為${job}！這是給你的新手武器，記得裝上。`, items: [w] }); } // 一轉自動配發職業新手武器
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
   'POST /api/chars': async (req, res, _, uid) => {
@@ -273,7 +274,7 @@ const api = {
     const got = [], monLvRun = isTower ? stageBaseLv(STAGES[si]) + floor : cleanDiff(diff, stB).monLv; // 寶箱裝備照這局怪物等級挑 PC 原版道具
     for (let i = 0; i < nChest + nBoss; i++) {
       if (bagCount(c.id) >= BAG_MAX) break;
-      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus + evBonus, undefined, monLvRun); // 項目 49：寶箱掉全職業（保留原味），非本職業的拿去一鍵餵寵／分解（項目 50） // 項目 35：感覺提升寶箱品質
+      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus + evBonus, undefined, monLvRun, i >= nChest || Math.random() < 0.5 ? c.job : null); // 11/19 使用者企劃：一般寶箱 50% 本職業／50% 其他，首領寶箱一定本職業 // 項目 49：寶箱掉全職業（保留原味），非本職業的拿去一鍵餵寵／分解（項目 50） // 項目 35：感覺提升寶箱品質
       if (i >= nChest && it.rarity < 1) it.rarity = 1; // 首領寶箱至少精良
       if (it.rarity < minR) { filtered++; continue; }
       got.push(giveItem(c.id, it));
