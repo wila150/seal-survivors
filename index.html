@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1430">
 <title>希望倖存者</title>
+<link rel="icon" type="image/svg+xml" href="assets/ui/favicon.svg">
+<!-- 標題字型：只抓 Logo 用到的字（text= 子集），很小 -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@900&text=%E5%B8%8C%E6%9C%9B%E5%80%96%E5%AD%98%E8%80%85&display=swap" rel="stylesheet">
 <style>
   /* 遊戲游標：客戶端原版 resource/cursor1.tex（使用者 11/18：鼠標要用遊戲鼠標）*/
   *{cursor:url(assets/ui/cursor_arrow.png) 1 1,default !important}
@@ -14,18 +18,24 @@
   html,body{margin:0;min-height:100%;font-family:system-ui,"Noto Sans TC",sans-serif;color:var(--ink)}
   body{background:linear-gradient(#5d93e8,#bcd6f5 55%,#6fae4f 56%,#3f7d34);min-height:100vh;overflow-x:hidden}
   #bg{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
+  /* 暗角＋下方加深：文字和面板比較好讀，畫面像封面插畫 */
+  body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 45% 40%,#0000 45%,#0007 100%),linear-gradient(#0000 60%,#0006)}
   .wrap{position:relative;z-index:1;min-height:100vh;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px 32px;padding:60px max(16px,4vw) 120px}
   /* Logo */
-  .logo{flex:1 1 300px;color:#fff;align-self:flex-start;margin-top:4vh;text-shadow:0 2px 8px #0006}
+  .logo{flex:1 1 300px;color:#fff;align-self:center;text-align:center;text-shadow:0 2px 8px #0006;display:flex;flex-direction:column;align-items:center}
+  .logo .mark{width:min(760px,94vw);height:auto;display:block;filter:drop-shadow(0 10px 24px #0009)}
+  .logo .pill{padding:6px 22px;border-radius:999px;background:linear-gradient(#ffffffee,#dfe7fbee);color:#3a5bbf;font-weight:800;letter-spacing:2px;text-shadow:none;box-shadow:0 4px 14px #0006;border:1px solid #fff}
+  .logo .sub{justify-content:center;margin-top:-6px}
   .logo h1{margin:0;font-size:clamp(42px,7.5vw,96px);line-height:1.05;letter-spacing:6px;background:linear-gradient(#fffbe0,#ffd36b 45%,#e8892b);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 0 #5a3108) drop-shadow(0 8px 18px #0008);text-shadow:none}
   .logo .sub{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:clamp(15px,2vw,20px);font-weight:700;letter-spacing:3px}
   .logo .beta{font-size:12px;letter-spacing:2px;padding:3px 10px;border-radius:999px;background:linear-gradient(#ff7a59,#d9432b);border:2px solid #fff;text-shadow:none}
   .logo small{display:block;margin-top:8px;font-size:14px;letter-spacing:2px;opacity:.9}
-  body.sel .logo h1{font-size:clamp(36px,5vw,64px)}
+  body.sel .logo .mark{width:min(460px,80vw)}
   /* 右上小按鈕、底部聲明 */
   .topbar{position:fixed;top:12px;right:12px;z-index:3;display:flex;gap:8px}
   .chipbtn{font:inherit;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid #ffffff99;background:#0b1430aa;color:#fff;cursor:pointer;backdrop-filter:blur(4px)}
-  .foot{position:fixed;left:0;right:0;bottom:0;z-index:2;text-align:center;font-size:11px;line-height:1.5;color:#fff;text-shadow:0 1px 3px #000;padding:6px 16px calc(6px + env(safe-area-inset-bottom));pointer-events:none}
+  @media (max-width:700px){.foot{position:static !important;transform:none !important;margin:0 auto 14px}}
+  .foot{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));z-index:2;width:min(980px,calc(100% - 32px));text-align:center;font-size:11px;line-height:1.6;color:#eef2fb;background:#0b1430b0;border:1px solid #ffffff30;border-radius:10px;padding:6px 14px;pointer-events:none;backdrop-filter:blur(4px)}
   .toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:9;background:#0b1430ee;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100vw - 32px);transition:opacity .3s}
   /* 面板 */
   .panel{flex:0 1 400px;max-width:100%;background:#eef2fbf2;border-radius:14px;overflow:hidden;box-shadow:0 10px 40px #0008;border:2px solid #9db4ee;backdrop-filter:blur(6px)}
@@ -44,7 +54,9 @@
   .btn.on{background:#dfe7fb;border-color:var(--accent);color:var(--accent)}
   .btn:disabled{opacity:.45;cursor:default}
   .err{color:#c0392b;font-size:14px;min-height:1.2em}
-  .tips{margin:0;padding:10px 12px 10px 30px;background:#fff;border-radius:10px;font-size:13px;line-height:1.7;color:var(--sub)}
+  .tips{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--ink)}
+  .tips li{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #d5ddf0;border-radius:10px;padding:10px 12px;line-height:1.5}
+  .tips img{width:30px;height:30px;flex:none;image-rendering:auto}
   .load small{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:4px}
   .lbar{height:8px;background:#d5ddf0;border-radius:4px;overflow:hidden}.lbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4fc3ff,#a06bff);transition:width .25s}
   .quit{align-self:flex-end;padding:6px 14px;font-size:13px}
@@ -120,7 +132,28 @@
 <div class="topbar"><button class="chipbtn" id="langBtn">🌐 繁體中文</button><button class="chipbtn" id="newsBtn">📢 最新消息</button></div>
 
 <div class="wrap">
-  <div class="logo"><h1>希望<br>倖存者</h1><div class="sub">希望OL 割草出征 <span class="beta">BETA</span></div><small>出征 · 割草 · 升級 · 轉職</small></div>
+  <!-- Logo（11/19 使用者：質感比照 RO 倖存者封面）：SVG 金屬立體字＋翅膀＋星芒＋副標膠囊 -->
+  <div class="logo"><svg class="mark" viewBox="0 0 820 230" role="img" aria-label="希望倖存者">
+    <defs>
+      <linearGradient id="lgF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffdf0"/><stop offset=".38" stop-color="#ffe08a"/><stop offset=".52" stop-color="#f2a93b"/><stop offset=".53" stop-color="#ffcf6a"/><stop offset="1" stop-color="#b5520f"/></linearGradient>
+      <linearGradient id="lgW" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#a9c4ff"/></linearGradient>
+      <filter id="lgGlow" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <!-- 翅膀 -->
+    <g fill="url(#lgW)" stroke="#2b3f8a" stroke-width="3" opacity=".95">
+      <path d="M70 130 C24 100 10 60 14 28 C40 58 62 68 98 72 C72 80 60 92 58 104 C76 98 94 100 110 112 C92 114 80 122 70 130Z"/>
+      <path d="M750 130 C796 100 810 60 806 28 C780 58 758 68 722 72 C748 80 760 92 762 104 C744 98 726 100 710 112 C728 114 740 122 750 130Z"/>
+    </g>
+    <g font-family="'Noto Serif TC','Noto Serif CJK TC','PMingLiU',serif" font-weight="900" font-size="118" text-anchor="middle" letter-spacing="6">
+      <text x="410" y="150" fill="none" stroke="#2a1404" stroke-width="22" stroke-linejoin="round" filter="url(#lgGlow)" opacity=".85">希望倖存者</text>
+      <text x="410" y="150" fill="none" stroke="#7a3a0a" stroke-width="14" stroke-linejoin="round">希望倖存者</text>
+      <text x="410" y="150" fill="none" stroke="#fff6d8" stroke-width="5" stroke-linejoin="round">希望倖存者</text>
+      <text x="410" y="150" fill="url(#lgF)">希望倖存者</text>
+    </g>
+    <!-- 星芒 -->
+    <g fill="#fff" filter="url(#lgGlow)"><path d="M150 38 l5 16 16 5 -16 5 -5 16 -5 -16 -16 -5 16 -5z"/><path d="M640 172 l3 10 10 3 -10 3 -3 10 -3 -10 -10 -3 10 -3z" opacity=".85"/></g>
+  </svg>
+  <div class="sub"><span class="pill">希望OL Survivors</span><span class="beta">BETA</span></div><small>出征 · 割草 · 升級 · 轉職</small></div>
 
   <section id="auth" class="panel hide">
     <header>◆ 希望倖存者 <span>帳號</span></header>
@@ -132,9 +165,9 @@
       <div class="err" id="authErr"></div>
       <button class="btn primary" id="authBtn">登入</button>
       <ul class="tips">
-        <li>選一個職業，出征割草、升級、轉職</li>
-        <li>角色、裝備、金幣都存在伺服器</li>
-        <li>第一次玩建議先建立帳號，換裝置也能繼續</li>
+        <li><img src="assets/items/117.png" alt="">選一個職業，出征割草、升級、轉職</li>
+        <li><img src="assets/items/2313.png" alt="">角色、裝備、金幣都會存起來</li>
+        <li><img src="assets/items/618.png" alt="">第一次玩建議先建立帳號，換裝置也能繼續</li>
       </ul>
       <div class="load"><div class="lbar"><i id="lbar"></i></div><small><span id="ltxt">預先載入模型…</span><span id="lpct">0%</span></small></div>
       <button type="button" class="btn quit" id="quitBtn">離開</button>
@@ -211,6 +244,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { sealModel, sealProp, sealActor } from './src/2_core/seal-model.js';
+import { loadSealMap, buildSealMap } from './src/2_core/seal-map.js';
 import { MONSTER_MODELS } from './src/1_data/monsters.js';
 import { JOBS, STATS, FREE_POINTS, STAT_MAX, OUTFITS, OUTFIT_LOCKED, HAIR_STYLES, HAIR_COLORS, defaultStats, playerModelId, playerAnimSet, playerLook } from './src/1_data/jobs.js';
 import { renderLook } from './src/2_core/look-ui.js';
@@ -245,23 +279,34 @@ const bg = (() => {
   r.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   const sc = new THREE.Scene();
   const grad = (w, h, stops, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, stops); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
-  sc.background = grad(4, 256, 0, g => { const l = g.createLinearGradient(0, 0, 0, 256); l.addColorStop(0, '#3f78d8'); l.addColorStop(0.55, '#a9cdf5'); l.addColorStop(1, '#d6e4ec'); g.fillStyle = l; g.fillRect(0, 0, 4, 256); });
-  sc.fog = new THREE.Fog(0xd6e4ec, 28, 70);
-  sc.add(new THREE.HemisphereLight(0xffffff, 0x5a7a3a, 1.5)); const sun = new THREE.DirectionalLight(0xfff2d8, 1.6); sun.position.set(-6, 10, 6); sc.add(sun);
-  // 草地：雜訊貼圖重複鋪
-  const grass = grad(128, 128, 0, g => { g.fillStyle = '#6fae4f'; g.fillRect(0, 0, 128, 128); for (let i = 0; i < 900; i++) { g.fillStyle = ['#5f9e43', '#7dbb58', '#68a64a', '#8cc463'][i % 4]; g.fillRect(Math.random() * 128, Math.random() * 128, 2, 3 + Math.random() * 3); } });
-  grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(40, 40);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ map: grass })); ground.rotation.x = -Math.PI / 2; sc.add(ground);
-  const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 200); cam.position.set(0, 3.2, 13); cam.lookAt(0, 2.4, 0);
+  // 11/19 使用者：質感比照 RO 倖存者封面 → 背景改用原版艾林（獅子城）城堡＋護城河，黃昏天空、暖色霧、鏡頭慢慢飄
+  sc.background = grad(4, 512, 0, g => { const l = g.createLinearGradient(0, 0, 0, 512); l.addColorStop(0, '#1d1640'); l.addColorStop(0.35, '#5b3c7a'); l.addColorStop(0.62, '#d9866a'); l.addColorStop(0.78, '#f6c28b'); l.addColorStop(1, '#f6d7a8'); g.fillStyle = l; g.fillRect(0, 0, 4, 512); });
+  const FOG = 0xc99a8c; sc.fog = new THREE.Fog(FOG, 40, 160);
+  r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.05;
+  sc.add(new THREE.HemisphereLight(0xffd9c0, 0x4a3a5a, 1.6)); const sun = new THREE.DirectionalLight(0xffc38a, 2); sun.position.set(-20, 30, -40); sc.add(sun);
+  // 天上的星星（上半部）
+  { const n = 160, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI - Math.PI / 2 - 1.57, el = 0.25 + Math.random() * 0.9, R = 180; pos.set([Math.cos(el) * Math.sin(a) * R, Math.sin(el) * R, -Math.abs(Math.cos(el) * Math.cos(a)) * R], i * 3); }
+    const gs = new THREE.BufferGeometry(); gs.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    sc.add(new THREE.Points(gs, new THREE.PointsMaterial({ color: 0xfff4e0, size: 1.4, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85 }))); }
+  const cam = new THREE.PerspectiveCamera(42, 1, 0.5, 400);
+  // 鏡頭（地圖格座標 → 世界座標 −256）：護城河南岸看城門與王宮
+  const CAM = { x: 190 - 256, z: 372 - 256, h: 6 }, TGT = { x: 214 - 256, z: 262 - 256, h: 16 }; // 看偏左一點 → 城堡落在 Logo 和右邊面板中間
+  let MAP = null; const camAt = t => { if (!MAP) return; const sx = Math.sin(t * 0.05) * 4, sz = Math.cos(t * 0.037) * 2;
+    cam.position.set(CAM.x + sx, MAP.heightAt(CAM.x, CAM.z) + CAM.h + Math.sin(t * 0.07) * 0.6, CAM.z + sz); cam.lookAt(TGT.x + sx * 0.3, MAP.heightAt(TGT.x, TGT.z) + TGT.h, TGT.z); };
+  // 怪物走的那條帶子：鏡頭前方 14 公尺、跟畫面平行；stage 群組朝向鏡頭，怪物在 stage 的 x 軸上走
+  const stage = new THREE.Group(); sc.add(stage);
+  const placeStage = () => { const dx = TGT.x - CAM.x, dz = TGT.z - CAM.z, L = Math.hypot(dx, dz); stage.position.set(CAM.x + dx / L * 31, 0, CAM.z + dz / L * 31); stage.rotation.y = Math.atan2(-dx, -dz); };
+  placeStage();
+  const tmpV = new THREE.Vector3();
   const shadowGeo = new THREE.CircleGeometry(0.5, 20), shadowMat = new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.22, depthWrite: false });
   const mobs = []; let xMax = 8, raf = 0, last = 0, lastInput = performance.now(), acc = 0;
-  const resize = () => { const w = innerWidth, h = innerHeight; r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); xMax = Math.tan(cam.fov * Math.PI / 360) * cam.aspect * 12 + 1; };
+  const resize = () => { const w = innerWidth, h = innerHeight; r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); xMax = Math.tan(cam.fov * Math.PI / 360) * cam.aspect * 31 + 1; };
   addEventListener('resize', () => { resize(); wake(); }); resize();
   const addMob = (tpl, h) => {
     const g = new THREE.Group(), m = tpl.clone(); g.add(m);
     const sh = new THREE.Mesh(shadowGeo, shadowMat); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.02; sh.scale.setScalar(h * 0.7); g.add(sh);
     const dir = Math.random() < 0.5 ? -1 : 1;
-    g.position.set((Math.random() * 2 - 1) * xMax, 0, -1 + Math.random() * 3.5); sc.add(g);
+    g.position.set((Math.random() * 2 - 1) * xMax, 0, -1 + Math.random() * 3.5); stage.add(g);
     mobs.push({ g, m, dir, speed: 0.7 + Math.random() * 0.9, phase: Math.random() * 6, idle: 0, yaw: dir * Math.PI / 2 });
   };
   const step = dt => {
@@ -278,13 +323,14 @@ const bg = (() => {
         o.m.rotation.z = Math.sin(o.phase * o.speed * 7) * 0.08;
       }
       o.g.rotation.y = o.yaw;
+      if (MAP) { stage.updateMatrixWorld(); tmpV.set(o.g.position.x, 0, o.g.position.z); stage.localToWorld(tmpV); o.g.position.y = Math.max(MAP.heightAt(tmpV.x, tmpV.z), -8.6); } // 站在原版地形上（水面高 −8.6）
     }
   };
   const loop = now => {
     raf = 0;
     if (document.hidden || $('#createDlg').open || now - lastInput > 90000) return;   // 閒置 90 秒就睡
     const dt = Math.min(0.1, (now - last) / 1000); last = now; acc += dt;
-    if (acc >= 1 / 30) { step(acc); r.render(sc, cam); acc = 0; }                   // 30fps 就夠
+    if (acc >= 1 / 30) { step(acc); camAt(now / 1000); r.render(sc, cam); acc = 0; }                   // 30fps 就夠
     raf = requestAnimationFrame(loop);
   };
   const wake = () => { lastInput = performance.now(); if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } };
@@ -292,8 +338,8 @@ const bg = (() => {
   document.addEventListener('visibilitychange', wake);
   $('#createDlg').addEventListener('close', wake);
   // 預先載入（登入面板的進度條）
-  const jobs = [...BG_MONSTERS.map(k => () => sealModel(MONSTER_MODELS[k], 1).then(t => { t.children[0].rotation.y = Math.PI; addMob(t, 1); if (Math.random() < 0.5) addMob(t, 1); })),
-    ...BG_TREES.map(([n, x, z, s]) => () => sealProp(n, s).then(o => { o.position.set(x, 0, z); sc.add(o); })),
+  const jobs = [...BG_MONSTERS.map(k => () => sealModel(MONSTER_MODELS[k], 1.6).then(t => { t.children[0].rotation.y = Math.PI; addMob(t, 1); if (Math.random() < 0.5) addMob(t, 1); })),
+    () => loadSealMap(32).then(M => { MAP = M; camAt(0); return buildSealMap(sc, M, FOG, { blend: { a0: 'stone_b07', a1: 'grass', hi: 'stone_b05' } }).propsReady; }),
     () => fetch('assets/data/skills.json').then(r => r.json()).then(d => { SKD = d; if ($('#createDlg').open) drawCreate(); })];
   let done = 0;
   const tick = () => { done++; const p = Math.round(done / jobs.length * 100); $('#lbar').style.width = p + '%'; $('#lpct').textContent = p + '%'; $('#ltxt').textContent = done < jobs.length ? `預先載入模型 ${done}/${jobs.length}` : '載入完成'; wake(); };
