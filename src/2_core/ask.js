@@ -16,7 +16,7 @@ function open(msg, { ok = '確定', cancel = '取消', danger = false, title = '
   if (!document.getElementById('ssAskCss')) { const st = document.createElement('style'); st.id = 'ssAskCss'; st.textContent = CSS; document.head.appendChild(st); }
   document.getElementById('ssAsk')?.remove();
   const el = document.createElement('dialog'); el.id = 'ssAsk';
-  el.innerHTML = `<div class="box"><header>◆ ${title}</header><div class="msg"></div>${input != null ? `<input maxlength="${max}">` : ''}<div class="row"><button type="button" class="ok${danger ? ' danger' : ''}">${ok}</button><button type="button" class="no">${cancel}</button></div></div>`;
+  el.innerHTML = `<div class="box"><header>${title}</header><div class="msg"></div>${input != null ? `<input maxlength="${max}">` : ''}<div class="row"><button type="button" class="ok${danger ? ' danger' : ''}">${ok}</button><button type="button" class="no">${cancel}</button></div></div>`;
   el.querySelector('.msg').textContent = msg;
   const inp = el.querySelector('input'); if (inp) inp.value = input;
   document.body.appendChild(el); el.showModal(); (inp || el.querySelector('.ok')).focus();

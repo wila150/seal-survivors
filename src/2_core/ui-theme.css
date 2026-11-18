@@ -1,0 +1,120 @@
+/* 希望倖存者 介面質感統一（11/19 使用者：「所有介面做完整、跟遊戲內容做好」，對照新封面）
+   疊在 pc-ui.css 後面：保留 PC 原版的米色內頁與格子，外框改成「深藍＋金邊」、標題改成緞帶、按鈕／分頁有光澤
+   主城 #dlg、出征暫停 #pause／結算 .pcwin／升級 #levelup、設定 #ssSet、確認框 #ssAsk 共用 */
+:root {
+  --th-navy: #18244f; --th-navy2: #2b3f8a; --th-gold: #e9c46a; --th-gold2: #b8862b; --th-ivory: #fbf7ee;
+  --th-parch: #f3ebdc; --th-parch-line: #d8c6a2; --th-ink: #2a2f45; --th-sub: #6d6a5e; --th-blue: #3f6fe0;
+}
+
+/* ===== 視窗外框 ===== */
+#dlg .box, #pause .box, .pcwin, body #ssSet .box, body #ssAsk .box {
+  background: linear-gradient(#fdfcf8, #ece6d8) !important;
+  border: 2px solid #fff6dc !important; border-radius: 18px !important;
+  box-shadow: 0 0 0 2px var(--th-gold2), 0 0 0 5px var(--th-navy), 0 0 0 6px #e9c46a66, 0 18px 50px #000b !important;
+}
+#dlg { background: radial-gradient(ellipse at center, #0b143055, #0b1430aa) !important; backdrop-filter: blur(2px); }
+
+/* ===== 標題：深藍緞帶＋金字＋菱形裝飾 ===== */
+#dlg header, #pause .box header, body #ssSet header, body #ssAsk header {
+  position: relative; margin: 0 0 10px !important; padding: 11px 56px 10px !important;
+  background: linear-gradient(#34499a, var(--th-navy) 70%) !important; border-radius: 15px 15px 0 0;
+  border-bottom: 2px solid var(--th-gold2); box-shadow: inset 0 1px 0 #ffffff40, 0 2px 0 #0003;
+  color: #fff2c8 !important; -webkit-text-stroke: 0 !important; text-shadow: 0 2px 0 #0b1430, 0 0 12px #e9c46a66 !important;
+  font-weight: 900 !important; letter-spacing: 3px !important; text-align: center !important; font-size: 19px !important;
+}
+#dlg header::before, #dlg header::after, #pause .box header::before, #pause .box header::after,
+body #ssSet header::before, body #ssSet header::after, body #ssAsk header::before, body #ssAsk header::after {
+  content: ''; display: inline-block; width: 9px; height: 9px; margin: 0 12px 3px; transform: rotate(45deg);
+  background: linear-gradient(135deg, #fff3c4, var(--th-gold) 50%, var(--th-gold2)); box-shadow: 0 0 6px #e9c46a;
+}
+.pcwin h1 { color: #fff2c8 !important; -webkit-text-stroke: 0 !important; text-shadow: 0 3px 0 #0b1430, 0 0 18px #e9c46a99 !important; }
+
+/* 關閉鈕：金環＋深藍 */
+#dlgX { background: radial-gradient(circle at 35% 30%, #4a64c0, var(--th-navy) 70%) !important; border: 3px solid var(--th-gold) !important;
+  color: #fff2c8 !important; box-shadow: 0 0 0 2px var(--th-navy), 0 3px 8px #0008 !important; z-index: 2; }
+
+/* ===== 內頁：羊皮紙 ===== */
+#dlg .body, #pause .box .in, .pcwin .pnl, body #ssAsk .msg {
+  background: linear-gradient(#f8f2e6, var(--th-parch)) !important; border: 1px solid var(--th-parch-line) !important;
+  box-shadow: inset 0 1px 0 #fff, inset 0 2px 8px #8a6a3022 !important; color: var(--th-ink); border-radius: 12px !important;
+}
+#dlg .body::-webkit-scrollbar { width: 10px } #dlg .body::-webkit-scrollbar-track { background: #e6dcc6; border-radius: 10px }
+#dlg .body::-webkit-scrollbar-thumb { background: linear-gradient(90deg, var(--th-gold2), var(--th-gold)); border-radius: 10px; border: 2px solid #e6dcc6 }
+#dlg .body small, #dlg .body .sub { color: var(--th-sub) }
+#dlg .body b { color: #2a3a78 }
+#dlg .body p { margin: 0 0 10px }
+
+/* ===== 按鈕 ===== */
+#dlg .btn, #pause .pbtn, body #ssSet button, body #ssAsk button, .pcwin .btn {
+  background: linear-gradient(#fffdf6, #ece2cc) !important; color: #2a3a78 !important; border: 1px solid #c8b483 !important;
+  border-radius: 10px !important; box-shadow: inset 0 1px 0 #fff, 0 2px 0 #b8a27055, 0 2px 6px #0001 !important; font-weight: 800 !important;
+  transition: transform .08s, filter .12s;
+}
+#dlg .btn:hover:not(:disabled), #pause .pbtn:hover, body #ssSet button:hover, body #ssAsk button:hover, .pcwin .btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+#dlg .btn:active:not(:disabled), #pause .pbtn:active { transform: translateY(1px); }
+#dlg .btn.primary, #dlg .opts .btn.primary, body #ssAsk button.ok, body #ssSet .primary, body #ssSet .tabs button.on, .pcwin .btn.primary, .pcwin #again {
+  background: linear-gradient(#7fb0ff, var(--th-blue) 52%, #2a4fb8) !important; color: #fff !important; border: 1px solid var(--th-gold2) !important;
+  box-shadow: inset 0 1px 0 #ffffff80, inset 0 -3px 0 #1d3a8f, 0 0 0 1px #fff6, 0 3px 8px #2a4fb855 !important; text-shadow: 0 1px 2px #0008;
+}
+body #ssAsk button.ok.danger { background: linear-gradient(#ff9b8a, #d9483b 55%, #a8291f) !important; box-shadow: inset 0 1px 0 #fff8, inset 0 -3px 0 #7d1d15 !important; }
+#dlg .btn:disabled { opacity: .5 !important; filter: grayscale(.4); }
+
+/* 分頁（背包 裝備／素質、遠征、排行…）：膠囊；選中＝深藍金字 */
+#dlg .tabs2 .btn, #dlg .tabs2 select { border-radius: 999px !important; padding: 6px 16px !important; }
+#dlg .tabs2 .btn.primary { background: linear-gradient(#3c55aa, var(--th-navy)) !important; color: #ffe9a8 !important; border-color: var(--th-gold) !important;
+  box-shadow: inset 0 1px 0 #ffffff40, 0 0 0 1px #e9c46a66, 0 2px 6px #0003 !important; }
+#dlg select, #dlg input:not([type=range]):not([type=checkbox]) { background: #fffdf8; border: 1px solid #c8b483; border-radius: 8px; padding: 5px 8px; font: inherit; color: var(--th-ink) }
+#dlg .gold { color: #a86b10 !important; text-shadow: 0 1px 0 #fff }
+
+/* ===== 角色：素質列 ===== */
+#dlg .strow { display: grid !important; grid-template-columns: 64px 44px 40px 1fr; align-items: center; gap: 10px; padding: 7px 10px; margin: 6px 0;
+  background: linear-gradient(90deg, #fffdf8, #f6eedd); border: 1px solid #e0d2b2; border-radius: 10px; }
+#dlg .strow b { color: #2a3a78; font-size: 15px }
+#dlg .strow span { font-size: 18px; font-weight: 900; color: #a86b10; text-align: right }
+#dlg .strow .btn { width: 34px; height: 34px; padding: 0 !important; border-radius: 50% !important; font-size: 18px !important; }
+#dlg .strow .btn:not(:disabled) { background: linear-gradient(#7fb0ff, var(--th-blue) 52%, #2a4fb8) !important; color: #fff !important; border-color: var(--th-gold2) !important; }
+#dlg .strow small { color: var(--th-sub) }
+
+/* ===== 背包／裝備格 ===== */
+#dlg .slots.pc .eq { background: linear-gradient(#fffdf8, #f1e8d6) !important; border: 1px solid #cdb98e !important; box-shadow: inset 0 1px 0 #fff, 0 2px 4px #0001; }
+#dlg .slots.pc .eq .ico { background: radial-gradient(circle at 50% 35%, #fff4dc, #d6c3a1) !important; border: 2px solid #b8a070 !important; box-shadow: inset 0 2px 4px #0002; }
+#dlg .bag.pc .cell { transition: transform .08s, box-shadow .12s; }
+#dlg .bag.pc .cell:not(.empty):hover { transform: translateY(-1px); box-shadow: 0 0 0 2px var(--th-gold), 0 4px 10px #0003 !important; }
+#dlg .bag.pc .cell.sel { box-shadow: 0 0 0 3px var(--th-blue), 0 0 12px #3f6fe099 !important; }
+#dlg .eq:not(.pc *) { background: #fffdf8; border-color: #dccba6 }
+
+/* 一般白色卡片（郵差、排行、指南、名聲…內頁裡的白框）→ 象牙色＋金線 */
+#dlg .body div[style*="background:#fff"] { background: #fffdf8 !important; border: 1px solid #e0d2b2; }
+
+/* ===== 出征：暫停、結算、升級卡 ===== */
+#pause .pbtn { text-align: center }
+#levelup h1, #over h1 { filter: drop-shadow(0 3px 0 #5a3108) drop-shadow(0 0 18px #e9c46a88); }
+#levelup .card { background: linear-gradient(#fffdf6, #efe7d4) !important; border: 2px solid #d8c38f !important;
+  box-shadow: 0 0 0 3px var(--th-navy), 0 0 0 4px #e9c46a77, 0 12px 30px #000a !important; transition: transform .12s, box-shadow .12s; }
+#levelup .card:hover { transform: translateY(-4px); box-shadow: 0 0 0 3px var(--th-navy), 0 0 0 5px var(--th-gold), 0 18px 36px #000c !important; }
+#levelup .card b { color: #2a3a78 !important }
+#levelup .card hr { border-top-color: #e0d2b2 !important }
+#levelup .card .rb { background: linear-gradient(#3c55aa, var(--th-navy)); color: #ffe9a8; box-shadow: 0 2px 0 #0003; }
+#levelup .card img, #levelup .card .skico.big { border-color: var(--th-gold) !important; box-shadow: 0 0 0 2px var(--th-navy), 0 0 14px #e9c46a66; }
+#levelup .card.fus { box-shadow: 0 0 0 3px #7a1f8a, 0 0 0 5px #ffd36b, 0 0 30px #ffd36b88, 0 12px 30px #000a !important; }
+
+/* 設定視窗內頁 */
+body #ssSet .body { background: linear-gradient(#f8f2e6, var(--th-parch)) !important; border-radius: 12px; margin: 0 12px; border: 1px solid var(--th-parch-line); }
+body #ssSet .row { border-bottom-color: #e0d2b2 !important }
+body #ssSet table { background: #fffdf8 !important }
+body #ssSet input[type=range] { accent-color: var(--th-blue) }
+
+/* 背包 ITEM 面板：外框改金線、ITEM 標題改深藍金字膠囊、希幣欄改金色 */
+#dlg .bag.pc { background: linear-gradient(#fffdf8, #f5eddc) !important; border: 2px solid #c8b483 !important; box-shadow: inset 0 0 0 2px #fff, 0 2px 8px #8a6a3022 !important; }
+#dlg .bag.pc > .pct { background: linear-gradient(#3c55aa, var(--th-navy)) !important; color: #ffe9a8 !important; -webkit-text-stroke: 0 !important; text-shadow: 0 1px 0 #0b1430 !important;
+  padding: 5px 20px !important; border-radius: 999px !important; border: 1px solid var(--th-gold) !important; box-shadow: 0 0 0 2px #fff, 0 3px 6px #0003 !important; font-size: 14px !important; letter-spacing: 3px !important; top: -15px !important; }
+#dlg .pcgold { background: linear-gradient(#fffdf6, #efe4c8) !important; border: 1px solid #c8b483 !important; color: #7a5a1c !important; }
+#dlg .pcgold span { background: #fffbe8 !important; border: 1px solid #e3cf8f !important; color: #8a5a00 !important; }
+#dlg .detail { background: #fffdf8; border: 1px solid #e0d2b2; border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+
+/* ===== 出征 HUD：面板標題深藍金字、膠囊象牙色＋金線、技能列 ===== */
+#dmgPanel, #mmPanel { border: 1px solid #c8b483 !important; box-shadow: 0 0 0 2px var(--th-navy), 0 6px 16px #0006 !important; background: linear-gradient(#fffdf8f0, #efe7d4f0) !important; }
+#dmgPanel header, #mmPanel header { background: linear-gradient(#3c55aa, var(--th-navy)) !important; color: #ffe9a8 !important; text-shadow: 0 1px 0 #0b1430; border-bottom: 1px solid var(--th-gold2); }
+#topc .pill { background: linear-gradient(#fffdf6, #ece2cc) !important; border: 1px solid #c8b483 !important; color: #2a3a78 !important; box-shadow: 0 0 0 1px #18244f66, 0 3px 8px #0005 !important; }
+#topc #time { color: var(--th-navy) !important; text-shadow: 0 1px 0 #fff; }
+#skillbar { background: linear-gradient(#fffdf8e8, #efe7d4e8) !important; border: 1px solid #c8b483 !important; box-shadow: 0 0 0 2px var(--th-navy), 0 6px 16px #0006 !important; }

@@ -62,7 +62,7 @@ export function openSettings(onClose) {
     () => CREDITS_HTML, // 項目 43
   ];
   const draw = () => {
-    el.innerHTML = `<div class="box"><header>◆ 設定</header><div class="tabs">${['音量', '顯示', '畫質', '操作', '製作名單'].map((n, i) => `<button type="button" data-tab="${i}" class="${i === tab ? 'on' : ''}">${n}</button>`).join('')}</div>
+    el.innerHTML = `<div class="box"><header>設定</header><div class="tabs">${['音量', '顯示', '畫質', '操作', '製作名單'].map((n, i) => `<button type="button" data-tab="${i}" class="${i === tab ? 'on' : ''}">${n}</button>`).join('')}</div>
       <div class="body">${pages[tab]()}</div><footer><button type="button" id="ssReset">恢復預設</button><button type="button" class="primary" id="ssClose">完成</button></footer></div>`;
     el.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = +b.dataset.tab; draw(); });
     el.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { S[r.dataset.k] = +r.value; el.querySelector(`[data-v="${r.dataset.k}"]`).textContent = pct(+r.value); save(); });
