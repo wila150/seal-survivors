@@ -415,7 +415,7 @@ async function talk(n) {
 // 項目 57：出征前提示 MVP 屬性（服務端 element.scr 相剋表）→ 引導去扎羅配技能寶石
 function mvpElemHint(name) {
   const me = EL.MONSTER_ELEM[name] ?? 0, best = [1, 2, 3, 4, 5, 6, 7].filter(a => EL.elemMult(a, me) > 1).sort((a, b) => EL.elemMult(b, me) - EL.elemMult(a, me));
-  const tag = i => `<b style="color:${EL.ELEM_COLOR[i]};text-shadow:0 1px 2px #000">${EL.ELEMS[i]}</b>`;
+  const tag = i => `<b style="color:${i ? EL.ELEM_COLOR[i] : '#5a6478'};${i ? 'text-shadow:0 1px 2px #000' : ''}">${EL.ELEMS[i]}</b>`; // 無屬性原色是白色，米色底看不到 → 用深灰
   return `<div style="margin:6px 0;padding:6px 10px;border-radius:10px;background:#fff8e6;border:1px solid #e8c77a;font-size:13px">🔮 MVP <b>${esc(name)}</b> 屬性【${tag(me)}】　${best.length ? `剋它：${best.map(a => `${tag(a)} ×${EL.elemMult(a, me)}`).join('、')}　→ 去<b>寶石收藏家 扎羅</b>配技能寶石` : '沒有特別剋它的屬性'}</div>`;
 }
 // 11/19 一轉（照 PC：初心者 Base Lv 10 → 7 職選 1）
