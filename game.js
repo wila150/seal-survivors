@@ -15,7 +15,7 @@ import { PETS, petStage, petName, petAtk, petBonus } from './src/1_data/pets.js'
 import { cleanDiff, diffMods, stageBaseLv } from './src/1_data/difficulty.js';
 import { ELEMS, ELEM_COLOR, elemMult, MONSTER_ELEM, skillElem } from './src/1_data/element.js';
 import { TOWER_NAME, towerFloor, towerSeg, towerHpMul, towerDmgMul, towerBossAt, CURSES } from './src/1_data/tower.js';
-import { loadSkills, SkillManager, FxPool, iconHtml, TYPE_NAMES, TAG_NAMES } from './src/3_skills/skills.js';
+import { loadSkills, SkillManager, FxPool, iconHtml, TYPE_NAMES, TAG_NAMES, ENH, ENH_Q } from './src/3_skills/skills.js';
 import { SealFx } from './src/3_skills/seal-fx.js';
 import { MeshPool, DomPool } from './src/2_core/pool.js';
 import { createCamera, fitCamera, followCamera, cycleView, enableOrbit } from './src/2_core/camera.js';
@@ -271,7 +271,7 @@ function reset() {
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
-  chestsArr = []; chests = 0; bossChests = 0; runBosses = [];
+  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false;
   enemies = []; gems = []; t = 0; kills = 0; spawner.reset();
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
@@ -384,6 +384,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   play('hit', 0.25, 60);
   if (e.hp <= 0 && !e.dead) {
     e.dead = true; kills++; dropGem(e.mesh.position, e.xp); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
+    if (e.mvp) finalDown = true;
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
     else if (e.elite && Math.random() < 0.4) dropChest(e.mesh.position, false);
     if (e === boss) setBoss(null);
@@ -450,6 +451,11 @@ function levelUp() {
       html = `<span class="rb">${isNew ? '新技能' : `Lv ${c.lv} → ${c.lv + 1}`}</span>${isNew ? '<span class="new">新！</span>' : ''}${iconHtml(d.icon, 92, 'big')}<b>${d.name}</b>
         <span class="kind">${TYPE_NAMES[d.type]}${d.tags.map(t => '・' + TAG_NAMES[t]).join('')}${d.status?.slow ? '・緩速' : ''}${d.status?.poison ? '・中毒' : ''}${d.status?.stun ? '・暈眩' : ''}</span><hr>
         <small>${SM.diffLines(c.k, c.lv).join('<br>')}</small>${fu ? `<div class="fhint">超武：${SKD.skills[fu.a].name} Lv5 ＋ ${SKD.skills[fu.b].name} Lv5 → <b>${SKD.skills[fu.into].name}</b></div>` : ''}`;
+    } else if (c.kind === 'e') { // 項目 36：強化卡（依技能類型的項目＋品質）
+      const d = SKD.skills[c.k], E = ENH[c.e], Q = ENH_Q[c.q], v = SM.enhValue(c), cur = SM.skills[c.k]?.mods?.[c.e] || 0;
+      el.className = 'card up enh'; el.style.borderColor = Q.color;
+      html = `<span class="rb" style="background:${Q.color}">強化・${Q.name}</span>${iconHtml(d.icon, 92, 'big')}<b>${d.name}</b><span class="kind">${E.name} ${E.fmt(v)}${Q.mult > 1 ? `（×${Q.mult}）` : ''}</span><hr>
+        <small>${E.name}：${cur ? E.fmt(cur) : '＋0'} → <b>${E.fmt(Math.min(E.cap ?? Infinity, cur + v))}</b>${E.max ? `（最多 +${E.max}）` : E.cap ? `（上限 ${Math.round(E.cap * 100)}%）` : ''}</small>`;
     } else {
       const d = PASSIVES[c.k]; el.className = 'card p';
       html = `<span class="rb">能力</span><img src="${d.img}" alt=""><b>${d.name}</b><span class="kind">被動</span><hr><small>${d.desc(0)}</small>`;
@@ -458,6 +464,7 @@ function levelUp() {
     el.onclick = () => {
       if (c.kind === 'f') { SM.fuse(c.f); showBanner(`<small>二轉超武</small><b>${SKD.skills[c.k].name}</b>`, 1400); }
       else if (c.kind === 's') SM.add(c.k);
+      else if (c.kind === 'e') SM.enhance(c);
       else { PASSIVES[c.k].apply(); passives[c.k] = (passives[c.k] || 0) + 1; }
       document.getElementById('levelup').classList.remove('on'); state = 'play'; last = performance.now(); drawSkillbar();
     };
@@ -635,7 +642,7 @@ function update(dt) {
   // 經驗寶石：磁吸（player.js），撿到回收進池子
   magnetGems(gems, pp, P, dt, g => {
     gemPool.release(g.mesh); P.xp += g.xp; play('gem', 0.2, 50);
-    if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = Math.floor(5 + P.lv * 3.5 + P.lv ** 1.5); levelBonus(); levelUp(); }
+    if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = Math.floor(5 + P.lv * 3.5 + P.lv ** 1.5); levelBonus(); if (!finalDown) levelUp(); } // 項目 37：打倒最後的首領後不再跳升級卡（以前 MVP 倒下後 3 秒內升級會卡在選卡、通關不觸發）
   });
 
   // 寶箱：走過去撿
@@ -756,7 +763,7 @@ function gameOver(win = false) {
   if (win) play('level', 0.7, 0);
   saveRun();
 }
-let cleared = false;
+let cleared = false, finalDown = false; // finalDown：最後的首領（MVP）已倒
 // 結算：把這局的紀錄送回伺服器換經驗（game-manager.js submitRun）
 async function saveRun() {
   const out = document.getElementById('reward'); out.textContent = '';
@@ -789,7 +796,7 @@ const RUN_KEY = 'ss_run_' + (CHAR.id || 'guest');
 function snapshotRun() {
   if (TOWER || !P || !CHAR.id || !['play', 'level', 'pause'].includes(state) || t < 5) return;
   const snap = { stage: STAGE_IDX, stageKey: STAGE.key, stageName: STAGE.name, t, kills, lv: P.lv, xp: P.xp, need: P.need, hp: P.hp / P.maxHp, chests, bossChests, bossIdx: spawner.bossIdx, px: player.position.x, pz: player.position.z,
-    skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], saved: Date.now() };
+    skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), skmods: Object.fromEntries(Object.entries(SM.skills).filter(([, w]) => w.mods).map(([k, w]) => [k, w.mods])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], saved: Date.now() };
   try { localStorage.setItem(RUN_KEY, JSON.stringify(snap)); } catch {}
 }
 function clearRun() { try { localStorage.removeItem(RUN_KEY); } catch {} }
@@ -803,6 +810,7 @@ function resumeRun(snap) {
   P.lv = snap.lv; P.xp = snap.xp; P.need = snap.need; for (let i = 1; i < P.lv; i++) levelBonus();
   SM.clear(); SM.skills = {};
   for (const [k, lv] of Object.entries(snap.skills || {})) for (let i = 0; i < lv; i++) SM.add(k);
+  for (const [k, m] of Object.entries(snap.skmods || {})) if (SM.skills[k]) SM.skills[k].mods = { ...m }; // 項目 36：強化卡
   for (const [k, n] of Object.entries(snap.passives || {})) for (let i = 0; i < n; i++) { PASSIVES[k]?.apply(); passives[k] = (passives[k] || 0) + 1; }
   P.hp = Math.max(1, Math.round(P.maxHp * (snap.hp ?? 1)));
   P.egem = snap.egem || {}; runBosses = snap.bosses || [];

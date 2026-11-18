@@ -8,6 +8,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { JOBS, OUTFITS, validateStats, STATS, MOUNT, validLook, defaultStats, FREE_POINTS } from './src/1_data/jobs.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime } from './src/1_data/stages.js';
+import { NEED as PC_NEED, BASE_MAX } from './src/1_data/pc-level.js';
+import PC_CURVE from './src/1_data/pc-curve.js';
 import { STONES, STONE_UP, STONE_MAX, STONE_CHANGE, CHANGE_MAX, CHANGE_CHARGE, STONE_ORDER, DECOMPOSE, DUST_PER_CRYSTAL, stoneOf, rollAttr } from './src/1_data/stones.js';
 import { towerFloor, towerSeg, towerScore, towerPoints, towerOpen, CURSES, TOWER_NAME } from './src/1_data/tower.js';
 import { parseGm } from './src/1_data/gm.js';
@@ -99,7 +101,11 @@ const stashSave = (uid, s) => db.prepare('UPDATE accounts SET stash=? WHERE id=?
 const stashItems = uid => db.prepare('SELECT * FROM items WHERE acct=? AND stash IS NOT NULL ORDER BY rarity DESC, id DESC').all(uid).map(r => ({ ...itemView(r), page: r.stash }));
 const stashView = uid => ({ ...stashInfo(uid), pages: STASH_PAGES, size: STASH_SIZE, cost: STASH_COST, items: stashItems(uid) });
 const MAX_SLOTS = 15;
-const needExp = lv => Math.floor(60 * lv * Math.pow(1.15, lv - 1)); // 升到下一級要的經驗
+// 項目 33（11/19「照建議」＋最高原則照 PC）：Base 升級經驗＝服務端 level.scr 原版表，上限 Lv 99
+const needExp = lv => PC_NEED[Math.min(lv, BASE_MAX) - 1] || PC_NEED.at(-1);
+// 每隻怪的經驗＝PC 一般野外怪該等級的經驗 × EXP_SCALE（割草一局殺的怪比 PC 多很多，取 1/10）；怪物等級比你低，每差 1 級經驗減半
+const EXP_SCALE = 0.1;
+const runExp = (kills, monLv, baseLv) => Math.floor(kills * (PC_CURVE.exp[Math.max(1, Math.min(PC_CURVE.max, monLv)) - 1] || 1) * EXP_SCALE * Math.pow(0.5, Math.max(0, baseLv - monLv)));
 // 項目 25／27：Job 經驗＝本局 Base 經驗；曲線平緩（使用者 11/18 選「Job 50＋平緩曲線」：約 100 局到 Job 50）
 // 一轉上限 Job Lv 50（滿 50 才能二轉）；二轉後接著升到 100（51 以後的點數給二轉樹）。數值暫定，之後後端調
 const jobNeed = lv => (400 + 80 * lv) * (lv >= JOB2_MAX ? 8 : 1); // 項目 40：三轉 Job 經驗 ×8（企劃「Job 經驗 ÷8」）
@@ -199,9 +205,12 @@ const api = {
     else { const g = stageGate(si, d0.cleared || [], gearScore(itemsOf(c.id))); if (!g.ok) return send(res, 400, { error: g.why }); } // 項目 31：裝備分數門檻
     const bonus = !isTower && cleared === true && secs >= stageTime(S) - 10; // MVP 在時長結束時才出場（T1 15 分、T2／T3 11 分），太快通關不算
     const mul = S.reward * (bonus ? 1.5 : 1);
-    const gain = Math.floor((secs / 3 + kills / 4 + lv * 5) * mul);
+    const monLvExp = isTower ? stageBaseLv(STAGES[si]) + towerFloor(secs) : cleanDiff(diff, stageBaseLv(S)).monLv; // 這局怪物等級（難度滑桿選的）
+    const jobGain = Math.floor((secs / 3 + kills / 4 + lv * 5) * mul); // Job 經驗維持原本算法（第 25／27 項的 Job 曲線是照這個調的）
+    const gain = Math.floor(runExp(Math.max(0, +kills | 0), monLvExp, c.base_lv) * mul + lv * 5 * mul); // 項目 33：Base 經驗照怪物等級（PC）
     let base = c.base_lv, exp = c.exp + gain, ups = 0;
-    while (exp >= needExp(base) && base < 99) { exp -= needExp(base); base++; ups++; }
+    while (exp >= needExp(base) && base < BASE_MAX) { exp -= needExp(base); base++; ups++; }
+    if (base >= BASE_MAX) exp = 0;
     // 金幣與寶箱（伺服器自己擲裝備；數量依存活時間設上限）
     const gold = Math.floor((kills / 3 + secs / 2) * mul);
     const nChest = Math.max(0, Math.min(+chests | 0, Math.floor(secs / 40) + 1, 100)); // 項目 42：一般寶箱每局最多 100 個
@@ -220,7 +229,7 @@ const api = {
     // 項目 28：首領寶箱各掉 1 顆未開放的技能寶石（寶石袋滿了就不掉）
     const gemsGot = []; d.gems ??= [];
     for (let i = 0; i < nBoss && d.gems.length < GEM_MAX; i++) { const g = rollGem(); d.gems.push(g); gemsGot.push(g); }
-    let job = c.job_lv, jexp = (d.jobExp || 0) + gain, jobUps = 0;
+    let job = c.job_lv, jexp = (d.jobExp || 0) + jobGain, jobUps = 0;
     const JM = jobMaxOf(d);
     while (job < JM && jexp >= jobNeed(job)) { jexp -= jobNeed(job); job++; jobUps++; }
     if (job >= JM) jexp = 0;

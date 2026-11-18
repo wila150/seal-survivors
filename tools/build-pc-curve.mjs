@@ -19,11 +19,11 @@ for (const rs of Object.values(groups)) {
   if (lv < 1 || lv > 200 || atk < 10 || exp < 3) continue;
   if (hp >= 100000 && hp % 10000 === 0) continue; // 10 萬以上的整萬數＝佔位假資料（例：一堆剛好 200000）
   if (Math.max(...rs.map(x => +x[2])) / hp > 1.2) continue;
-  (by[lv] ??= []).push([hp, atk]);
+  (by[lv] ??= []).push([hp, atk, exp]);
 }
 const med = a => { const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
-const MAX = 200, raw = { hp: [], atk: [] }; // 200 以上的資料混了特殊怪（Lv218→219 HP 跳 6 倍），不用
-for (let l = 1; l <= MAX; l++) if (by[l]) { raw.hp[l] = med(by[l].map(x => x[0])); raw.atk[l] = med(by[l].map(x => x[1])); }
+const MAX = 200, raw = { hp: [], atk: [], exp: [] }; // 200 以上的資料混了特殊怪（Lv218→219 HP 跳 6 倍），不用
+for (let l = 1; l <= MAX; l++) if (by[l]) { raw.hp[l] = med(by[l].map(x => x[0])); raw.atk[l] = med(by[l].map(x => x[1])); raw.exp[l] = med(by[l].map(x => x[2])); } // exp：項目 33 每隻怪給的經驗
 function clean(arr) {
   const out = [];
   for (let l = 1; l <= MAX; l++) {
@@ -39,6 +39,6 @@ function clean(arr) {
   for (let l = 1; l <= MAX; l++) { if (res[l] == null) res[l] = res[l - 1] ?? res.find(v => v != null); if (l > 1 && res[l] < res[l - 1]) res[l] = res[l - 1]; }
   return res.slice(1);
 }
-const curve = { _說明: 'PC 一般野外怪的等級曲線（tools/build-pc-curve.mjs 從服務端 monster.scr 產生）：hp[i]／atk[i]＝Lv(i+1) 的中位數，已剔除離群、補洞、單調化', max: MAX, hp: clean(raw.hp), atk: clean(raw.atk) };
+const curve = { _說明: 'PC 一般野外怪的等級曲線（tools/build-pc-curve.mjs 從服務端 monster.scr 產生）：hp[i]／atk[i]＝Lv(i+1) 的中位數，已剔除離群、補洞、單調化', max: MAX, hp: clean(raw.hp), atk: clean(raw.atk), exp: clean(raw.exp) };
 fs.writeFileSync(new URL('../src/1_data/pc-curve.js', import.meta.url), `// 自動產生，不要手改（node tools/build-pc-curve.mjs <monster.scr>）\nexport default ${JSON.stringify(curve)};\n`); // JS 模組：瀏覽器不用支援 import JSON
-console.log(`Lv1～${MAX}：` + [1, 10, 30, 50, 80, 100, 150, 200].map(l => `Lv${l} HP${curve.hp[l - 1]} ATK${curve.atk[l - 1]}`).join('｜'));
+console.log(`Lv1～${MAX}：` + [1, 10, 30, 50, 80, 100, 150, 200].map(l => `Lv${l} HP${curve.hp[l - 1]} ATK${curve.atk[l - 1]} EXP${curve.exp[l - 1]}`).join('｜'));

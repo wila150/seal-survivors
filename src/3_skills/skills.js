@@ -53,6 +53,29 @@ export class FxPool {
 
 // ===== 技能管理器 =====
 // ctx：{ data, job, fx, player, P, enemies()、nearest(pos, maxD, skip)、hurt(e, dmg, from, kind, src, opts)、onCast(face)、sound(name) }
+// ===== 項目 36（11/19「照建議」）：技能強化分類 =====
+// 已經學會的技能，升級時會出「強化卡」：依技能類型只出能強化的項目，每張卡有品質（普通 60／精良 25／稀有 10／史詩 4／傳說 1），
+// 效果 × 品質倍率 1／1.25／1.5／2／3；數量每招最多從卡片 +3；穿透機率每張 2～10%（3% × 品質），上限 75%
+export const ENH_Q = [{ name: '普通', mult: 1, w: 60, color: '#c8c8c8' }, { name: '精良', mult: 1.25, w: 25, color: '#5cd65c' }, { name: '稀有', mult: 1.5, w: 10, color: '#4fa3ff' }, { name: '史詩', mult: 2, w: 4, color: '#b07cff' }, { name: '傳說', mult: 3, w: 1, color: '#ffa940' }];
+export const ENH = {
+  dmg:     { name: '傷害',     v: 0.10, fmt: v => `+${Math.round(v * 100)}%` },
+  cd:      { name: '冷卻縮短', v: 0.05, fmt: v => `-${Math.round(v * 100)}%` },
+  count:   { name: '數量',     v: 1,    flat: true, max: 3, fmt: v => `+${v}` },
+  range:   { name: '距離',     v: 0.08, fmt: v => `+${Math.round(v * 100)}%` },
+  radius:  { name: '範圍',     v: 0.08, fmt: v => `+${Math.round(v * 100)}%` },
+  pierceP: { name: '穿透機率', v: 0.03, cap: 0.75, fmt: v => `+${Math.round(v * 100)}%` },
+  speed:   { name: '飛行速度', v: 0.08, fmt: v => `+${Math.round(v * 100)}%` },
+  spin:    { name: '轉速',     v: 0.08, fmt: v => `+${Math.round(v * 100)}%` },
+  life:    { name: '持續時間', v: 0.10, fmt: v => `+${Math.round(v * 100)}%` },
+};
+// 類型 → 可強化項目：單體／扇形（傷害、冷卻、數量、距離）、投射物（＋穿透機率、速度、範圍）、範圍（傷害、冷卻、數量、範圍）、
+// 控制（有緩速／暈眩：冷卻、範圍）、環繞（傷害、數量、範圍、轉速）
+export function enhKeys(d) {
+  if (d.status?.slow || d.status?.stun) return d.type === 'ORBIT_AURA' ? ['count', 'radius', 'spin'] : ['cd', 'radius', 'count'];
+  return { MELEE_ARC: ['dmg', 'cd', 'count', 'range'], PROJECTILE_BOUNCE: ['dmg', 'cd', 'count', 'pierceP', 'speed', 'radius'], ZONE_AOE: ['dmg', 'cd', 'count', 'radius'], ORBIT_AURA: ['dmg', 'count', 'radius', 'spin'] }[d.type] || ['dmg', 'cd'];
+}
+const rollQ = () => { let r = Math.random() * 100; for (let i = 0; i < ENH_Q.length; i++) { r -= ENH_Q[i].w; if (r < 0) return i; } return 0; };
+
 export class SkillManager {
   constructor(ctx) {
     Object.assign(this, ctx);
@@ -86,9 +109,20 @@ export class SkillManager {
     const G = this.P?.gem?.[k]; if (G) { if (o.dmg) o.dmg *= 1 + G.dmg; if (o.cd) o.cd *= 1 - G.cd; }
     // 項目 23：局內屬性寶石 每級傷害 +10%
     const EG = this.P?.egem?.[k]; if (EG && o.dmg) o.dmg *= 1 + 0.1 * EG.lv;
+    // 項目 36：強化卡
+    const M = this.skills?.[k]?.mods; if (M) {
+      if (o.dmg && M.dmg) o.dmg *= 1 + M.dmg; if (o.cd && M.cd) o.cd *= Math.max(0.3, 1 - M.cd);
+      if (M.count && o.count != null) o.count += M.count; if (M.count && d.type === 'MELEE_ARC') o.hits = (o.hits || 1) + M.count;
+      if (o.range && M.range) o.range *= 1 + M.range; if (M.radius) { if (o.radius) o.radius *= 1 + M.radius; if (o.size) o.size *= 1 + M.radius * 0.5; if (o.blast) o.blast *= 1 + M.radius; }
+      if (o.speed && M.speed) o.speed *= 1 + M.speed; if (o.spin && M.spin) o.spin *= 1 + M.spin; if (M.pierceP) o.pierceP = Math.min(ENH.pierceP.cap, M.pierceP);
+    }
     if (o.cd) o.cd = Math.max(0.3, o.cd);
     return o;
   }
+  // 強化卡：c＝{ k, e（項目）, q（品質）}
+  enhance(c) { const s = this.skills[c.k]; if (!s) return; s.mods ??= {}; const E = ENH[c.e];
+    const v = E.flat ? E.v : E.v * ENH_Q[c.q].mult; s.mods[c.e] = Math.min(E.cap ?? Infinity, (s.mods[c.e] || 0) + v); s.enh = (s.enh || 0) + 1; }
+  enhValue(c) { const E = ENH[c.e]; return E.flat ? E.v : E.v * ENH_Q[c.q].mult; }
   add(k) {
     const s = this.skills[k] ??= { lv: 0, cd: 0.3, ang: 0, tick: 0, orbs: [] };
     s.lv++;
@@ -109,11 +143,15 @@ export class SkillManager {
     // 開局只有普攻：第一次升級只出技能卡，讓玩家先選第一招
     if (!owned) { const first = pool.filter(p => p.kind === 's'); for (let i = first.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [first[i], first[j]] = [first[j], first[i]]; } return first.slice(0, 3); }
     if (this.J.basic && (this.skills[this.J.basic]?.lv ?? 0) < 5) pool.push({ kind: 's', k: this.J.basic, lv: this.skills[this.J.basic].lv });
+    // 項目 36：已學會的招式出強化卡（Lv5 之後也會一直出；數量到上限就不出數量）
+    for (const k of Object.keys(this.skills)) { const d = this.def(k); if (!d || d.basic && !this.skills[k].lv) continue;
+      const keys = enhKeys(d).filter(e => !(ENH[e].max && (this.skills[k].mods?.[e] || 0) >= ENH[e].max) && !(ENH[e].cap && (this.skills[k].mods?.[e] || 0) >= ENH[e].cap));
+      if (keys.length) pool.push({ kind: 'e', k, e: keys[Math.random() * keys.length | 0], q: rollQ() }); }
     for (const k in passives) pool.push({ kind: 'p', k });
     const fus = pool.filter(p => p.kind === 'f'), rest = pool.filter(p => p.kind !== 'f');
     for (let i = rest.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [rest[i], rest[j]] = [rest[j], rest[i]]; }
     // 技能卡優先：至少 2 張技能（有的話）
-    const sk = rest.filter(p => p.kind === 's'), pa = rest.filter(p => p.kind === 'p');
+    const sk = rest.filter(p => p.kind === 's' || p.kind === 'e'), pa = rest.filter(p => p.kind === 'p');
     return [...fus, ...sk.slice(0, 2), ...pa, ...sk.slice(2)].slice(0, 3);
   }
   // 卡片說明：數值變化
@@ -206,7 +244,7 @@ export class SkillManager {
       m.position.set(pp.x, 1, pp.z); m.scale.setScalar(st.size || 1.2);
       // 原版飛行特效：跟著投射物走、朝飛行方向；原本的光球藏起來
       const pcm = pcFly ? this.pcPlay(k, 'fly', pp, a, { y: 1, fit: (st.size || 1.2) * 1.2 }) : null; if (pcm) m.visible = false;
-      this.shots.push({ m, k, pcm, vx: Math.cos(a) * st.speed, vz: Math.sin(a) * st.speed, life: 1.6, dmg: st.dmg, bounce: st.bounce || 0, pierce: st.pierce || 0, blast: st.blast || 0, hit: new Set(), trail: 0, c });
+      this.shots.push({ m, k, pcm, vx: Math.cos(a) * st.speed, vz: Math.sin(a) * st.speed, life: 1.6, dmg: st.dmg, bounce: st.bounce || 0, pierce: st.pierce || 0, pierceP: st.pierceP || 0, blast: st.blast || 0, hit: new Set(), trail: 0, c });
     }
   }
   updateShots(dt) {
@@ -226,7 +264,7 @@ export class SkillManager {
           const nx = this.nearest(p, 9, s.hit);
           if (nx) { s.bounce--; const a = Math.atan2(nx.mesh.position.z - p.z, nx.mesh.position.x - p.x), sp = Math.hypot(s.vx, s.vz); s.vx = Math.cos(a) * sp; s.vz = Math.sin(a) * sp; s.life = Math.max(s.life, 0.8); break; }
         }
-        if (s.pierce-- <= 0) { s.life = 0; break; }
+        if (!(s.pierceP && Math.random() < s.pierceP) && s.pierce-- <= 0) { s.life = 0; break; } // 項目 36：穿透機率觸發就不扣穿透次數
       }
       if (s.life <= 0) { this.fx.release(s.m); this.pcfx?.stop(s.pcm); this.shots.splice(i, 1); }
     }
