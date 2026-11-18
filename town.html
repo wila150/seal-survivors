@@ -161,7 +161,7 @@ import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
 import { offJob, dismantleYield } from './src/1_data/items.js';
 import { traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
-import { STATS } from './src/1_data/jobs.js';
+import { STATS, HAIR_COLORS } from './src/1_data/jobs.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime, bossTimes, GS_REQ, EARLY_WEAK } from './src/1_data/stages.js';
 import { MONSTER_MODELS } from './src/1_data/monsters.js';
 import { createWatchdog } from './src/4_diagnostics/watchdog.js';
@@ -213,7 +213,7 @@ let moduleReady; const moduleDone = new Promise(r => moduleReady = r);
 Promise.all([refreshChar(), moduleDone]).then(() => { if (CHAR.unreadMail) toast(`📬 你有 ${CHAR.unreadMail} 封新信，去找郵差`); loadTownMount(); checkUnfinishedRun(); const h = location.hash.slice(1); ({ talent: () => $('#talentBtn').click(), gem: () => $('#gemBtn').click(), mail: () => openMail(), stash: () => openStash(), rank: () => openRank(), rebirth: () => openRebirth(), ident: () => openIdent(), zaro: () => openZaro(), job2: () => openJob2(), guide: () => openGuide(), tower: () => openTower(), pet: () => openPets() })[h]?.(); if (['bag', 'smith'].includes(h)) openBag(h); if (h === 'shop') openMerchant('sell'); if (h === 'stylist') openStylist(); if (h === 'stock') openMerchant('stock'); if (h === 'exp') openExpedition(); if (h === 'mount') openMount(); if (h === 'library') { bSel = 7; openBestiary(); } if (h === 'auction') openAuction('browse'); }).catch(e => console.error(e));
 $('#charsBtn').onclick = () => location.href = './';
 // 右上選單（項目 14）：技能＝本職業 PC 版技能一覽、角色＝素質頁、⚙＝設定
-$('#statBtn').onclick = () => { openBag('bag'); bagTab = 'stats'; renderBag(); };
+$('#statBtn').onclick = () => openCharInfo(); // 11/19 使用者附 PC「CHARACTER INFO」截圖：照 PC 版改
 $('#setBtn').onclick = () => openSettings();
 $('#mapBtn').onclick = () => openExpedition(); // PC「傳送」＝遠征
 $('#helpBtn').onclick = () => openGuide(); // PC「說明」＝新手指南
@@ -568,7 +568,7 @@ function openRebirth() {
   openDlg('轉生師', html, ok ? [[`轉生（第 ${n + 1} 次）`, async () => {
     if (!(await askConfirm(`確定轉生？Base Lv 會回到 1、素質全部重配。`, { danger: true }))) return;
     try { const c2 = await call('POST', '/api/rebirth', { charId: CHAR.id }); showChar(c2); refreshChar();
-      openDlg('轉生師', `<p>轉生完成！這是你的第 <b>${c2.rebirth}</b> 次轉生。</p><p>你有 <b>${c2.points}</b> 點素質可以分配。</p>`, [['去分配素質', () => { openBag('bag'); bagTab = 'stats'; renderBag(); }, true]]);
+      openDlg('轉生師', `<p>轉生完成！這是你的第 <b>${c2.rebirth}</b> 次轉生。</p><p>你有 <b>${c2.points}</b> 點素質可以分配。</p>`, [['去分配素質', () => openCharInfo(), true]]);
     } catch (e) { toast(e.message); }
   }, true]] : []);
 }
@@ -1064,6 +1064,37 @@ let bagMode = 'bag', bagTab = 'items', selItem = null, smithTab = 'weapon'; // s
 const smithOk = it => smithTab === 'weapon' ? it.slot === 'weapon' : it.slot !== 'weapon';
 $('#bagBtn').onclick = () => openBag('bag');
 const statLine = it => Object.entries(itemStats(it)).map(([k, v]) => `${STAT_NAMES[k]} ${fmtStat(k, v)}`).join('　');
+// ===== CHARACTER INFO（11/19 使用者：「依照 PC 版這樣的去修改，手機版我們再來調整」）=====
+// 照 PC 新版角色視窗：左 EQUIPMENT 4×4（空格畫原版剪影 interface/look.tex）＋COSTUME；右 INFO 表格＋STATUS（點數條、⊕、EDIT）
+// PC 有但我們還沒做的部位（耳環、項鍊、披風、手套、戒指）先畫鎖頭
+const LOOK_SIL = { head: [12, 81], top: [57, 81], bottom: [102, 81], shoes: [147, 81], costume: [192, 81], wing: [35, 125], neck: [80, 125], ring: [125, 125], weapon: [170, 125] };
+function openCharInfo() {
+  const c = CHAR, items = c.items || [], eq = k => items.find(i => i.equipped && i.slot === k), hex = n => '#' + (n ?? 0).toString(16).padStart(6, '0');
+  const sil = (k, lock) => { const s = LOOK_SIL[k]; return s ? `<i class="sil${lock ? ' lock' : ''}" style="background-position:-${s[0]}px -${s[1]}px"></i>` : ''; };
+  const slot = (k, name) => { const it = eq(k); return `<div class="ci-cell${it ? ' on' : ''}" data-ci="${it?.id || ''}" title="${name}${it ? '：' + esc(itemName(it)) : '（沒有裝備）'}">${it ? `<img src="${itemIcon(it)}" alt="" style="outline:2px solid ${RARITY[it.rarity].color}">` : sil(k) || `<b>${name}</b>`}<small>${name}</small></div>`; };
+  const lock = (k, name) => `<div class="ci-cell locked" title="${name}（尚未開放）">${sil(k, 1)}<span class="lk">🔒</span><small>${name}</small></div>`;
+  const pet = (c.pets || []).find(x => x.id === c.pet), mountOn = (c.mountUntil || 0) > Date.now();
+  const other = (n, html, title) => `<div class="ci-cell${html ? ' on' : ''}" title="${title}">${html || `<b>${n}</b>`}<small>${n}</small></div>`;
+  const grid = [slot('head', '頭部'), slot('weapon', '武器'), c.job === '騎士' ? slot('shield', '盾牌') : lock('ring', '盾牌'), lock('neck', '項鍊'),
+    slot('top', '上衣'), slot('acc', '飾品'), other('寵物', pet ? `<span class="pet" style="color:${hex(PETS[pet.kind]?.color)}">●</span>` : '', pet ? `寵物：${esc(petName(pet))} Lv${pet.lv}` : '沒有出戰的寵物'), lock('wing', '披風'),
+    slot('bottom', '下衣'), other('坐騎', mountOn ? '<span class="pet">🐎</span>' : '', mountOn ? `坐騎：${MOUNT_NAMES[JOBS[c.job]?.mount] || ''}` : '沒有租坐騎'), lock('ring', '戒指'), lock('ring', '耳環'),
+    slot('shoes', '鞋子'), lock('', '手套'), lock('', '—'), lock('', '—')].join('');
+  const cos = [other('髮型', `<b style="font-size:15px">${(c.hair ?? 0) + 1}</b>`, '髮型（找造型師可以改）'), other('髮色', `<span class="sw" style="background:${HAIR_COLORS[c.hairColor ?? 0]?.hex != null ? hex(HAIR_COLORS[c.hairColor ?? 0].hex) : 'linear-gradient(135deg,#d9b48a,#7a5230)'}"></span>`, '髮色'),
+    other('服裝', `<span class="sw" style="background:${OUTFITS[c.outfit] != null ? hex(OUTFITS[c.outfit]) : 'linear-gradient(135deg,#fff,#ccc)'}"></span>`, '服裝配色'), lock('costume', '時裝'), lock('costume', '時裝'), lock('', '—'), lock('', '—'), lock('', '—')].join('');
+  const T = titleOf(c.title), info = [['名稱', esc(c.name)], ['等級', `Base ${c.baseLv}　Job ${c.jobLv} / ${c.jobMax ?? 50}`], ['職業', esc(c.jobName || c.job)], ['名聲稱號', T ? `【${T.name}】` : '—'],
+    ['名聲數值', `Lv ${c.fameLv ?? 0}　${(c.fame || 0).toLocaleString()}${c.fameNext ? ' / ' + c.fameNext.toLocaleString() : ''}`], ['WIN', `${(c.cleared || []).length}`], ['裝備分數', `<b style="color:#2a4fb8">${gearScore(items)}</b>`]]
+    .map(([k, v]) => `<div class="ci-row"><span>${k}</span><b>${v}</b></div>`).join('');
+  const stat = Object.entries(STATS).map(([k, d]) => `<div class="ci-st"><span>${d.name}</span><b>${c.stats[k]}</b><button class="btn ci-plus" data-stat="${k}" ${c.points ? '' : 'disabled'} title="${d.desc}">＋</button><button class="btn ci-edit" data-sedit="${k}" ${c.points ? '' : 'disabled'}>EDIT</button></div>`).join('');
+  const html = `<div class="ci"><div class="ci-col"><section><h4>EQUIPMENT</h4><div class="ci-grid">${grid}</div></section><section><h4>COSTUME</h4><div class="ci-grid c2">${cos}</div><small class="ci-hint">髮型、髮色、服裝配色找廣場的造型師</small></section></div>
+    <div class="ci-col"><section><h4>INFO</h4><div class="ci-info">${info}</div></section><section><h4>STATUS</h4><div class="ci-pts"><span>點數</span><b>${c.points}</b></div>${stat}
+    <small class="ci-hint">每升 1 級 +3 點${c.rebirth ? `・已轉生 ${c.rebirth} 次` : ''}　Base 經驗 ${c.exp} / ${c.need}</small></section></div></div>`;
+  openDlg('CHARACTER INFO', html, [['背包', () => { openBag('bag'); }], ['詳細觀看', () => { openBag('bag'); bagTab = 'stats'; renderBag(); }, true]], true);
+  const B = $('#dlgBody');
+  B.querySelectorAll('[data-ci]').forEach(el => el.onclick = () => { const id = +el.dataset.ci; if (!id) return openBag('bag'); openBag('bag'); selItem = id; renderBag(); });
+  B.querySelectorAll('[data-stat]').forEach(b => b.onclick = async () => { try { showChar(await call('POST', '/api/statup', { charId: c.id, stat: b.dataset.stat })); openCharInfo(); } catch (e) { toast(e.message); } });
+  B.querySelectorAll('[data-sedit]').forEach(b => b.onclick = async () => { const k = b.dataset.sedit, n = parseInt(await askText(`${STATS[k].name} 要加幾點？（剩 ${CHAR.points} 點）`, String(CHAR.points), { title: 'EDIT', max: 3 }), 10);
+    if (!(n > 0)) return; let done = 0; try { for (let i = 0; i < Math.min(n, CHAR.points); i++) { showChar(await call('POST', '/api/statup', { charId: c.id, stat: k })); done++; } } catch (e) { toast(e.message); } if (done) toast(`${STATS[k].name} +${done}`); openCharInfo(); });
+}
 function openBag(mode) { bagMode = mode; bagTab = 'items'; selItem = null; renderBag(); }
 function renderBag() {
   const c = CHAR, items = c.items || [];
