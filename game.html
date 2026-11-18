@@ -137,6 +137,26 @@
   @media (max-width:420px){#mmPanel{width:92px}#mm{width:82px;height:82px}}
   /* 技能冷卻遮罩 */
   #skillbar .sk .cdm{position:absolute;inset:0;border-radius:inherit;background:conic-gradient(#000a var(--p,0deg),transparent 0);pointer-events:none;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:900;font-size:15px;color:#fff;text-shadow:0 1px 2px #000;z-index:2}
+  /* 11/19 手機版 HUD（使用者給的參考圖）：左上大頭像＋HP 條（#pf，取代太小的 PC GageBar）、右上小地圖、小地圖下面一欄放時間／擊殺／掉落／篩選，畫面中間留給戰鬥 */
+  @media (max-width:600px){
+    #gage{display:none}
+    #pf{display:flex!important;left:max(8px,env(safe-area-inset-left));top:max(8px,env(safe-area-inset-top));padding:4px 10px 4px 4px}
+    #face{width:52px;height:52px}.pfr{width:calc(100vw - 268px)}.pfr b{font-size:13px}#hp{height:18px}#hpTxt{line-height:18px;font-size:12px}
+    #mmPanel{width:116px}#mm{width:106px;height:106px}#mmTitle{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;padding:4px 8px}
+    #topc{left:auto;right:max(8px,env(safe-area-inset-right));transform:none;top:calc(max(8px,env(safe-area-inset-top)) + 150px);width:116px;align-items:stretch;gap:5px}
+    .trow{width:100%}#time{flex:1;font-size:19px;padding:2px 0;text-align:center}#pauseBtn{position:fixed;left:calc(100vw - 182px);top:max(14px,env(safe-area-inset-top));width:46px;height:46px;border-radius:50%;font-size:16px;padding:0}
+    .chips{flex-direction:column;gap:5px}.chips .pill,.chips span{width:100%;box-sizing:border-box;text-align:center;font-size:13px;padding:4px 6px}
+    #stagec{display:none!important}
+    /* 升級卡：手機改橫的（左圖示、右文字），三張一起看得到 */
+    #cards{flex-direction:column;flex-wrap:nowrap;gap:12px;width:100%;max-width:520px}
+    .card{width:100%;min-height:0;display:grid;grid-template-columns:72px 1fr;column-gap:12px;row-gap:2px;align-items:center;justify-items:start;text-align:left;padding:22px 14px 12px}
+    .card:hover{transform:none}
+    .card>.skico.big,.card>img{grid-row:1 / span 6;grid-column:1;zoom:.72;margin:0!important}
+    .card>b,.card>.kind,.card>small,.card>.fhint{grid-column:2}
+    .card b{font-size:18px}.card .kind{margin-top:0}.card hr{display:none}.card small{font-size:13px;line-height:1.45}
+    .card .num{display:none}.card .rb{left:10px;transform:none;border-radius:0 0 10px 10px}
+    .card .fhint{margin-top:4px;font-size:11px}
+  }
 </style>
 <link rel="stylesheet" href="src/2_core/pc-ui.css">
 </head>

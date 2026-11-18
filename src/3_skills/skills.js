@@ -145,6 +145,11 @@ export class SkillManager {
   // 傷害＋屬性狀態
   hit(e, k, dmg, from) {
     const d = this.def(k);
+    // 普攻打中：PC 原版打擊火花（白色爆光＋星芒；鐵匠／祭司鎚類加金色火花）
+    if (d.basic && this.fx.tex.pchit_k) { const p = e.mesh.position, c = new THREE.Color(d.color).getHex();
+      this.fx.spawn('pchit_k', p, { y: 1, scale: 1.7, life: 0.16, grow: 1.5, color: 0xffffff });
+      this.fx.spawn(d.kind === 'magic' ? 'pchit_b' : 'pchit_a', p, { y: 1, scale: 2.2, life: 0.22, grow: 1.3, color: c });
+      if (d.fx === 'bomb' || d.fx === 'holy') this.fx.spawn('pcspark', p, { y: 1, scale: 1.8, life: 0.25, grow: 1.4, color: c }); }
     this.hurt(e, dmg, from, d.kind, k, { tags: d.tags, status: d.status });
   }
   comboHit() {

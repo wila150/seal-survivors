@@ -1136,7 +1136,7 @@
   "b_clown": {
    "name": "匕首技",
    "basic": true,
-   "type": "PROJECTILE_BOUNCE",
+   "type": "MELEE_ARC",
    "kind": "phys",
    "tags": [],
    "icon": [
@@ -1144,22 +1144,19 @@
     256,
     0
    ],
-   "fx": "dagger",
+   "fx": "slash",
    "color": "#ffe0a0",
    "pc": "匕首基本攻击",
    "base": {
-    "dmg": 6,
-    "cd": 0.7,
-    "count": 1,
-    "speed": 18,
-    "bounce": 0,
-    "pierce": 0,
-    "size": 1
+    "dmg": 7,
+    "cd": 0.6,
+    "range": 2,
+    "arc": 1.2
    },
    "per": {
     "dmg": 2,
-    "cd": -0.04,
-    "count": 0.25
+    "cd": -0.03,
+    "range": 0.12
    }
   },
   "b_magic": {

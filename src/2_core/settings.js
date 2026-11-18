@@ -2,7 +2,9 @@
 // 出征（暫停選單）和主城都用同一份：openSettings() 顯示面板，getSettings() 讀值，onSettings(fn) 監聽變更
 import { CREDITS_HTML } from '../1_data/credits.js';
 const KEY = 'ss_settings';
-const DEF = { master: 1, bgm: 0.7, sfx: 0.8, nums: true, meter: true, shake: true, hud: 1, quality: 'high', autoPick: false };
+// 手機（觸控）預設畫質「中」＝解析度倍率 1（高畫質在手機是 2～3 倍像素，11/19 使用者回報手機超卡）
+export const TOUCH = typeof matchMedia === 'function' && matchMedia('(pointer:coarse)').matches;
+const DEF = { master: 1, bgm: 0.7, sfx: 0.8, nums: true, meter: true, shake: true, hud: 1, quality: TOUCH ? 'mid' : 'high', autoPick: false };
 let S = { ...DEF };
 try { Object.assign(S, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch {}
 // 舊版暫停選單的兩個開關（ss_opts）接過來

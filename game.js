@@ -37,6 +37,8 @@ const FX = {
   slash: 'assets/fx/vfx_shockwave_fireR.png',
   hammer: 'assets/fx/SFX_Meteo_Fire_Green.png',
   holy: 'assets/fx/sfx_magic_cycle_yellow01.png',
+  // PC 原版普攻打中特效（客戶端 sfx/E_Hit_A01、E_Hit_A_K、E_Hit_B01、e_spark01.tex 轉檔）
+  pchit_a: 'assets/fx/pc_hit_a.png', pchit_k: 'assets/fx/pc_hit_k.png', pchit_b: 'assets/fx/pc_hit_b.png', pcspark: 'assets/fx/pc_spark.png',
 };
 const SFX = { hit: 'sword5010', zap: 'SKIL6002', boom: 'SKIL6024', level: 'BUTTON3001', gem: 'ETC40280', hurt: 'ETC40290' };
 const BGM_DEFAULT = 'assets/bgm/01.mp3'; // 每張地圖用 stages.js 的 bgm（客戶端 bgm/ 原版曲目）
@@ -69,7 +71,7 @@ document.getElementById('faceImg').src = JOB.icon; document.getElementById('stag
 if (CHAR) document.getElementById('stageName').insertAdjacentHTML('afterend', `<div style="color:#ffe9a8;font-weight:700">${CHAR.name.replace(/[<>&"]/g, '')}　${CHAR.jobName || CHAR.job} Lv ${CHAR.baseLv}</div>`);
 
 // ===== 基本場景 =====
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: !matchMedia('(pointer:coarse)').matches, powerPreference: 'high-performance' }); // 手機關反鋸齒（省很多 GPU）
 renderer.setPixelRatio(pixelRatio());
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();

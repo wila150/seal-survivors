@@ -216,8 +216,8 @@ $('#skillBtn').onclick = async () => {
 };
 
 // ===== 場景 =====
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.shadowMap.enabled = true;
+const renderer = new THREE.WebGLRenderer({ antialias: !matchMedia('(pointer:coarse)').matches, powerPreference: 'high-performance' }); // 手機關反鋸齒
+const TOUCH_DEV = matchMedia('(pointer:coarse)').matches; renderer.setPixelRatio(TOUCH_DEV ? 1 : Math.min(devicePixelRatio, 2)); renderer.shadowMap.enabled = !TOUCH_DEV; // 手機：解析度 1 倍、關陰影（11/19 手機超卡）
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0xbcd3ea); scene.fog = new THREE.Fog(0xbcd3ea, 45, 95);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
