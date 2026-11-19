@@ -206,11 +206,9 @@ export async function sealActor(modelName, setKey, height = 1.7, gear = [], opts
   }
   play('pi', 0);
   group.userData.texReady = Promise.all(texWait);
-  // 騎坐騎：站／跑改播 PC 騎乘坐姿（rpi／rrn＝客戶端 G2_m_pi／G2_m_run）
+  // 騎坐騎：站／跑改播 PC 騎馬坐姿（rpi／rrn＝客戶端 GRHMpi／GRHMrn）
   let riding = false;
-  // 原版騎乘動作的根骨頭面向跟站姿相反 → 騎乘時模型多轉 180 度（面向才會跟坐騎一樣）
-  let baseRotY = null;
-  const setRiding = on => { if (!!on === riding) return; if (baseRotY == null) baseRotY = inner.rotation.y; riding = !!on; busy = 0; curKey = ''; inner.rotation.y = baseRotY + (riding && clips.rpi ? Math.PI : 0); };
+  const setRiding = on => { if (!!on === riding) return; riding = !!on; busy = 0; curKey = ''; };
   group.userData.actor = { play, attack, update, mixer, setRiding, get riding() { return riding; }, get busy() { return busy > 0; }, get current() { return curKey; } };
   return group;
 }
