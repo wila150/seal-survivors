@@ -14,8 +14,33 @@
     const m = location.search.match(/[?&]cloud=([^&#]+)/); if (m) localStorage.setItem('ss_cloud', decodeURIComponent(m[1]));
     force = !!localStorage.getItem('ss_offline'); cloudSet = localStorage.getItem('ss_cloud');
   } catch {}
-  if (local && !force && !cloudSet) return;
   const real = window.fetch.bind(window);
+  if (local && !force && !cloudSet) {
+    // 本機伺服器的帳號搬上雲端（11/20）：在本機登入成功 → 雲端沒有這個帳號 → 用同一組帳密在雲端建帳號並匯入角色（只搬一次；自動測試的瀏覽器不搬）
+    if (navigator.webdriver) return;
+    window.fetch = async (input, init = {}) => {
+      const r = await real(input, init);
+      try {
+        const u = new URL(typeof input === 'string' ? input : input.url, location.href);
+        if (!r.ok || (init.method || '').toUpperCase() !== 'POST' || !u.pathname.endsWith('/api/login')) return r;
+        const cred = JSON.parse(init.body), flag = 'ss_cloud_moved_' + cred.username;
+        if (localStorage.getItem(flag)) return r;
+        const tok = (await r.clone().json()).token, J = { 'content-type': 'application/json' };
+        const C = localStorage.getItem('ss_move_to') || 'https://seal-survivors.linke-web.workers.dev'; // ss_move_to：測試用
+        const dump = await (await real('/api/export', { headers: { authorization: 'Bearer ' + tok } })).json();
+        if (!dump.chars?.length) return r;
+        // 雲端已有這個帳號（同密碼）：還沒角色才匯入（/api/import 有角色會拒絕）；沒有帳號：建一個
+        let reg = await real(C + '/api/login', { method: 'POST', headers: J, body: init.body });
+        if (!reg.ok) reg = await real(C + '/api/register', { method: 'POST', headers: J, body: init.body });
+        if (!reg.ok) { console.warn('雲端已有同名帳號，沒有搬'); return r; }
+        const ct = (await reg.json()).token;
+        const im = await real(C + '/api/import', { method: 'POST', headers: { ...J, authorization: 'Bearer ' + ct }, body: JSON.stringify(dump) });
+        if (im.ok || im.status === 409) { localStorage.setItem(flag, '1'); console.log(im.ok ? '已把這個帳號搬上雲端' : '雲端帳號已有角色，沒有搬'); } else console.warn('搬上雲端失敗', await im.text());
+      } catch (e) { console.warn('搬上雲端失敗', e); }
+      return r;
+    };
+    return;
+  }
   const me = document.currentScript.src;
   let mod = null;
   const offline = async (method, path, hd, body) => { mod ??= import(new URL('server.js', me).href); return (await mod).handle(method, path, hd, body); };
