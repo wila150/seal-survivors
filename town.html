@@ -135,6 +135,10 @@
   .mdet table{border-collapse:collapse;margin:4px 0}.mdet td{padding:1px 8px 1px 0;border:0}
   #joy{position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:2px solid #fff8;background:#fff3;display:none;pointer-events:none}
   #joy i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px;border-radius:50%;background:#fff9}
+  /* 官方 wiki 87：角色石頭鑲嵌顯示在左側 UI 列表，點了進入（強化／分解） */
+  #stoneBtn{position:fixed;left:max(12px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 96px);z-index:6;width:46px;height:46px;border-radius:12px;border:2px solid #fff8;background:linear-gradient(#2b3a5c,#121a2c);box-shadow:0 2px 6px #0008;display:flex;align-items:center;justify-content:center;gap:2px;padding:0;cursor:pointer}
+  #stoneBtn i{width:10px;height:14px;border-radius:50% 50% 45% 45%;box-shadow:inset 0 2px 2px #fff8,0 0 4px #0008}
+  #stoneBtn:hover{border-color:#ffd36b}
 </style>
 <link rel="stylesheet" href="src/2_core/pc-ui.css">
 <link rel="stylesheet" href="src/2_core/ui-theme.css">
@@ -142,6 +146,7 @@
 <body>
 <!-- 進城載入畫面：玩家模型和 NPC 載完才拿掉（11/18 使用者：載入時會先看到紅色膠囊人偶） -->
 <div id="labels"></div>
+<button id="stoneBtn" title="石頭鑲嵌（強化／分解）"><i style="background:#e8453c"></i><i style="background:#f0a030"></i><i style="background:#f5d442"></i></button>
 <div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Lv 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">EXP<div class="bar"><i id="meExp"></i></div><span id="xpPct">0%</span></div></div></div>
 <div id="place" class="chip">希望之城<small>中央廣場</small></div>
 <!-- PC 原版主選單按鈕列（assets/ui/btn_*：tools/build-ui.mjs 從客戶端 mainbutton_all.tex 切）；原版沒有的功能用同色系文字鈕 -->
@@ -234,6 +239,7 @@ $('#setBtn').onclick = () => openSettings();
 $('#mapBtn').onclick = () => openExpedition(); // PC「傳送」＝遠征
 $('#helpBtn').onclick = () => openGuide(); // PC「說明」＝新手指南
 // 項目 28：技能寶石（PC 技能寶石系統）
+$('#stoneBtn').onclick = async () => { const [T, D] = await DATA; openGems({ char: CHAR, D, T, openDlg, call, onSaved: c => showChar(c), toast, askConfirm }, 'stone', 'stone'); }; // wiki 87：左側石頭圖示
 $('#gemBtn').onclick = async () => { const [T, D] = await DATA; openGems({ char: CHAR, D, T, openDlg, call, onSaved: c => showChar(c), toast }); };
 // 項目 26：局外天賦樹
 $('#talentBtn').onclick = async () => {
@@ -599,7 +605,12 @@ function openPets() {
       <div class="bag">${bag.map(i => `<div class="cell ${petFeed.has(i.id) ? 'sel' : ''}" data-pf="${i.id}" style="border-color:${RARITY[i.rarity].color}"><img src="${itemIcon(i)}" alt="">${i.refine ? `<b>+${i.refine}</b>` : ''}</div>`).join('') || '<small style="grid-column:1/-1">背包沒有可以餵的裝備</small>'}</div>
       <button class="btn" id="petFeedAuto">一鍵挑選非本職業</button> <button class="btn primary" id="petFeedGo" ${petFeed.size ? '' : 'disabled'}>餵 ${petFeed.size} 件（+${fexp} 經驗）</button></div>`; })();
   const html = `<p>「寵物陪你出征才會長大，也會肚子餓——記得餵牠或陪牠玩。長到第 9 階段，再出征一陣子，就可以拿材料來找我進化，材料不同、性格也不同喔。」</p>
-    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">${pets.map(card).join('')}</div>${det}
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">${pets.map(card).join('')}</div>${p ? (() => { const D = PETS[p.kind], st9 = PV2.petStage9(p.lv), pct = p.lv < PET_MAX_LV ? Math.round(p.exp / petNeed(p.lv) * 100) : 100;
+      // PC 原版 PET EAT 蛋形視窗（interface/mainblue_item_fat_eat.tex）：名字＋成長條、想吃的東西、飢餓（紅色尾巴條）、餵食／玩遊戲
+      return `<div class="peteat"><div class="pe-name">${esc(petName(p))} [${pct}%]<span class="pe-lev" style="width:${Math.round(st9 / 9 * 100)}%"></span></div>
+        <div class="pe-say">今天我想吃 [${PV2.WANT_NAMES[p.wants] || '什麼都好'}]<br>～快點給我吃吧，不然我會餓昏喔！</div>
+        <div class="pe-item">${petFeed.size ? `<b>${petFeed.size}</b>` : ''}</div><div class="pe-hunger"><span style="width:${Math.round(p.hunger || 0)}%"></span></div>
+        <button class="pe-feed" title="餵食（下面挑裝備）" ${petFeed.size ? '' : 'disabled'} onclick="document.getElementById('petFeedGo')?.click()"></button><button class="pe-play" title="玩遊戲（不餓但不會長大）" onclick="document.getElementById('petPlay')?.click()"></button></div>`; })() : ''}${det}
     <div class="sec" style="margin-top:10px"><b>買寵物蛋</b>　<small>每顆 ${EGG_PRICE} 金幣・最多 ${PET_MAX} 隻・打倒 MVP 也有機會撿到</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${Object.entries(PETS).map(([k, D]) => `<button class="btn" data-pb="${k}" ${c.gold < EGG_PRICE || pets.length >= PET_MAX ? 'disabled' : ''}><span style="color:${hex(D.color)}">●</span> ${D.name}</button>`).join('')}</div></div>`;
   openDlg('寵物飼育員', html, [], true);
   const b = $('#dlgBody'), done = (c2, m) => { showChar(c2); refreshChar(); if (m) toast(m); openPets(); };

@@ -280,3 +280,15 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .wu-ok:hover:not(:disabled) { background-image: url(../../assets/ui/pc/btn_ok_h.png); }
 #dlg .wu-ok:disabled { filter: grayscale(.8); cursor: default; }
 @media (min-width: 560px) { #dlg .wu { margin-left: 8px; } }
+/* ===== PET EAT（寵物，照 PC interface/mainblue_item_fat_eat.tex 蛋形視窗）===== */
+#dlg .peteat { position: relative; width: 362px; height: 358px; margin: 6px auto; background: url(../../assets/ui/pc/pet_egg.png) no-repeat; transform: scale(.85); transform-origin: top center; margin-bottom: -48px; }
+#dlg .pe-name { position: absolute; left: 92px; top: 118px; width: 182px; height: 20px; font-weight: 900; font-size: 13px; color: #2a3a08; padding-left: 8px; line-height: 20px; }
+#dlg .pe-lev { position: absolute; left: 22px; top: 23px; height: 4px; background: #e9c46a; border-radius: 3px; }
+#dlg .pe-say { position: absolute; left: 82px; top: 152px; width: 200px; font-size: 12px; line-height: 1.6; color: #4a3a2a; }
+#dlg .pe-item { position: absolute; left: 96px; top: 210px; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #c0392b; }
+#dlg .pe-hunger { position: absolute; left: 150px; top: 226px; width: 136px; height: 14px; overflow: hidden; }
+#dlg .pe-hunger span { display: block; height: 100%; background: linear-gradient(90deg, #ff6a5a, #d62f2f); border-radius: 0 8px 8px 0; }
+#dlg .pe-feed, #dlg .pe-play { position: absolute; top: 300px; width: 76px; height: 30px; border: 0; padding: 0; cursor: pointer; background: no-repeat center / 76px 30px; }
+#dlg .pe-feed { left: 100px; background-image: url(../../assets/ui/pc/pet_feed.png); } #dlg .pe-feed:hover:not(:disabled) { background-image: url(../../assets/ui/pc/pet_feed_h.png); }
+#dlg .pe-play { left: 186px; background-image: url(../../assets/ui/pc/pet_play.png); } #dlg .pe-play:hover { background-image: url(../../assets/ui/pc/pet_play_h.png); }
+#dlg .pe-feed:disabled { filter: grayscale(.8); cursor: default; }
