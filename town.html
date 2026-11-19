@@ -1442,6 +1442,7 @@ function renderBag() {
     if (a === 'equip') act('/api/equip', { itemId: id });
     if (a === 'unequip') act('/api/unequip', { itemId: id });
     if (a === 'lock') act('/api/lock', { itemId: id }, r => r.locked ? '已鎖定（不會被一鍵餵食／分解／賣掉）' : '已解鎖');
+    if (a === 'dism') { const it2 = (CHAR.items || []).find(x => x.id === id), y = dismantleYield(it2); if (!(await askConfirm(`分解「${itemName(it2)}」？\n會得到 強化金屬・一 ×${y.ore1}${y.ore2 ? `、強化金屬・二 ×${y.ore2}` : ''}、希幣 ${y.gold}（裝備會消失）`, { ok: '分解', danger: true }))) return; act('/api/dismantle', { charId: CHAR.id, itemIds: [id] }, r => { selItem = null; return `分解完成：強化金屬・一 +${r.ore1}${r.ore2 ? `、強化金屬・二 +${r.ore2}` : ''}、希幣 +${r.gold}`; }); }
     if (a === 'sell') act('/api/sell', { itemId: id }, r => { selItem = null; return `賣得 ${r.price} 金幣`; });
     if (a === 'refine') {
       const cur = (CHAR.items || []).find(i => i.id === id);
@@ -1494,6 +1495,8 @@ function itemDetail(it) {
     const cant = !it.equipped && ((it.slot === 'weapon' && JOB_WEAPON[CHAR.job] && it.base !== JOB_WEAPON[CHAR.job]) || (it.slot === 'shield' && CHAR.job !== '騎士')); // PC：每個職業只能用自己的武器、盾只有騎士
     h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : cant ? `<button class="btn" disabled title="${CHAR.job}不能裝備">${CHAR.job}不能裝備</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
     if (!it.equipped && !it.locked) h += `<button class="btn" data-act="sell" data-item="${it.id}">賣出（${sellPrice(it)} 金幣）</button>`;
+    // 11/20 使用者：「裝備賣出，沒辦法分解拿取道具」→ 每件都能單獨分解（得到強化金屬，強化師精煉用）
+    if (!it.equipped && !it.locked) { const y = dismantleYield(it); h += `<button class="btn" data-act="dism" data-item="${it.id}">🔨 分解（強化金屬・一 ×${y.ore1}${y.ore2 ? `、二 ×${y.ore2}` : ''}、${y.gold} 希幣）</button>`; }
     h += `<button class="btn" data-act="lock" data-item="${it.id}">${it.locked ? '🔓 解鎖' : '🔒 鎖定'}</button>${offJob(it, CHAR.job) ? '<small style="color:#8a7a6a">非本職業</small>' : ''}`;
     // 指令 4-2 發條配件：在背包對裝備使用發條（3 種隨機屬性）／繼承卷軸
     if (it.clkp) h += `<div style="flex-basis:100%;margin-top:6px"><small><b>武爾坎努斯的發條</b>：要用新屬性還是維持原本的？</small><div class="affx">${it.clkp.map(l => `<span style="color:${CLK_COLOR[l[2]]}">${clkText(l)}</span>`).join('')}</div></div><button class="btn primary" data-act="clkpick" data-keep="0" data-item="${it.id}">換成新屬性</button><button class="btn" data-act="clkpick" data-keep="1" data-item="${it.id}">維持原本的</button>`;
