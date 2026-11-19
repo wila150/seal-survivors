@@ -174,7 +174,7 @@ import { RODS, BAIT, CATCH } from './src/1_data/fishing.js';
 import { loadSealMap, buildSealMap, liftScene, walkMove, addWalkSurfaces } from './src/2_core/seal-map.js';
 import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
-import { offJob, dismantleYield } from './src/1_data/items.js';
+import { CLK_KINDS, CLK_COLOR, clkText, offJob, dismantleYield } from './src/1_data/items.js';
 import { PC_ITEMS } from './src/1_data/pc-items.js';
 import { JOB_WEAPON, traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 import { STATS, HAIR_COLORS } from './src/1_data/jobs.js';
@@ -468,9 +468,10 @@ function openDlg(title, html, opts, wide = false) {
   const keep = same ? [B, ...B.querySelectorAll('*')].filter(el => el.scrollTop || el.scrollLeft).map(el => [dlgPath(B, el), el.scrollTop, el.scrollLeft]) : null;
   dlgOpen = true; bx.classList.toggle('wide', wide); $('#dlgTitle').dataset.t = title;
   // PC 原版標題圖（藍色泡泡字，assets/ui/pc/t_*.png）；其他標題照舊文字
-  const TIMG = [['背包', 'item'], ['技能', 'skill'], ['裝備商人', 'shop'], ['郵差', 'mail'], ['倉庫管理員', 'bank']].find(([k]) => title.startsWith(k));
-  bx.classList.toggle('pcf', !!TIMG); // PC 原版外框（白框＋藍色泡泡字標題）
-  if (TIMG) { const extra = title.slice(TIMG[0].length).trim(); $('#dlgTitle').innerHTML = `<img class="pct-img" src="assets/ui/pc/t_${TIMG[1]}.png" alt="${esc(title)}">${extra ? ` <small>${esc(extra)}</small>` : ''}`; } else $('#dlgTitle').textContent = title;
+  const TIMG = [['背包', 'item'], ['技能', 'skill'], ['裝備商人', 'shop'], ['郵差', 'mail'], ['倉庫管理員', 'bank'], ['排行榜', 'rank']].find(([k]) => title.startsWith(k));
+  // 11/20 使用者「把企劃做完」：PC 原版白框套到所有 NPC 視窗；有原版標題圖用圖，沒有就用藍色泡泡字（CHARACTER INFO 維持原版深藍）
+  const PCF = !/^CHARACTER INFO/.test(title); bx.classList.toggle('pcf', PCF); bx.classList.toggle('pcn', !!TIMG); // PC 原版外框（白框＋藍色泡泡字標題）
+  if (TIMG) { const extra = title.slice(TIMG[0].length).trim(); $('#dlgTitle').innerHTML = `<img class="pct-img" src="assets/ui/pc/t_${TIMG[1]}.png" alt="${esc(title)}">${extra ? ` <small>${esc(extra)}</small>` : ''}`; } else if (PCF) $('#dlgTitle').innerHTML = `<span class="pct-txt">${esc(title)}</span>`; else $('#dlgTitle').textContent = title;
   B.innerHTML = html;
   if (keep?.length) { const restore = () => keep.forEach(([p, t, l]) => { const el = dlgAt(B, p); if (el) { el.scrollTop = t; el.scrollLeft = l; } }); restore(); requestAnimationFrame(restore); } else if (!same) B.scrollTop = 0;
   const box = $('#dlgOpts'); box.innerHTML = '';
@@ -711,12 +712,13 @@ async function openRank(quiet = false) {
   const fmt = s => `${String(s / 60 | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   const col = { power: ['戰力', x => x.power], base: ['Base', x => `Lv ${x.baseLv}`], job: ['Job', x => `Lv ${x.jobLv}`], stage: ['通關', x => `${x.stages} 張・最久 ${fmt(x.best)}`], kills: ['總擊殺', x => x.kills], tower: ['本月最佳', x => `${x.towerScore.toLocaleString()} 分・第 ${x.towerFloor} 層`] }[rTab];
   const medal = n => ['🥇', '🥈', '🥉'][n - 1] || n;
-  const row = x => `<tr style="${x.mine ? 'outline:2px solid #3a7bff;background:#eaf1ff' : ''}${x.rank <= 3 ? ';font-weight:700' : ''}"><td>${medal(x.rank)}</td><td>${esc(x.name)}</td><td>${esc(x.jobName)}</td><td>${col[1](x)}</td></tr>`;
-  const html = `<div class="tabs2" style="flex-wrap:wrap">${RANK_TABS.map(([k, v]) => `<button class="btn ${rTab === k ? 'primary' : ''}" data-rt="${k}">${v}</button>`).join('')}</div>
-    <div class="tabs2" style="align-items:center"><select id="rJob"><option value="">全部職業</option>${Object.keys(JOBS).map(j => `<option ${rJob === j ? 'selected' : ''}>${j}</option>`).join('')}</select>
+  // PC 原版 RANKING 視窗（interface/ranking_win.tex）：梯形分頁、米色欄位列、深淺相間的列
+  const row = x => `<tr class="${x.mine ? 'me' : ''}${x.rank <= 3 ? ' top' : ''}"><td>${medal(x.rank)}</td><td>${esc(x.name)}</td><td>${esc(x.jobName)}</td><td>${col[1](x)}</td></tr>`;
+  const html = `<div class="pcrank"><div class="rk-tabs">${RANK_TABS.map(([k, v]) => `<button class="${rTab === k ? 'on' : ''}" data-rt="${k}">${v}</button>`).join('')}</div>
+    <div class="rk-bar"><select id="rJob"><option value="">全部職業</option>${Object.keys(JOBS).map(j => `<option ${rJob === j ? 'selected' : ''}>${j}</option>`).join('')}</select>
       <small style="color:#6b7896">　共 ${r.total ?? 0} 名・每 30 秒更新（${new Date(r.at || Date.now()).toLocaleTimeString()}）・藍框＝你的角色</small></div>
-    ${r.note ? `<p>${r.note}</p>` : r.rows.length ? `<table><tr><th>#</th><th>角色</th><th>職業</th><th>${col[0]}</th></tr>${r.rows.map(row).join('')}${r.mine?.length ? `<tr><td colspan="4" style="text-align:center">⋯</td></tr>${r.mine.map(row).join('')}` : ''}</table>` : '還沒有人上榜，去當第一名吧！'}
-    ${rTab === 'power' ? '<p><small>戰力＝身上裝備的數值換算成分數（攻擊、爆擊、冷卻、移速、吸取、HP、護甲）。</small></p>' : ''}`;
+    ${r.note ? `<p>${r.note}</p>` : r.rows.length ? `<table class="rk-t"><tr><th>排名</th><th>角色名稱</th><th>職業</th><th>${col[0]}</th></tr>${r.rows.map(row).join('')}${r.mine?.length ? `<tr><td colspan="4" style="text-align:center">⋯</td></tr>${r.mine.map(row).join('')}` : ''}</table>` : '<p>還沒有人上榜，去當第一名吧！</p>'}
+    ${rTab === 'power' ? '<p><small>戰力＝身上裝備的數值換算成分數（攻擊、爆擊、冷卻、移速、吸取、HP、護甲）。</small></p>' : ''}</div>`;
   openDlg('排行榜', html, [], true);
   const b = $('#dlgBody');
   b.querySelectorAll('[data-rt]').forEach(x => x.onclick = () => { rTab = x.dataset.rt; openRank(); });
@@ -1433,6 +1435,9 @@ function renderBag() {
     if (a === 'elem') act('/api/elemsynth', { itemId: id, elem: +b.dataset.el }, () => `屬性合成成功：${['', '火', '水', '木', '金', '土', '光', '暗'][+b.dataset.el]}屬性`);
     if (a === 'lookcopy') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把這件的外觀改成「${itemName(from)}」？\n「${itemName(from)}」會消失，花 1000 希幣。`, { ok: '複製外觀' }))) return; act('/api/lookcopy', { fromId: from.id, toId: id }, () => '外觀複製完成！'); }
     if (a === 'inherit') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把「${itemName(from)}」的精煉 +${from.refine || 0}、G 化 ${GUP[from.gup || 0]?.tag || '一般'} 繼承到這件？\n「${itemName(from)}」會消失，花 ${inheritCost(from)} 希幣。`, { ok: '繼承' }))) return; act('/api/inherit', { fromId: from.id, toId: id }, () => '繼承完成！'); }
+    if (a === 'clock') { const k = b.dataset.kind; if (k !== 'clk3' && (CHAR.items || []).find(x => x.id === id)?.clk && !(await askConfirm(`用「${ORES[k].name}」會蓋掉這件原本的發條屬性，確定？`, { ok: '使用' }))) return; act('/api/clock', { itemId: id, kind: k }, r => r.pending ? '擲出新屬性了：選要換成新的還是維持原本的' : '發條屬性：' + r.lines.map(clkText).join('、')); }
+    if (a === 'clkpick') act('/api/clockpick', { itemId: id, keep: b.dataset.keep === '1' }, () => b.dataset.keep === '1' ? '維持原本的發條屬性' : '換成新的發條屬性');
+    if (a === 'clkinh') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把「${itemName(from)}」的發條屬性移到這件？\n（用 1 張發條屬性繼承卷軸，原本那件的發條屬性會消失）`, { ok: '繼承' }))) return; act('/api/clockinherit', { fromId: from.id, toId: id }, () => '發條屬性繼承完成！'); }
     if (a === 'gup') act('/api/gup', { itemId: id, box: b.dataset.box }, r => r.result === 'ok' ? `G 化成功！變成 ${r.tag}` : 'G 化失敗，材料用掉了…');
   });
 }
@@ -1445,11 +1450,12 @@ function identLine(it) {
   const learned = own && (it.ident.tree === 0 ? CHAR.talents : it.ident.tree === CHAR.job2 ? CHAR.talents2 : null)?.[n.id] > 0;
   return `<small style="color:#2b6fd6"><b>技能屬性：${n.name} Lv+${it.ident.lv}</b>（${it.ident.job}${br ? '・' + br : ''}）${learned ? '' : '<span style="color:#c0392b">　目前沒有生效：要點過這個天賦才會提升</span>'}</small><br>`;
 }
+const clkHtml = it => it.clk ? `<div class="affx">${it.clk.map(l => `<span style="color:${CLK_COLOR[l[2]]};text-shadow:0 0 2px #000">⚙ ${clkText(l)}</span>`).join('')}</div>` : ''; // 指令 4-2 發條屬性
 const inheritCost = x => 300 * (x.refine || 0) + 1000 * (x.gup || 0) + 200; // 指令 4-2 裝備繼承費用（暫定）
 function itemDetail(it) {
   // 項目 32：★ 特性與詞綴另外列一行（數值已經算進上面的總數值）
   const T = traitOf(it), AF = it.aff?.a || [], affHtml = (T || AF.length) ? `<div class="affx">${T ? `<span class="trait">${T.name} ${STAT_NAMES[T.k]} ${fmtStat(T.k, T.v)}</span>` : ''}${AF.map(([k, v]) => `<span>${STAT_NAMES[k]} ${fmtStat(k, v)}</span>`).join('')}</div>` : '';
-  let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${statLine(it)}${affHtml}<div class="acts">`;
+  let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${statLine(it)}${affHtml}${clkHtml(it)}<div class="acts">`;
   if (bagMode === 'smith') {
     if (it.refine >= REFINE_MAX) h += '<small>已經強化到最高了</small>';
     else h += `<button class="btn primary" data-act="refine" data-item="${it.id}">精煉 +${it.refine} → +${it.refine + 1}（${Math.round(REFINE_RATE[it.refine] * 100)}%，用 1 個${ORES[oreFor(it)].name}，持有 ${CHAR.mats?.[oreFor(it)] || 0}）</button>${refineBreaks(it.refine) ? '<small style="color:#c0392b">失敗會碎</small>' : it.refine >= 3 ? '<small>失敗會降一級</small>' : ''}`;
@@ -1472,6 +1478,10 @@ function itemDetail(it) {
     h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : cant ? `<button class="btn" disabled title="${CHAR.job}不能裝備">${CHAR.job}不能裝備</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
     if (!it.equipped && !it.locked) h += `<button class="btn" data-act="sell" data-item="${it.id}">賣出（${sellPrice(it)} 金幣）</button>`;
     h += `<button class="btn" data-act="lock" data-item="${it.id}">${it.locked ? '🔓 解鎖' : '🔒 鎖定'}</button>${offJob(it, CHAR.job) ? '<small style="color:#8a7a6a">非本職業</small>' : ''}`;
+    // 指令 4-2 發條配件：在背包對裝備使用發條（3 種隨機屬性）／繼承卷軸
+    if (it.clkp) h += `<div style="flex-basis:100%;margin-top:6px"><small><b>武爾坎努斯的發條</b>：要用新屬性還是維持原本的？</small><div class="affx">${it.clkp.map(l => `<span style="color:${CLK_COLOR[l[2]]}">${clkText(l)}</span>`).join('')}</div></div><button class="btn primary" data-act="clkpick" data-keep="0" data-item="${it.id}">換成新屬性</button><button class="btn" data-act="clkpick" data-keep="1" data-item="${it.id}">維持原本的</button>`;
+    else { const ks = CLK_KINDS.filter(k => CHAR.mats?.[k] > 0); if (ks.length) h += ks.map(k => `<button class="btn" data-act="clock" data-kind="${k}" data-item="${it.id}">⚙ 用${ORES[k].name}（持有 ${CHAR.mats[k]}）</button>`).join('');
+      if (CHAR.mats?.clkInherit > 0 && !it.clk) { const src = (CHAR.items || []).filter(x => x.id !== it.id && x.slot === it.slot && x.clk && !x.clkp && !x.equipped); if (src.length) h += src.slice(0, 6).map(x => `<button class="btn" data-act="clkinh" data-from="${x.id}" data-item="${it.id}">⚙⇦ 繼承「${esc(itemName(x))}」的發條屬性</button>`).join(''); } }
   }
   return h + '</div>';
 }

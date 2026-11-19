@@ -233,7 +233,7 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .box.pcf header small { color: #6d6a5e; font-size: 12px; }
 #dlg .box.pcf .body { background: transparent !important; border: 0 !important; box-shadow: none !important; }
 #dlg .box.pcf #dlgX { background: radial-gradient(circle at 35% 30%, #9fd0ff, #2f62d6 70%) !important; border: 3px solid #fff !important; box-shadow: 0 0 0 1px #2f62d6, 0 2px 6px #0005 !important; color: #fff !important; }
-#dlg .box.pcf:not(.wide) { width: min(400px, 100%) !important; }
+#dlg .box.pcf.pcn:not(.wide) { width: min(400px, 100%) !important; }
 /* ===== FISHING（照 PC 原版 interface/mainblue_fishingonskill.tex）===== */
 #fishWin { position: fixed; right: 16px; bottom: 96px; z-index: 15; }
 #fishWin .fw { position: relative; width: 184px; height: 150px; background: url(../../assets/ui/pc/fish_win.png) no-repeat; image-rendering: auto; }
@@ -304,3 +304,20 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .box > header + button { position: absolute; right: -12px; top: -12px; width: 36px; height: 36px; border-radius: 50%; padding: 0; cursor: pointer; z-index: 2; font-weight: 900; font-size: 16px; line-height: 1;
   background: radial-gradient(circle at 35% 30%, #4a64c0, var(--th-navy) 70%); border: 3px solid var(--th-gold); color: #fff2c8; box-shadow: 0 0 0 2px var(--th-navy), 0 3px 8px #0008; }
 #dlg .box.pcf > header + button { background: radial-gradient(circle at 35% 30%, #9fd0ff, #2f62d6 70%); border: 3px solid #fff; box-shadow: 0 0 0 1px #2f62d6, 0 2px 6px #0005; color: #fff; }
+/* ===== 排行榜（照 PC interface/ranking_win.tex）===== */
+#dlg .pcrank .rk-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 4px; border-bottom: 2px solid #8a6f5a; }
+#dlg .pcrank .rk-tabs button { padding: 5px 16px 4px 12px; border: 2px solid #8a6f5a; border-bottom: 0; border-radius: 8px 14px 0 0; background: linear-gradient(#d9bfa3, #b99a7c); color: #f8eee0; font-weight: 900; font-size: 13px; cursor: pointer; text-shadow: 0 1px 0 #6a4f3a, 0 0 2px #6a4f3a; }
+#dlg .pcrank .rk-tabs button.on { background: linear-gradient(#fff, #f3ebe0); color: #5a3a24; text-shadow: none; position: relative; top: 2px; }
+#dlg .pcrank .rk-bar { display: flex; align-items: center; gap: 6px; padding: 8px 4px; }
+#dlg .pcrank .rk-bar select { border: 1px solid #b59b80; border-radius: 6px; background: #fff8ee; padding: 3px 6px; color: #5a3a24; }
+#dlg .pcrank .rk-t { width: 100%; border-collapse: separate; border-spacing: 0; border: 2px solid #e6d6c4; border-radius: 6px; overflow: hidden; background: #fff0e0; }
+#dlg .pcrank .rk-t th { background: linear-gradient(#fff6ea, #ead8c2); color: #6a4a30; font-weight: 900; font-size: 12px; padding: 5px 6px; border-right: 1px solid #c9b29a; text-shadow: 0 1px 0 #fff; }
+#dlg .pcrank .rk-t th:last-child, #dlg .pcrank .rk-t td:last-child { border-right: 0; }
+#dlg .pcrank .rk-t td { padding: 5px 8px; text-align: center; color: #4a3424; border-right: 1px solid #e2cdb6; font-size: 13px; }
+#dlg .pcrank .rk-t tr:nth-child(even) td { background: #ecd9c6; }
+#dlg .pcrank .rk-t tr.top td { font-weight: 800; }
+#dlg .pcrank .rk-t tr.me td { background: #dbe8ff; outline: 0; box-shadow: inset 0 0 0 1px #3a7bff; }
+/* 沒有原版標題圖的視窗：做成 PC 那種藍色泡泡字（白邊＋深藍外框） */
+#dlg .box.pcf header .pct-txt { display: inline-block; font-size: 22px; font-weight: 900; letter-spacing: 2px; color: #3fc4ff;
+  background: linear-gradient(#bff0ff 10%, #3fb8ff 55%, #1a7fe0); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1px #0f3f8a; filter: drop-shadow(0 0 0 #fff) drop-shadow(1px 1px 0 #fff) drop-shadow(-1px -1px 0 #fff) drop-shadow(0 2px 1px #0005); padding: 0 4px; }
