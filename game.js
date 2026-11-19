@@ -870,7 +870,7 @@ document.getElementById('pResume').onclick = () => setPause(false);
 const pAsk = on => { document.getElementById('pQuitAsk').style.display = on ? 'flex' : 'none'; for (const id of ['pResume', 'pSettings', 'pTown', 'pQuit']) document.getElementById(id).style.display = on ? 'none' : ''; };
 document.getElementById('pQuit').onclick = () => pAsk(true);
 document.getElementById('pQuitNo').onclick = () => pAsk(false);
-document.getElementById('pQuitYes').onclick = () => { pAsk(false); document.getElementById('pause').classList.remove('on'); state = 'play'; gameOver(false); };
+document.getElementById('pQuitYes').onclick = () => { pAsk(false); document.getElementById('pause').classList.remove('on'); state = 'play'; gameOver(false, true); };
 addEventListener('keydown', e => { if (state === 'hitstop') return; if (e.code === 'Escape' || e.code === 'KeyP') setPause(state === 'play'); });
 document.getElementById('pSettings').onclick = () => openSettings();
 
@@ -1076,11 +1076,11 @@ async function start() {
   for (const id of ['start', 'over']) document.getElementById(id).classList.remove('on');
   if (!muted) { bgm.currentTime = 0; bgm.play().catch(() => {}); }
 }
-function gameOver(win = false) {
+function gameOver(win = false, quit = false) { // quit＝暫停選單「放棄並結算」（11/20 自測：沒死卻顯示「倒下了」）
   clearRun();
   if (!win) rig.actor?.play('dd');
   state = 'over'; bgm.pause(); cleared = win;
-  document.querySelector('#over h1').textContent = win ? '通關！' : '倒下了';
+  document.querySelector('#over h1').textContent = win ? '通關！' : quit ? '放棄並結算' : '倒下了';
   document.getElementById('result').innerHTML = TOWER ? `${TOWER_NAME}<br>到達第 <b>${floor}</b> 層（${CURSE.name}）<br>撐了 ${hud.time.textContent}　Lv ${P.lv}　擊殺 ${kills}`
     : `${STAGE.name}<br>${win ? `打倒了 ${BOSSES[BOSSES.length - 1][1]}！<br>` : ''}撐了 ${hud.time.textContent}　Lv ${P.lv}　擊殺 ${kills}`;
   document.getElementById('over').classList.add('on');

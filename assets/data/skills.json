@@ -2820,8 +2820,8 @@
    "tags": [],
    "icon": [
     "skill1.png",
-    160,
-    0
+    96,
+    448
    ],
    "iconItem": 2,
    "fx": "dot",

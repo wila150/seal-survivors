@@ -35,7 +35,9 @@
   .topbar{position:fixed;top:12px;right:12px;z-index:3;display:flex;gap:8px}
   .chipbtn{font:inherit;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid #ffffff99;background:#0b1430aa;color:#fff;cursor:pointer;backdrop-filter:blur(4px)}
   @media (max-width:700px){.foot{position:static !important;transform:none !important;margin:0 auto 14px}}
-  .foot{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));z-index:2;width:min(980px,calc(100% - 32px));text-align:center;font-size:11px;line-height:1.6;color:#eef2fb;background:#0b1430b0;border:1px solid #ffffff30;border-radius:10px;padding:6px 14px;pointer-events:none;backdrop-filter:blur(4px)}
+  /* 11/20 自測：底部聲明列蓋住「建立帳號並登入」按鈕（1280×800）→ 聲明列不擋點擊、頁面底部留出空間可以捲上來 */
+  body{padding-bottom:64px;box-sizing:border-box}
+  .foot{pointer-events:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));z-index:2;width:min(980px,calc(100% - 32px));text-align:center;font-size:11px;line-height:1.6;color:#eef2fb;background:#0b1430b0;border:1px solid #ffffff30;border-radius:10px;padding:6px 14px;pointer-events:none;backdrop-filter:blur(4px)}
   .toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:9;background:#0b1430ee;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100vw - 32px);transition:opacity .3s}
   /* 面板 */
   .panel{flex:0 1 400px;max-width:100%;background:#eef2fbf2;border-radius:14px;overflow:hidden;box-shadow:0 10px 40px #0008;border:2px solid #9db4ee;backdrop-filter:blur(6px)}
@@ -119,7 +121,7 @@
   .stat span{text-align:center;font-weight:700;font-size:16px}
   .stat button{padding:4px 0;font-size:16px}
   .stat small{grid-column:1/-1;color:var(--sub);font-size:12px;margin-top:-4px}
-  .pts{float:right;color:#2e7d32;font-weight:800}
+  .pts{float:right;color:#2e7d32;font-weight:800;white-space:nowrap} /* 11/20 自測：電腦版「剩餘點數：20」被擠成直的 */
   dialog::backdrop{background:#0009}
   dialog header{background:var(--head);color:#fff;font-weight:800;padding:12px 16px}
   dialog .body{display:flex;flex-direction:column;gap:12px}
