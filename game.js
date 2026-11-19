@@ -690,21 +690,30 @@ function skillName(k) { return k === 'pet' ? (PET ? '🐾 ' + petName(PET) : '�
 // 每級固定加成（項目 15；數值在 skills.json status.perLevel）
 // ===== 項目 37：菁英寶箱（花金幣開，開出局內道具；圖示＝服務端 item.scr 原版道具圖示）=====
 const RUN_ITEMS = [
-  { name: '紅藥水（大）', icon: 99, desc: '回復 40% HP', use: () => { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.4); } },
-  { name: '力量藥劑', icon: 1352, desc: '60 秒內傷害 +20%', use: () => { P.tmp.dmg = 60; } },
-  { name: '希爾特的祝福', icon: 67, desc: '60 秒內移動速度 +20%、急速 +30', use: () => { P.tmp.speed = 60; P.tmp.haste = 60; } },
-  { name: '料理・麵包', icon: 83, desc: '這局最大 HP +10%，並回復同樣的量', use: () => { const a = Math.round(P.maxHp * 0.1); P.maxHp += a; P.hp += a; } },
+  { name: '紅藥水（大）', kind: '藥水', icon: 99, desc: '回復 40% HP', use: () => { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.4); } },
+  { name: '力量藥劑', kind: '藥劑', icon: 1352, desc: '60 秒內傷害 +20%', use: () => { P.tmp.dmg = 60; } },
+  { name: '希爾特的祝福', kind: '祝福', icon: 67, desc: '60 秒內移動速度 +20%、急速 +30', use: () => { P.tmp.speed = 60; P.tmp.haste = 60; } },
+  { name: '料理・麵包', kind: '料理', icon: 83, desc: '這局最大 HP +10%，並回復同樣的量', use: () => { const a = Math.round(P.maxHp * 0.1); P.maxHp += a; P.hp += a; } },
 ];
 let goldSpent = 0;
 const eliteCost = () => 30 * ((TOWER ? 2 : STAGE_IDX) + 1); // 暫定：第 1 張圖 30 金幣、每張 +30
+// 11/20 使用者：「RO 的寶箱可以選擇你要加的 buff，我們給隨機 buff，我希望可以選擇」→ 打開後三選一（升級畫面同一套卡片），不要＝不花錢
 async function openEliteChest(c, i) {
   state = 'chest'; const cost = eliteCost(), have = goldHave();
   scene.remove(c.mesh); chestsArr.splice(i, 1);
   if (have < cost) { showBanner(`<small>菁英寶箱</small><b>金幣不夠</b><span>要 ${cost} 金幣（剩 ${have}）</span>`, 1400); state = 'play'; last = performance.now(); return; }
-  const yes = await askConfirm(`菁英寶箱：花 ${cost} 金幣打開？\n（會開出藥水、藥劑、祝福或料理；目前可用 ${have}，含這局賺的）`, { title: '菁英寶箱', ok: '打開', cancel: '不要' });
-  if (yes) { goldSpent += cost; const it = RUN_ITEMS[Math.random() * RUN_ITEMS.length | 0]; it.use(); play('level', 0.5, 0);
-    showBanner(`<small>菁英寶箱（−${cost} 金幣）</small><b><img src="assets/items/${it.icon}.png" style="width:36px;height:36px;vertical-align:middle;image-rendering:pixelated"> ${it.name}</b><span>${it.desc}</span>`, 1800); }
-  if (state === 'chest') { state = 'play'; last = performance.now(); }
+  play('chest', 0.5, 0);
+  const pick = [...RUN_ITEMS].sort(() => Math.random() - 0.5).slice(0, 3), box = document.getElementById('cards'), ov = document.getElementById('levelup');
+  ov.querySelector('h1').textContent = '菁英寶箱';
+  document.getElementById('luInfo').innerHTML = `<span class="lv">選一個・−${cost} 金幣（目前可用 ${have}，含這局賺的）</span>`;
+  box.innerHTML = '';
+  const close = () => { ov.classList.remove('on'); ov.querySelector('h1').textContent = '升級！'; document.getElementById('chestSkip')?.remove(); if (state === 'chest') { state = 'play'; last = performance.now(); } };
+  pick.forEach((it, n) => { const el = document.createElement('div'); el.className = 'card p';
+    el.innerHTML = `<span class="num">${n + 1}</span><span class="rb">${it.kind}</span><img src="assets/items/${it.icon}.png" alt="" style="object-fit:contain;image-rendering:pixelated;padding:14px;box-sizing:border-box"><b>${it.name}</b><span class="kind">${it.kind}</span><hr><small>${it.desc}</small>`;
+    el.onclick = () => { goldSpent += cost; it.use(); play('level', 0.5, 0); close(); showBanner(`<small>菁英寶箱（−${cost} 金幣）</small><b>${it.name}</b><span>${it.desc}</span>`, 1400); };
+    box.appendChild(el); });
+  const skip = document.createElement('button'); skip.id = 'chestSkip'; skip.className = 'btn'; skip.textContent = '不要（不花金幣）'; skip.style.cssText = 'pointer-events:auto;margin-top:10px'; skip.onclick = close; ov.appendChild(skip);
+  ov.classList.add('on');
 }
 function levelBonus() {
   const L = SKD.status.perLevel || { dmg: 0, hp: 0 };
@@ -715,7 +724,7 @@ function levelUp() {
   state = 'level';
   // 原版升級特效＋音效（客戶端 sfx/levelUP、levelup.wav）；沒有就用舊音效
   if (PCFX.play('levelup', 'cast', player.position, 0, { y: 0.3 })) play(PCFX.index.levelup?.sound?.cast || 'level', 0.6, 0); else play('level', 0.6, 0);
-  const box = document.getElementById('cards'); box.innerHTML = '';
+  const box = document.getElementById('cards'); box.innerHTML = ''; document.querySelector('#levelup h1').textContent = '升級！'; document.getElementById('chestSkip')?.remove();
   // 上方：等級＋技能格（技能 n/4，普攻另外算）
   { const J = SKD.jobs[CHAR.job], others = Object.keys(SM.skills).filter(k => k !== J.basic);
     const cells = [J.basic, ...[0, 1, 2, 3].map(i => others[i])].map(k => k ? `<span class="c on">${iconHtml(SKD.skills[k].icon, 30)}</span>` : '<span class="c">＋</span>').join('');
@@ -764,6 +773,8 @@ function levelUp() {
     if (pick) { const name = pick.querySelector('b')?.textContent || ''; pick.click(); showBanner(`<small>自動選卡</small><b>${name}</b>`, 700); }
   }
 }
+// 11/20 鍵盤 1～3 直接選卡（升級、菁英寶箱）
+addEventListener('keydown', e => { if (!document.getElementById('levelup').classList.contains('on')) return; const n = { Digit1: 0, Digit2: 1, Digit3: 2, Numpad1: 0, Numpad2: 1, Numpad3: 2 }[e.code]; if (n != null) document.querySelectorAll('#cards .card')[n]?.click(); });
 // 狀態：緩速／暈眩倒數、中毒扣血
 function statusTick(e, dt) {
   if (e.slowT > 0) e.slowT -= dt; if (e.stunT > 0) e.stunT -= dt;
