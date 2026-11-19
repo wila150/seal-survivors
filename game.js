@@ -1037,6 +1037,16 @@ function render() {
 
 // ===== 項目 7：自動畫質（中低階手機不用自己調）：出征中連續 4 秒平均低於 40 fps → 解析度降一檔（最多 2 檔：×0.8、×0.6）並減少怪物動作更新；
 // 只往下調、不會自己調回來（避免一直跳）；設定裡改畫質會重設
+// 11/20 項目 7：設定 → 畫質 →「顯示 FPS」：左下角每秒更新 FPS、怪物數、繪圖次數、自動降畫質的檔次（實機量效能用）
+const FPSV = { el: null, acc: 0, n: 0 };
+function fpsMeter(dt) {
+  const on = getSettings().fps; if (!on) { if (FPSV.el) FPSV.el.style.display = 'none'; return; }
+  if (!FPSV.el) { FPSV.el = document.createElement('div'); FPSV.el.style.cssText = 'position:fixed;left:6px;bottom:calc(env(safe-area-inset-bottom) + 4px);z-index:30;padding:2px 6px;border-radius:6px;background:#000a;color:#7dff9a;font:700 11px monospace;pointer-events:none'; document.body.appendChild(FPSV.el); }
+  FPSV.el.style.display = 'block'; FPSV.acc += dt; FPSV.n++; if (FPSV.acc < 1) return;
+  const f = FPSV.n / FPSV.acc; FPSV.acc = 0; FPSV.n = 0;
+  FPSV.el.style.color = f >= 50 ? '#7dff9a' : f >= 30 ? '#ffd36b' : '#ff6a5a';
+  FPSV.el.textContent = `${f.toFixed(0)} FPS・怪 ${enemies.filter(e => !e.dead).length}・繪 ${renderer.info.render.calls}・畫質 ${getSettings().quality}${AQ.lvl ? '−' + AQ.lvl : ''}`;
+}
 function autoQuality(dt) {
   if (state !== 'play' || AQ.lvl >= 2) return;
   AQ.acc += dt; AQ.n++; if (AQ.acc < 1) return;
@@ -1046,7 +1056,7 @@ function autoQuality(dt) {
     showBanner(`<small>畫面不夠順</small><b>自動降低畫質</b><span>可以在設定 → 畫質調整</span>`, 1600); }
 }
 function loop(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now; autoQuality(dt);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; autoQuality(dt); fpsMeter(Math.min(1, (now - (FPSV.t || now)) / 1000)); FPSV.t = now;
   const t0 = performance.now();
   if (state === 'play') { if (bossFx.slow > 0) bossFx.slow -= dt; update(bossFx.slow > 0 ? dt * 0.3 : dt); }
   else if (state === 'over') rig.actor?.mixer.update(dt); // 倒下動作
