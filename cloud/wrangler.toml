@@ -7,9 +7,18 @@ compatibility_flags = ["nodejs_compat"]
 name = "GAME"
 class_name = "Game"
 
+# 組隊房間（cloud/party.js，一支隊伍一個）
+[[durable_objects.bindings]]
+name = "PARTY"
+class_name = "Party"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Game"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Party"]
 
 # GM 帳號（逗號分隔）：這些帳號登入後大廳有 GM 按鈕，雲端也能下 GM 指令
 [vars]

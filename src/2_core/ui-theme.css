@@ -327,3 +327,16 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 @media (max-width: 640px) {
   #dlg .box.pcf header .pct-txt { font-size: 17px; letter-spacing: 0; white-space: nowrap; max-width: calc(100vw - 110px); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 }
+
+/* 組隊副本 v1.1：隊伍／好友視窗 */
+#dlg .pty-add { display: flex; gap: 8px; margin: 8px 0; }
+#dlg .pty-add input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid #9db4ee; font-size: 15px; }
+#dlg .pty-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+#dlg .pty-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 10px; background: #fff; border: 1px solid #d6e0f5; }
+#dlg .pty-row.me { border-color: #4f86e0; background: #eef4ff; }
+#dlg .pty-row.empty { background: #f4f6fb; border-style: dashed; }
+#dlg .pty-row .btn { padding: 4px 10px; font-size: 13px; }
+#dlg .pty-row .dot { width: 10px; height: 10px; border-radius: 50%; background: #b8c0cc; }
+#dlg .pty-row .dot.on { background: #34c759; }
+#dlg .pty-code { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; }
+#dlg .pty-code b { font-size: 26px; letter-spacing: 4px; color: #2b6fd6; font-family: ui-monospace, monospace; }

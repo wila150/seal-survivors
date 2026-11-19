@@ -242,6 +242,7 @@
 </dialog>
 
 <script src="src/0_offline/boot.js"></script>
+<script>try { const j = new URLSearchParams(location.search).get('join'); if (j) localStorage.setItem('ss_join', j); } catch {} // 組隊邀請連結：選好角色進主城後自動加入</script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 <script type="module">
 import * as THREE from 'three';

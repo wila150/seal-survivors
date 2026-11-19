@@ -150,7 +150,7 @@
 <div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Lv 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">EXP<div class="bar"><i id="meExp"></i></div><span id="xpPct">0%</span></div></div></div>
 <div id="place" class="chip">希望之城<small>中央廣場</small></div>
 <!-- PC 原版主選單按鈕列（assets/ui/btn_*：tools/build-ui.mjs 從客戶端 mainbutton_all.tex 切）；原版沒有的功能用同色系文字鈕 -->
-<div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pct" id="fishBtn" title="釣魚（要在水池邊）">釣魚</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
+<div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pct" id="fishBtn" title="釣魚（要在水池邊）">釣魚</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pct" id="partyBtn" title="隊伍／好友（組隊打副本）">隊伍</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
 <button class="btn primary chip" id="talk"></button>
 <div id="tmmBox" title="主城地圖（點 MAP 放大，放大後點地圖可以直接走過去）"><canvas id="tmm" width="196" height="196"></canvas><button id="tmmMap">MAP</button></div>
 <button id="gmBtn" title="GM 指令（本機或 GM 帳號）" style="display:none;position:fixed;right:12px;top:calc(220px + env(safe-area-inset-top));z-index:5;border:2px solid #fff;border-radius:10px;background:linear-gradient(#ffb55a,#e07a1c);color:#fff;font-weight:900;padding:6px 12px;box-shadow:0 2px 8px #0005;cursor:pointer">GM</button>
@@ -164,6 +164,7 @@
 import * as THREE from 'three';
 import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES, seatOf, MOUNT_H, NOVICE, JOB1_AT, FIRST_JOBS, LIFE_LV } from './src/1_data/jobs.js';
 import { renderLook } from './src/2_core/look-ui.js';
+import { PARTY_MAX, partyOK, newCode, cleanCode, savedCode, saveCode, saveRun, inviteLink, PartyConn } from './src/2_core/party.js';
 import { sealModel, sealProp, sealActor, sealMob, sealMount, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
 import { pcLoading } from './src/2_core/pc-loading.js';
@@ -238,6 +239,15 @@ $('#charsBtn').onclick = () => location.href = './';
 $('#statBtn').onclick = () => openCharInfo(); // 11/19 使用者附 PC「CHARACTER INFO」截圖：照 PC 版改
 $('#setBtn').onclick = () => openSettings();
 $('#mapBtn').onclick = () => openExpedition(); // PC「傳送」＝遠征
+$('#partyBtn').onclick = () => openParty();
+// 組隊：回到主城自動接回原本的隊伍（大廳 → 遊戲 → 大廳同一支）；邀請連結 index.html?join=代碼 → 選好角色進主城後自動加入
+moduleDone.then(() => {
+  if (!partyOK()) return;
+  let join = ''; try { join = cleanCode(localStorage.getItem('ss_join')); localStorage.removeItem('ss_join'); } catch {}
+  const back = savedCode(); saveRun(null);
+  if (join && join !== back) { ptyConnect(join); openParty('party'); } else if (back) ptyConnect(back);
+  ptyPoll(); setInterval(ptyPoll, 20e3);
+});
 $('#helpBtn').onclick = () => openGuide(); // PC「說明」＝新手指南
 // 項目 28：技能寶石（PC 技能寶石系統）
 $('#stoneBtn').onclick = async () => { const [T, D] = await DATA; openGems({ char: CHAR, D, T, openDlg, call, onSaved: c => showChar(c), toast, askConfirm }, 'stone', 'stone'); }; // wiki 87：左側石頭圖示
@@ -870,6 +880,84 @@ function monThumb(name) {
 async function fillThumbs(root) { for (const img of root.querySelectorAll('img[data-mon]')) img.src = await monThumb(img.dataset.mon); }
 let expSel = 0;
 const fmtT = s => `${String(s / 60 | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+// ===== 組隊副本 v1.1（docs/企劃_組隊副本.md）：隊伍／好友視窗（PC 社交選單 → 隊伍、好友），只有雲端版能用 =====
+let PTY = null, ptyTab = 'party', ptyErr = '', ptyInv = [], ptyFr = null;
+const ptyMe = () => CHAR.id, ptyLead = () => PTY?.room?.leader === ptyMe();
+function ptyConnect(code, create = false) {
+  PTY?.drop(); ptyErr = '';
+  PTY = new PartyConn(code, { token, charId: CHAR.id, create });
+  saveCode(code);
+  PTY.on('room', () => ptyRedraw()).on('open', () => ptyRedraw())
+    .on('err', o => { ptyErr = o.msg; toast(o.msg); if (o.fatal) { saveCode(''); PTY = null; } ptyRedraw(); })
+    .on('kicked', () => { toast('你被隊長移出隊伍'); saveCode(''); PTY = null; ptyRedraw(); })
+    .on('idle', () => { openDlg('隊伍', '<p>你已閒置 5 分鐘，離開了隊伍。</p>', [], true); saveCode(''); PTY = null; })
+    .on('start', o => { // 隊長按出發 → 全員一起進遊戲
+      try { sessionStorage.setItem('ss_stage', String(o.setup.stage)); sessionStorage.setItem('ss_diff', JSON.stringify(o.setup.diff || null)); } catch {}
+      saveRun({ code, seed: o.seed, members: o.members, leader: o.leader, me: CHAR.id }); PTY.drop(); location.href = 'game.html?party=1'; });
+}
+const ptyOpenNow = () => dlgBoxes().some(b => !b.hidden && b.dataset.k === dlgKey('隊伍'));
+function ptyRedraw() { if (ptyOpenNow()) openParty(ptyTab); updatePartyBtn(); }
+function updatePartyBtn() { const b = $('#partyBtn'); if (b) b.textContent = PTY?.room ? `隊伍 ${PTY.room.members.length}/${PARTY_MAX}` : '隊伍'; }
+async function openParty(tab = ptyTab) {
+  ptyTab = tab;
+  const tabs = `<div class="tabs2">${[['party', '隊伍'], ['friends', '好友']].map(([k, v]) => `<button class="btn ${ptyTab === k ? 'primary' : ''}" data-pt="${k}">${v}</button>`).join('')}</div>`;
+  if (!partyOK()) return openDlg('隊伍', tabs + '<p>組隊要連雲端伺服器。用 <b>https://wila150.github.io/seal-survivors/</b> 開遊戲就可以組隊（離線模式、本機伺服器不能組隊）。</p>', [], true), ptyBind();
+  let h = tabs;
+  if (ptyTab === 'friends') {
+    if (!ptyFr) { ptyFr = []; call('GET', '/api/friends?charId=' + CHAR.id).then(r => { ptyFr = r.friends; ptyRedraw(); }).catch(e => toast(e.message)); }
+    h += `<div class="pty-add"><input id="frName" maxlength="12" placeholder="輸入角色名稱"><button class="btn primary" id="frAdd">加好友</button></div>
+      <div class="pty-list">${ptyFr.length ? ptyFr.map(f => `<div class="pty-row"><span class="dot ${f.online ? 'on' : ''}"></span><b>${esc(f.name)}</b><small>${esc(f.job)}・Lv ${f.baseLv}・${f.online ? '在線上' : '離線'}</small><span style="flex:1"></span>
+        ${PTY?.room ? `<button class="btn" data-finv="${f.id}" ${f.online ? '' : 'disabled'}>邀請</button>` : ''}<button class="btn" data-fdel="${f.id}">刪除</button></div>`).join('') : '<small>還沒有好友。輸入對方的角色名稱加好友（照 PC：單向名單，對方不用同意）。</small>'}</div>
+      <small>有隊伍時，在線上的好友旁邊會有「邀請」。</small>`;
+  } else if (!PTY) {
+    h += `<p>組隊最多 <b>${PARTY_MAX}</b> 人一起打同一張地圖。人越多，怪越多、越硬、越痛（經驗也越多）。</p>
+      <div class="pty-add"><button class="btn primary" id="ptyNew">建立隊伍</button></div>
+      <div class="pty-add"><input id="ptyCode" maxlength="6" placeholder="輸入 6 碼隊伍代碼" style="text-transform:uppercase"><button class="btn" id="ptyJoin">加入</button></div>
+      ${ptyInv.length ? `<h4>邀請</h4>${ptyInv.map(v => `<div class="pty-row"><b>${esc(v.from_name)}</b><small>邀請你加入隊伍 ${v.code}</small><span style="flex:1"></span><button class="btn primary" data-ijoin="${v.id}">加入</button><button class="btn" data-ino="${v.id}">拒絕</button></div>`).join('')}` : ''}
+      ${ptyErr ? `<p style="color:#c0392b">${esc(ptyErr)}</p>` : ''}`;
+  } else {
+    const R = PTY.room, lead = ptyLead(), S = R?.setup ? STAGES[R.setup.stage] : null;
+    h += `<div class="pty-code">隊伍代碼 <b>${PTY.code}</b><button class="btn" id="ptyCopy">複製邀請連結</button></div>`;
+    if (!R) h += `<p>連線中…</p>`;
+    else {
+      h += `<div class="pty-list">${R.members.map(m => `<div class="pty-row ${m.charId === ptyMe() ? 'me' : ''}"><span>${m.charId === R.leader ? '👑' : '　'}</span><b>${esc(m.name)}</b><small>${esc(m.jobName || m.job)}・Lv ${m.baseLv}・戰力 ${m.power}</small><span style="flex:1"></span>
+          ${m.charId === R.leader ? '<small>隊長</small>' : m.ready ? '<b style="color:#2e7d32">✓ 準備好了</b>' : '<small>還沒準備</small>'}
+          ${lead && m.charId !== ptyMe() ? `<button class="btn" data-plead="${m.charId}">給隊長</button><button class="btn" data-pkick="${m.charId}">踢出</button>` : ''}</div>`).join('')}
+        ${(R.away || []).filter(id => !R.members.some(m => m.charId === id)).map(() => '<div class="pty-row"><small>（有隊員換頁中，重新連線…）</small></div>').join('')}
+        ${Array.from({ length: Math.max(0, PARTY_MAX - R.members.length) }, () => '<div class="pty-row empty"><small>空位：把代碼或邀請連結給朋友，或到「好友」分頁邀請</small></div>').join('')}</div>
+        <div class="sec"><h4>地圖</h4>${S ? `<b>${S.name}</b>　<small>怪物 Lv${R.setup.diff?.monLv ?? S.lv}・人數 ${R.members.length}：怪物數量 ×${(1 + 0.5 * (R.members.length - 1)).toFixed(1)}・血量 ×${(1 + 0.6 * (R.members.length - 1)).toFixed(1)}・攻擊 ×${(1 + 0.25 * (R.members.length - 1)).toFixed(2)}</small>` : '<small>隊長還沒選地圖</small>'}
+          ${lead ? `<button class="btn" id="ptyPick" style="margin-left:8px">${S ? '換地圖' : '選地圖'}</button>` : ''}</div>`;
+    }
+  }
+  const opts = !PTY || ptyTab !== 'party' ? [] : ptyLead() ? [['出發', () => PTY.send({ t: 'start' }), true], ['離開隊伍', ptyLeave]]
+    : [[PTY.room?.members.find(m => m.charId === ptyMe())?.ready ? '取消準備' : '準備', () => PTY.send({ t: 'ready', v: !PTY.room?.members.find(m => m.charId === ptyMe())?.ready }), true], ['離開隊伍', ptyLeave]];
+  openDlg('隊伍', h, opts, true); ptyBind();
+}
+function ptyLeave() { PTY?.leave(); PTY = null; saveCode(''); updatePartyBtn(); openParty('party'); }
+function ptyBind() {
+  const B = $('#dlgBody'), q = s => B.querySelector(s);
+  B.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => { if (b.dataset.pt === 'friends') ptyFr = null; openParty(b.dataset.pt); });
+  q('#ptyNew')?.addEventListener('click', () => ptyConnect(newCode(), true));
+  q('#ptyJoin')?.addEventListener('click', () => { const c = cleanCode(q('#ptyCode').value); if (c.length !== 6) return toast('代碼是 6 碼英文數字'); ptyConnect(c); });
+  q('#ptyCopy')?.addEventListener('click', async () => { const link = inviteLink(PTY.code); try { await navigator.clipboard.writeText(link); toast('邀請連結已複製，貼給朋友'); } catch { toast(link); } });
+  q('#ptyPick')?.addEventListener('click', () => { partyPick = true; openExpedition(); });
+  B.querySelectorAll('[data-pkick]').forEach(b => b.onclick = async () => { if (await askConfirm('把這個隊員移出隊伍？')) PTY.send({ t: 'kick', charId: +b.dataset.pkick }); });
+  B.querySelectorAll('[data-plead]').forEach(b => b.onclick = () => PTY.send({ t: 'lead', charId: +b.dataset.plead }));
+  B.querySelectorAll('[data-ijoin]').forEach(b => b.onclick = () => { const v = ptyInv.find(x => x.id === +b.dataset.ijoin); if (!v) return; call('POST', '/api/invitedel', { charId: CHAR.id, id: v.id }).catch(() => {}); ptyInv = ptyInv.filter(x => x !== v); ptyConnect(v.code); });
+  B.querySelectorAll('[data-ino]').forEach(b => b.onclick = () => { call('POST', '/api/invitedel', { charId: CHAR.id, id: +b.dataset.ino }).catch(() => {}); ptyInv = ptyInv.filter(x => x.id !== +b.dataset.ino); openParty(); });
+  q('#frAdd')?.addEventListener('click', async () => { try { const r = await call('POST', '/api/friendadd', { charId: CHAR.id, name: q('#frName').value }); toast(`已加 ${r.name} 為好友`); ptyFr = null; openParty('friends'); } catch (e) { toast(e.message); } });
+  B.querySelectorAll('[data-fdel]').forEach(b => b.onclick = async () => { if (!(await askConfirm('刪除這個好友？'))) return; await call('POST', '/api/frienddel', { charId: CHAR.id, friendId: +b.dataset.fdel }).catch(e => toast(e.message)); ptyFr = null; openParty('friends'); });
+  B.querySelectorAll('[data-finv]').forEach(b => b.onclick = async () => { try { await call('POST', '/api/invite', { charId: CHAR.id, friendId: +b.dataset.finv, code: PTY.code }); toast('已送出邀請（5 分鐘內有效）'); } catch (e) { toast(e.message); } });
+}
+// 邀請：主城每 20 秒問一次（分頁在背景就不問，省額度）；有新邀請跳提示
+let ptyInvSeen = new Set();
+async function ptyPoll() {
+  if (!partyOK() || document.hidden || !CHAR?.id) return;
+  try { const r = await call('GET', '/api/invites?charId=' + CHAR.id); ptyInv = r.invites || [];
+    for (const v of ptyInv) if (!ptyInvSeen.has(v.id)) { ptyInvSeen.add(v.id); if (!PTY) toast(`👥 ${v.from_name} 邀請你組隊（按「隊伍」查看）`); }
+    if (ptyOpenNow() && !PTY) ptyRedraw(); } catch {}
+}
+let partyPick = false; // 隊長從隊伍視窗按「選地圖」→ 遠征視窗的「前往野外」改成「設成隊伍地圖」
 function openExpedition() {
   const cl = CHAR.cleared || [];
   if (!stageUnlocked(expSel, cl)) expSel = 0;
@@ -898,10 +986,14 @@ function openExpedition() {
     <div id="lootTxt" style="margin:10px 0 6px;padding:8px;border-radius:8px;background:#eef3fb;text-align:center;font-size:16px">${lootTxt()}</div>
     <details><summary style="cursor:pointer;font-size:12px;color:#5a6478">詳細數值</summary><div id="dfTxt" style="font-size:12px;line-height:1.6;margin-top:4px">${diffTxt()}</div></details>
     <button class="btn" id="dfReset" style="margin-top:6px;padding:4px 10px">恢復預設</button></div>`;
-  const go = () => { try { sessionStorage.setItem('ss_stage', String(expSel)); sessionStorage.setItem('ss_diff', JSON.stringify(DF)); } catch {} location.href = 'game.html'; };
+  const go = () => {
+    if (PTY) { // 組隊中：隊長＝設成隊伍地圖，隊員＝等隊長
+      if (!ptyLead()) return toast('組隊中由隊長選地圖出發');
+      PTY.send({ t: 'setup', setup: { stage: expSel, diff: DF } }); partyPick = false; return openParty('party'); }
+    try { sessionStorage.setItem('ss_stage', String(expSel)); sessionStorage.setItem('ss_diff', JSON.stringify(DF)); } catch {} location.href = 'game.html'; };
   // 11/20 照 RO：按「出發」先跳「難度」視窗（敵人數量／傷害／血量／速度／事件、升級立即／累積、戰利品），再「前往野外」
   const openDiff = () => {
-    openDlg('難度', diffHtml, [['前往野外', go, true]]);
+    openDlg('難度', diffHtml, [[PTY && ptyLead() ? '設成隊伍地圖' : '前往野外', go, true]]);
     const B = $('#dlgBody');
     const saveDF = () => { try { localStorage.setItem('ss_diff_saved', JSON.stringify(DF)); } catch {} B.querySelector('#dfTxt').innerHTML = diffTxt(); B.querySelector('#lootTxt').innerHTML = lootTxt(); };
     B.querySelectorAll('[data-df]').forEach(el => el.oninput = () => { const k = el.dataset.df; DF[k] = +el.value; B.querySelector(`[data-dfv="${k}"]`).textContent = fmtV(el.dataset.u, DF[k]); saveDF(); });
