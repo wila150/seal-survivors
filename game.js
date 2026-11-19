@@ -164,146 +164,105 @@ function triggerMountDash() {
 addEventListener('keydown', e => { if (e.code === 'KeyR') triggerMountDash(); });
 document.getElementById('mountBtn').onclick = () => triggerMountDash();
 { let rd = null; renderer.domElement.addEventListener('pointerdown', e => { if (e.button === 2) rd = { x: e.clientX, y: e.clientY, t: performance.now() }; });
-  addEventListener('pointerup', e => { if (e.button !== 2 || !rd) return; const moved = Math.hypot(e.clientX - rd.x, e.clientY - rd.y), dt = performance.now() - rd.t; rd = null; if (moved < 6 && dt < 350) { if (CB.st === 'ready') cbTrigger(); else if (MOUNT_ON) triggerMountDash(); } }); }
+  addEventListener('pointerup', e => { if (e.button !== 2 || !rd) return; const moved = Math.hypot(e.clientX - rd.x, e.clientY - rd.y), dt = performance.now() - rd.t; rd = null; if (moved < 6 && dt < 350) { if (CB.st === 'charge' && cbTier()) cbTrigger(); else if (MOUNT_ON) triggerMountDash(); } }); }
 const input = createInput(renderer.domElement, document.getElementById('joy'), { camera, scene, target: () => player.position, groundY: () => groundY() });
 enableOrbit(renderer.domElement); // 右鍵拖曳轉視角
 rig.walk = (p, nx, nz) => walkMove(MAP, p, nx, nz); // 原版可走區（水、懸崖、建築擋路）
-// ===== 項目 52 v3：動態階段蓄力（火焰核心觸發版，使用者 11/19 素材/20261119-070915_連擊.txt）=====
-// 1 集氣：普攻打中累積 3 顆連擊氣珠（每顆約 8 下）→ 火焰核心鈕從餘燼灰點燃成金紅烈焰並呼吸閃爍
-// 2 點燃：主動點火焰鈕／空白鍵／滑鼠右鍵點一下 → 時間凍結，開始蓄力
-// 3 osu! 節點（依序一顆一顆出來，3～5 顆，「連段擴充」卡增加）：縮圈（外圈縮到貼合時點／Z、X 鍵）、
-//   滑條（按住跟著球走完屬性軌道：火直線、水橫線、木波浪、金土 Z 字、光暗無弧線；Z、X 按住也算）、壓軸轉盤（第 5 顆：1.2 秒內畫圈轉滿 2 圈；Z、X 交替 8 下）
-//   每過一顆升一階（Lv1 → MAX），音階 Do Re Mi Sol 高音 Do；失誤＝停在目前階級直接釋放；蓄力中再按一次火焰鈕／空白鍵＝主動提早釋放（控傷）
-// 4 釋放：頓幀＋爆破，時間恢復、全程無敵可走位；依階級放出身上技能＋終結技；MAX（轉盤成功）＝超載：必定爆擊＋破防
-// 每打完一套（Lv1 以上），鑲著的技能寶石累積融合經驗；屬性＝局內最高屬性寶石，沒有就用武器屬性
+// ===== 項目 52 定案：A→S→D 連續技 × 機率掉落屬性能量球（使用者 11/19 asd_combo_design_v3 定案版；取代 osu! 節點版）=====
+// 1 刷怪撿球：普通怪 20% 掉小型能量球（+1）、菁英 75% 掉中型結晶（+10～25）、首領噴一地小球＋1 顆中型；走位撿起來累積 0～1000 點
+//   能量球外觀＝屬性（局內最高屬性寶石；沒有＝武器屬性；都沒有＝經典 A／S／D 徽章白球）；80% 以上進入過載磁場（吸球更快、身上燃起氣場）
+// 2 觸發：300 點亮 A（小爆發）、600 亮 S（中爆發）、1000 亮 D（完全體）；點大招鈕／空白鍵／滑鼠右鍵點一下 → 用目前的階梯放招
+// 3 演出：全程無敵、可以自由走位；跑馬燈依序點亮；每段一道巨型屬性劍氣橫越畫面，命中的怪 0.03 秒頓幀＋震動＋沿切線被噴飛（一刀兩斷）；
+//   最後一擊跳職業台詞大字；1000 點的完全體加屬性追加效果；放完能量歸零
+// 局內卡片：能量球掉落 +10%、能量球吸取 +30%、撿球回 1% HP；寵物進化過＝掉落 +10%、吸取 ×1.5
 const CB = { g: 0, st: 'charge', done: 0 };
+const CB_MAX = 1000, CB_TIER = [300, 600, 1000];
 const W_ELEM = (CHAR.items || []).find(i => i.equipped && i.slot === 'weapon')?.elem || 0; // 指令 4-3 武器七大屬性合成
-const JOB_LINE = { 劍士: '劍隨我心！', 騎士: '以盾為誓！', 法師: '元素聽我號令！', 祭司: '聖光審判！', 小丑: '表演開始～', 鐵匠: '全力打鐵！', 獵人: '百步穿楊！', 初心者: '別小看初心者！' };
-const cbStyle = document.createElement('style'); cbStyle.textContent = `#ultBtn{position:fixed;right:calc(50% - 215px);bottom:calc(max(10px,env(safe-area-inset-bottom)) + 18px);z-index:7;width:66px;height:66px;border-radius:50%;padding:0;border:0;pointer-events:auto;--p:0;
-  background:conic-gradient(#ffb84a 0 calc(var(--p)*1%),#0000 0),conic-gradient(#0000 0 32.5%,#fff6 32.5% 33.5%,#0000 33.5% 66%,#fff6 66% 67%,#0000 67%);box-shadow:0 2px 8px #0008}
-#ultBtn i{position:absolute;inset:5px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:30px;background:radial-gradient(#3a3a3a,#141414);filter:grayscale(1) brightness(.7);transition:filter .3s}
-#ultBtn .pips{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);display:flex;gap:3px}#ultBtn .pips b{width:9px;height:9px;border-radius:50%;background:#333;border:1px solid #fff5}#ultBtn .pips b.on{background:#ffb84a;box-shadow:0 0 6px #ff7a3d}
-#ultBtn.full i{filter:none;background:radial-gradient(#ffe28a,#ff5a1f 60%,#7a1d00);animation:ultP .9s ease-in-out infinite alternate}
-@keyframes ultP{from{box-shadow:0 0 8px #ff9d3d}to{box-shadow:0 0 26px #ffcf4a,0 0 6px #fff}}
+const JOB_LINE = { 劍士: '一刀兩斷！', 騎士: '以盾為誓，斬！', 法師: '元素聽我號令！', 祭司: '我要代替聖光懲罰你！', 小丑: '表演開始～', 鐵匠: '人蔘攻擊！', 獵人: '百步穿楊！', 初心者: '別小看初心者！' };
+const cbStyle = document.createElement('style'); cbStyle.textContent = `#ultBtn{position:fixed;right:calc(50% - 215px);bottom:calc(max(10px,env(safe-area-inset-bottom)) + 18px);z-index:7;width:66px;height:66px;border-radius:50%;padding:0;border:0;pointer-events:auto;--p:0;--ec:#ffd36b;
+  background:conic-gradient(var(--ec) 0 calc(var(--p)*1%),#0008 0);box-shadow:0 2px 8px #0008}
+#ultBtn i{position:absolute;inset:5px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 15px sans-serif;font-style:normal;color:#9aa6c8;background:radial-gradient(#2b3550,#0b1430)}
+#ultBtn .pips{position:absolute;left:50%;bottom:-11px;transform:translateX(-50%);display:flex;gap:2px}#ultBtn .pips b{padding:0 4px;border-radius:5px;font:900 10px sans-serif;background:#222c;color:#778;border:1px solid #fff4}#ultBtn .pips b.on{background:linear-gradient(#ffe28a,#ff9d3d);color:#3a1d00}
+#ultBtn.t1 i,#ultBtn.t2 i,#ultBtn.t3 i{color:#fff;background:radial-gradient(#fff6,var(--ec) 55%,#0b1430)}#ultBtn.t3{animation:ultP .8s ease-in-out infinite alternate}
+@keyframes ultP{from{box-shadow:0 0 8px var(--ec)}to{box-shadow:0 0 28px var(--ec),0 0 6px #fff}}
 @media (max-width:600px){#ultBtn{right:12px;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 108px);width:72px;height:72px}}
-#osu{position:fixed;inset:0;z-index:30;display:none;touch-action:none;user-select:none;background:radial-gradient(#0000 30%,#0b1430b0)}
-#osu .lv{position:absolute;left:0;right:0;top:10%;text-align:center;color:#fff;font:900 22px sans-serif;text-shadow:0 2px 6px #000}#osu .lv small{display:block;font-size:13px;font-weight:700;color:#cfd8ea}
-#osu .hc{position:absolute;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;background:radial-gradient(#fff,var(--ec) 55%,#0000 72%);box-shadow:0 0 16px var(--ec)}
-#osu .ap{position:absolute;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;border:4px solid #fff;pointer-events:none}
-#osu svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-#osu .ball{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:radial-gradient(#fff,var(--ec) 60%);box-shadow:0 0 18px var(--ec);pointer-events:none}
-#osu .spin{position:absolute;left:50%;top:52%;width:220px;height:220px;margin:-110px 0 0 -110px;border-radius:50%;border:6px dashed var(--ec);box-shadow:0 0 30px var(--ec) inset}
-#osu .judge{position:absolute;color:#fff;font:900 26px sans-serif;text-shadow:0 0 8px var(--ec),0 2px 4px #000;pointer-events:none;transform:translate(-50%,-50%);animation:jd .5s forwards}@keyframes jd{to{opacity:0;transform:translate(-50%,-120%)}}
 #cbMarq{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 64px);transform:translateX(-50%);z-index:8;display:none;gap:5px;pointer-events:none}
 #cbMarq b{min-width:30px;padding:3px 7px;border-radius:8px;background:#0b1430cc;border:2px solid #fff4;color:#9aa6c8;font-size:15px;text-align:center}#cbMarq b.on{background:linear-gradient(#ffe28a,#ff9d3d);color:#3a1d00;border-color:#fff;transform:scale(1.15)}`;
 document.head.appendChild(cbStyle);
-const ultBtn = document.createElement('button'); ultBtn.id = 'ultBtn'; ultBtn.title = '火焰核心：蓄力連擊（空白鍵／滑鼠右鍵）'; ultBtn.innerHTML = '<i>🔥</i><span class="pips"><b></b><b></b><b></b></span>'; document.body.appendChild(ultBtn);
-const osuEl = document.createElement('div'); osuEl.id = 'osu'; document.body.appendChild(osuEl);
+const ultBtn = document.createElement('button'); ultBtn.id = 'ultBtn'; ultBtn.title = 'A→S→D 連續技（空白鍵／滑鼠右鍵）'; ultBtn.innerHTML = '<i>0</i><span class="pips"><b>A</b><b>S</b><b>D</b></span>'; document.body.appendChild(ultBtn);
 const marq = document.createElement('div'); marq.id = 'cbMarq'; document.body.appendChild(marq);
 const cbElem = () => { const top = Object.entries(P.egem || {}).filter(([k]) => k !== 'combo').map(([, g]) => g).sort((a, b) => b.lv - a.lv)[0]; return top ? top.e : W_ELEM; };
-function cbCharge(n) { if (CB.st !== 'charge') return; CB.g = Math.min(100, CB.g + n); if (CB.g >= 100) { CB.st = 'ready'; ultBtn.classList.add('full'); } }
-// 音階 Do Re Mi Sol 高音 Do（Web Audio 簡單音色）
-const NOTES = [523.25, 587.33, 659.25, 783.99, 1046.5];
-function tone(i) { try { if (muted || AC.state !== 'running') return; const o = AC.createOscillator(), g = AC.createGain(); o.type = 'triangle'; o.frequency.value = NOTES[Math.min(i, 4)];
-  g.gain.setValueAtTime(0.0001, AC.currentTime); g.gain.exponentialRampToValueAtTime(0.25 * getSettings().master * getSettings().sfx, AC.currentTime + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + 0.35);
-  o.connect(g).connect(sfxGain); o.start(); o.stop(AC.currentTime + 0.4); } catch {} }
-// 滑條軌道（畫面比例座標），依屬性
-function sliderPath(e, i) {
-  const cx = 0.5 + (i % 2 ? 0.12 : -0.12), cy = 0.5;
-  if (e === 1) return [[cx, 0.68], [cx, 0.32]];
-  if (e === 2) return [[0.3, cy], [0.7, cy]];
-  if (e === 3) return [...Array(9).keys()].map(k => [0.28 + k * 0.055, cy + 0.08 * Math.sin(k / 8 * Math.PI * 2)]);
-  if (e === 4 || e === 5) return [[0.32, 0.38], [0.62, 0.38], [0.38, 0.62], [0.68, 0.62]];
-  return [...Array(9).keys()].map(k => { const a = Math.PI * (0.15 + 0.7 * k / 8); return [0.5 - Math.cos(a) * 0.2, 0.62 - Math.sin(a) * 0.22]; });
+const cbTier = () => CB_TIER.filter(v => CB.g >= v).length;
+// ---- 能量球 ----
+const CBO = [], orbGeo = new THREE.SphereGeometry(0.22, 10, 8), orbMats = {};
+const orbMat = e => orbMats[e] ??= new THREE.MeshBasicMaterial({ color: new THREE.Color(e ? ELEM_COLOR[e] : '#ffffff'), transparent: true, opacity: 0.95 });
+function cbDropOrb(pos, pts, scale = 1) {
+  if (CBO.length > 160) return; const m = new THREE.Mesh(orbGeo, orbMat(cbElem())); m.scale.setScalar(scale);
+  const halo = new THREE.Sprite(addMat(tex.gem, new THREE.Color(cbElem() ? ELEM_COLOR[cbElem()] : '#ffffff').getHex())); halo.scale.setScalar(1.1 * scale); m.add(halo);
+  m.position.set(pos.x + (Math.random() - 0.5) * 1.2, 0.6, pos.z + (Math.random() - 0.5) * 1.2); scene.add(m); CBO.push({ m, pts, ph: Math.random() * 6 });
 }
-const lerpPath = (pts, f) => { const segs = pts.length - 1, x = Math.min(segs - 1e-6, f * segs), i = Math.floor(x), t2 = x - i; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t2, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t2]; };
-function cbTrigger() {
-  if (state !== 'play') return;
-  if (CB.st !== 'ready') return;
-  CB.st = 'osu'; state = 'osu'; ultBtn.classList.remove('full');
-  const e = cbElem(), col = ELEM_COLOR[e] || '#ffd36b', N = Math.min(5, 3 + Math.floor(((P.comboLen || 3) - 3) / 2)), kinds = ['circle', 'slider', 'circle', 'slider', 'spin'].slice(0, N);
-  if (N === 5) kinds[4] = 'spin';
-  osuEl.style.setProperty('--ec', col); osuEl.style.display = 'block'; let lv = 0, node = 0, over = false, keyDown = false, keyAlt = '', cleanup = null;
-  const W = () => innerWidth, H = () => innerHeight;
-  const head = () => `<div class="lv">蓄力 Lv.${lv}${lv === N ? ' MAX' : ''}<small>${ELEMS[e]}屬性・${node <= N ? { circle: '外圈縮到貼合時點下去（Z／X）', slider: '按住起點、跟著球走完（Z／X 按住）', spin: '1.2 秒內畫圈轉滿 2 圈（Z／X 交替）' }[kinds[node - 1]] || '' : ''}　（再按一次 🔥／空白鍵＝提早釋放）</small></div>`;
-  const judge = (x, y, txt) => { const d = document.createElement('div'); d.className = 'judge'; d.textContent = txt; d.style.left = x + 'px'; d.style.top = y + 'px'; osuEl.appendChild(d); setTimeout(() => d.remove(), 500); };
-  const ok = (x, y, txt = '300') => { lv++; tone(lv - 1); judge(x, y, txt); bossFx.shake = Math.max(bossFx.shake, 0.05 + lv * 0.05); camZoom = 1 - lv * 0.03; next(); };
-  const miss = (x, y) => { judge(x ?? W() / 2, y ?? H() / 2, 'MISS'); release(); };
-  function release() { if (over) return; over = true; cleanup?.(); osuEl.style.display = 'none'; osuEl.innerHTML = ''; removeEventListener('keydown', kd); removeEventListener('keyup', ku); camZoom = 1; CB.release = null; ultBtn.style.zIndex = '';
-    state = 'play'; last = performance.now(); cbUnleash(lv, N, e); }
-  const kd = ev => { if (ev.code === 'Space') { ev.preventDefault(); release(); return; } if (ev.code === 'KeyZ' || ev.code === 'KeyX') { ev.preventDefault(); if (!keyDown) onKey(ev.code); keyDown = true; } };
-  const ku = ev => { if (ev.code === 'KeyZ' || ev.code === 'KeyX') keyDown = false; };
-  addEventListener('keydown', kd); addEventListener('keyup', ku); CB.release = release; ultBtn.style.zIndex = 31;
-  let onKey = () => {};
-  function next() {
-    cleanup?.(); cleanup = null; if (over) return; if (node >= N) return release(); const kind = kinds[node++];
-    osuEl.innerHTML = head();
-    if (kind === 'circle') { // 縮圈：0.9 秒縮到 1 倍；縮圈 ≤1.35 倍時點 = 300、≤1.7 倍 = 100，太早或超時 = MISS
-      const x = W() * (0.32 + Math.random() * 0.36), y = H() * (0.36 + Math.random() * 0.3), T0 = performance.now(), DUR = 900;
-      osuEl.insertAdjacentHTML('beforeend', `<div class="hc" style="left:${x}px;top:${y}px"></div><div class="ap" style="left:${x}px;top:${y}px"></div>`);
-      const ap = osuEl.querySelector('.ap'); let raf;
-      const sc = () => 3 - 2 * Math.min(1, (performance.now() - T0) / DUR);
-      const hit = (px, py) => { const k = sc(); if (px != null && Math.hypot(px - x, py - y) > 60) return; if (k <= 1.35) ok(x, y, '300'); else if (k <= 1.7) ok(x, y, '100'); else miss(x, y); };
-      const pd = ev => hit(ev.clientX, ev.clientY); osuEl.addEventListener('pointerdown', pd); onKey = () => hit();
-      const tick = () => { if (over) return; const k = sc(); ap.style.transform = `scale(${k})`; if (performance.now() - T0 > DUR + 220) return miss(x, y); raf = requestAnimationFrame(tick); }; raf = requestAnimationFrame(tick);
-      cleanup = () => { cancelAnimationFrame(raf); osuEl.removeEventListener('pointerdown', pd); onKey = () => {}; };
-    } else if (kind === 'slider') { // 滑條：0.6 秒內在起點按下，接著 1.3 秒跟著球走（離球 70px 以內）；Z／X 按住也算
-      const pts = sliderPath(e, node).map(([a, b2]) => [a * W(), b2 * H()]), [sx, sy] = pts[0];
-      osuEl.insertAdjacentHTML('beforeend', `<svg><polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="58" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/><polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="8 8" opacity=".8"/></svg><div class="hc" style="left:${sx}px;top:${sy}px"></div><div class="ball" style="left:${sx}px;top:${sy}px;display:none"></div>`);
-      const ball = osuEl.querySelector('.ball'); let held = false, px = -1e4, py = -1e4, T0 = performance.now(), started = 0, raf;
-      const pd = ev => { px = ev.clientX; py = ev.clientY; if (!started && Math.hypot(px - sx, py - sy) < 70) { held = true; started = performance.now(); ball.style.display = 'block'; } };
-      const pm = ev => { px = ev.clientX; py = ev.clientY; }, pu = () => { held = false; };
-      osuEl.addEventListener('pointerdown', pd); osuEl.addEventListener('pointermove', pm); addEventListener('pointerup', pu); onKey = () => { if (!started) { started = performance.now(); ball.style.display = 'block'; } };
-      const tick = () => { if (over) return;
-        if (!started) { if (performance.now() - T0 > 900) return miss(sx, sy); raf = requestAnimationFrame(tick); return; }
-        const f = Math.min(1, (performance.now() - started) / 1300), [bx, by] = lerpPath(pts, f); ball.style.left = bx + 'px'; ball.style.top = by + 'px';
-        const following = keyDown || (held && Math.hypot(px - bx, py - by) < 70); if (!following && performance.now() - started > 150) return miss(bx, by);
-        if (f >= 1) return ok(bx, by, '300'); raf = requestAnimationFrame(tick); }; raf = requestAnimationFrame(tick);
-      cleanup = () => { cancelAnimationFrame(raf); osuEl.removeEventListener('pointerdown', pd); osuEl.removeEventListener('pointermove', pm); removeEventListener('pointerup', pu); onKey = () => {}; };
-    } else { // 轉盤：1.2 秒內繞中心累積轉 2 圈；Z／X 交替 8 下也算
-      osuEl.insertAdjacentHTML('beforeend', '<div class="spin"></div>'); const sp = osuEl.querySelector('.spin'), r = sp.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      let acc = 0, la = null, alt = 0, T0 = performance.now(), raf;
-      const pm = ev => { const a = Math.atan2(ev.clientY - cy, ev.clientX - cx); if (la != null) { let d = a - la; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; acc += Math.abs(d); } la = a; sp.style.transform = `rotate(${acc}rad)`; };
-      osuEl.addEventListener('pointermove', pm); osuEl.addEventListener('pointerdown', pm);
-      onKey = code => { if (code !== keyAlt) { keyAlt = code; alt++; acc = alt / 8 * 4 * Math.PI; sp.style.transform = `rotate(${acc}rad)`; } keyDown = false; };
-      const tick = () => { if (over) return; if (acc >= 4 * Math.PI) return ok(cx, cy, 'MAX!'); if (performance.now() - T0 > 1200) return miss(cx, cy); raf = requestAnimationFrame(tick); }; raf = requestAnimationFrame(tick);
-      cleanup = () => { cancelAnimationFrame(raf); osuEl.removeEventListener('pointermove', pm); osuEl.removeEventListener('pointerdown', pm); onKey = () => {}; };
-    }
-  }
-  next();
+function cbOnKill(e) { // 怪物倒下：機率掉能量球
+  const drop = (P.orbDrop || 0) + (PET?.evo ? 0.1 : 0);
+  if (e.ai || e.boss) { for (let i = 0; i < 20; i++) cbDropOrb(e.mesh.position, 1); cbDropOrb(e.mesh.position, 25, 2); return; }
+  if (e.elite) { if (Math.random() < 0.75 + drop) cbDropOrb(e.mesh.position, 10 + Math.floor(Math.random() * 16), 1.8); return; }
+  if (Math.random() < 0.2 + drop) cbDropOrb(e.mesh.position, 1);
 }
-let camZoom = 1;
-function cbUnleash(L, N, e) {
-  CB.st = 'unleash'; ultBtn.classList.remove('full'); CB.g = 0;
-  if (L < 1) { showBanner('<small>蓄力失敗</small><b>MISS</b>', 700); setTimeout(cbEnd, 300); return; }
-  const maxed = L === N, mult = [0, 1, 1.4, 1.9, 2.5, 3.2][L], n = Math.min(12, L + 1);
-  P.inv = Math.max(P.inv, n * 0.35 + 0.6);
-  // 頓幀：凍結 90ms 再爆
-  state = 'osu'; setTimeout(() => { state = 'play'; last = performance.now(); }, 90);
-  showBanner(`<small>蓄力 Lv.${L}${maxed ? ' MAX・超載！' : ''}</small><b>${maxed ? (JOB_LINE[CHAR.job] || '火力全開！') : '連擊！'}</b><span>傷害 ×${mult}${maxed ? '・必定爆擊・破防' : ''}</span>`, 1300);
-  const SEGN = ['A', 'S', 'AS', 'D', 'AD', 'ASD'];
+let auraRing = null;
+function comboUpdate(dt = 0) {
+  const pp = player.position, over = CB.g >= 800, R = P.magnet * (1 + (P.orbMag || 0)) * (PET?.evo ? 1.5 : 1) * (over ? 2 : 1);
+  for (let i = CBO.length - 1; i >= 0; i--) { const o = CBO[i], p = o.m.position; o.ph += dt * 4; p.y = 0.6 + Math.sin(o.ph) * 0.15;
+    const dx = pp.x - p.x, dz = pp.z - p.z, d = Math.hypot(dx, dz);
+    if (d < 0.8) { scene.remove(o.m); CBO.splice(i, 1); if (CB.st === 'charge') CB.g = Math.min(CB_MAX, CB.g + o.pts); if (P.orbHeal) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.01 * P.orbHeal); play('gem', 0.25, 40); continue; }
+    if (d < R) { const sp = (over ? 16 : 10) * dt / d; p.x += dx * Math.min(1, sp); p.z += dz * Math.min(1, sp); } }
+  // 過載磁場：80% 以上身上燃起屬性氣場
+  if (!auraRing) { auraRing = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.35, 40), new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); auraRing.rotation.x = -Math.PI / 2; scene.add(auraRing); }
+  auraRing.visible = over && CB.st === 'charge'; if (auraRing.visible) { auraRing.material.color.set(cbElem() ? ELEM_COLOR[cbElem()] : '#ffd36b'); auraRing.position.set(pp.x, 0.07, pp.z); auraRing.scale.setScalar(1 + Math.sin(t * 6) * 0.08); }
+  const tier = CB.st === 'charge' ? cbTier() : 0;
+  ultBtn.style.setProperty('--p', CB.g / CB_MAX * 100); ultBtn.style.setProperty('--ec', cbElem() ? ELEM_COLOR[cbElem()] : '#ffd36b');
+  ultBtn.className = tier ? 't' + tier : ''; ultBtn.querySelector('i').textContent = CB.g >= CB_MAX ? 'MAX' : Math.floor(CB.g);
+  ultBtn.querySelectorAll('.pips b').forEach((b, i) => b.classList.toggle('on', i < tier));
+}
+function cbClearOrbs() { for (const o of CBO) scene.remove(o.m); CBO.length = 0; }
+// ---- 觸發與演出 ----
+function cbTrigger() { if (state !== 'play' || CB.st !== 'charge') return; const tier = cbTier(); if (!tier) return; cbUnleash(tier, cbElem()); }
+function slashFx(pp, ang, col) { // 一道巨型劍氣（地面上的細長發光面，0.35 秒淡出）
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(30, 1.6), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+  m.rotation.set(-Math.PI / 2, 0, -ang); m.position.set(pp.x, 1.0, pp.z); m.userData.fixed = false; scene.add(m);
+  const t0 = performance.now(); const fade = () => { const k = (performance.now() - t0) / 350; m.material.opacity = 0.95 * (1 - k); m.scale.y = 1 + k * 0.6; if (k < 1) requestAnimationFrame(fade); else { scene.remove(m); m.geometry.dispose(); } }; requestAnimationFrame(fade);
+}
+function cbUnleash(tier, e) {
+  CB.st = 'unleash'; const full = tier === 3, mult = [0, 1.0, 1.6, 2.6][tier], extra = full ? Math.max(0, Math.min(9, (P.comboLen || 3) - 3)) : 0;
+  const SEGN = ['A', 'S', 'D', 'AS', 'AD', 'SD', 'ASD', 'SA', 'DA', 'DS', 'DSA', 'ASDA'], n = tier + extra;
+  P.inv = Math.max(P.inv, n * 0.45 + 0.6);
+  showBanner(`<small>${['', 'A 小爆發', 'S 中爆發', 'D 完全體・千人斬'][tier]}</small><b>A→S→D 連續技</b><span>傷害 ×${mult}${full ? '・必定爆擊' : ''}</span>`, 1100);
   marq.innerHTML = SEGN.slice(0, n).map(x => `<b>${x}</b>`).join(''); marq.style.display = 'flex';
-  const owned = Object.keys(SM.skills).filter(k => !SKD.skills[k]?.basic), base = 10 * (1 + 0.12 * P.lv);
-  const glow = [0xff7a3d, 0xffd36b, 0xffd36b, 0xd8b0ff, 0xf4e8ff, 0xffffff][L];
+  const owned = Object.keys(SM.skills).filter(k => !SKD.skills[k]?.basic), base = 10 * (1 + 0.12 * P.lv), col = new THREE.Color(e ? ELEM_COLOR[e] : '#fff6c0').getHex();
   for (let i = 0; i < n; i++) setTimeout(() => {
     if (state === 'over') return; const last = i === n - 1, pp = player.position, k = owned.length ? owned[i % owned.length] : SKD.jobs[CHAR.job]?.basic;
-    marq.children[i]?.classList.add('on'); play(last ? 'boom' : 'hit', 0.6, 0);
-    const R = last ? (maxed ? 18 : 6 + L * 2) : 6, dmg = base * (last ? 4 : 1.5 + 0.3 * i) * mult * (maxed ? 1.6 : 1);
-    const pc = k && (PCFX.play(SKD.skills[k]?.pcfx || k, 'hit', pp, P.face, { fit: R * 0.6 }) || PCFX.play(SKD.skills[k]?.pcfx || k, 'cast', pp, P.face, { fit: R * 0.6, follow: player }));
-    if (!pc || last) spawnFx('shock', pp, { flat: true, scale: R * 2, life: 0.5, grow: 1.5, color: last ? new THREE.Color(ELEM_COLOR[e] || '#ff7a3d').getHex() : glow });
-    if (last) { PCFX.play('bigkill', 'cast', pp, 0, { y: 0.3, scale: 1 + L * 0.15 }); bossFx.shake = Math.max(bossFx.shake, 0.4 + L * 0.12); if (e) P.egem.combo = { e, lv: 5 }; }
-    rig.swing(P.face, 'p' + (1 + i % 4));
-    for (const en of enemies) { if (en.dead) continue; const dx = en.mesh.position.x - pp.x, dz = en.mesh.position.z - pp.z; if (dx * dx + dz * dz > R * R) continue;
-      if (last && maxed && en.ai) en.dmgTaken = 1.25; // 破防：首領這下多吃 25%
-      hurt(en, dmg * (last && maxed && en.ai ? 1.25 : 1), pp, 'phys', 'combo', { tags: last ? ['heavy'] : [] }); }
-    if (last) { delete P.egem.combo; CB.done++; maybeElemGem(false); setTimeout(cbEnd, 400); }
-  }, 120 + i * 320);
+    marq.children[i]?.classList.add('on'); play(last ? 'boom' : 'hit', 0.7, 0);
+    const ang = (P.face || 0) + (i % 3 - 1) * 1.05 + (i >= 3 ? 0.5 : 0), ux = Math.cos(ang), uz = Math.sin(ang), dmg = base * (last ? 4 : 2) * mult * (full ? 1.6 : 1);
+    slashFx(pp, ang, col);
+    if (k) PCFX.play(SKD.skills[k]?.pcfx || k, 'hit', pp, ang, { fit: 4 }) || PCFX.play(SKD.skills[k]?.pcfx || k, 'cast', pp, ang, { fit: 4, follow: player });
+    if (last && full && e) P.egem.combo = { e, lv: 5 };
+    rig.swing(ang, 'p' + (1 + i % 4)); let hits = 0;
+    for (const en of enemies) { if (en.dead) continue; const dx = en.mesh.position.x - pp.x, dz = en.mesh.position.z - pp.z, along = dx * ux + dz * uz, side = -dx * uz + dz * ux;
+      if (Math.abs(along) > 15 || Math.abs(side) > 1.6 + en.r) continue; hits++;
+      hurt(en, dmg, null, 'phys', 'combo', { tags: ['heavy'] });
+      if (!en.ai) en.kb.set(-uz * Math.sign(side || 1), 0, ux * Math.sign(side || 1)).multiplyScalar(18); // 沿切線兩邊噴飛（一刀兩斷）
+      if (last && full) { if (e === 2) { en.slowK = 0.6; en.slowT = 4; } if ((e === 4 || e === 5) && !en.ai) en.stunT = 1.2; if (e === 7 && !en.boss && !en.dead && en.hp < en.maxHp * 0.25) hurt(en, en.hp + 1, null, 'phys', 'combo'); } }
+    if (hits) { const was = state; if (was === 'play') { state = 'hitstop'; setTimeout(() => { if (state === 'hitstop') { state = 'play'; last0(); } }, 30); } bossFx.shake = Math.max(bossFx.shake, 0.25 + (last ? 0.4 : 0)); }
+    if (last) { delete P.egem.combo;
+      showBanner(`<b>${JOB_LINE[CHAR.job] || '一刀兩斷！'}</b>`, 1000);
+      if (full) { if (e === 1) P.tmp.dmg = Math.max(P.tmp.dmg, 8); if (e === 3) { P.tmp.speed = 6; P.tmp.haste = 6; } if (e === 4 || e === 5) P.shield = Math.round(P.maxHp * 0.3);
+        if (e === 6) { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.3); P.inv += 1.5; } if (e === 7) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * Math.min(0.3, hits * 0.02)); }
+      CB.done++; if (full) maybeElemGem(false); setTimeout(cbEnd, 400); }
+  }, 150 + i * 420);
 }
-function cbEnd() { CB.st = 'charge'; CB.g = 0; marq.style.display = 'none'; ultBtn.classList.remove('full'); comboUpdate(); }
-function cbReset() { cbEnd(); CB.done = 0; }
-ultBtn.addEventListener('click', e => { e.stopPropagation(); if (CB.st === 'osu') return CB.release?.(); cbTrigger(); }); // 蓄力中再點一次＝提早釋放
-addEventListener('keydown', e => { if (e.code === 'Space' && state === 'play' && CB.st === 'ready') { e.preventDefault(); cbTrigger(); } });
-function comboUpdate() { const pips = CB.st === 'charge' ? Math.floor(CB.g / 33.34) : 3; ultBtn.style.setProperty('--p', CB.st === 'charge' ? CB.g : 100); ultBtn.querySelectorAll('.pips b').forEach((b, i) => b.classList.toggle('on', i < pips)); }
+const last0 = () => { last = performance.now(); };
+function cbEnd() { CB.st = 'charge'; CB.g = 0; marq.style.display = 'none'; }
+function cbReset() { cbEnd(); CB.done = 0; cbClearOrbs(); }
+ultBtn.addEventListener('click', e => { e.stopPropagation(); cbTrigger(); });
+addEventListener('keydown', e => { if (e.code === 'Space' && state === 'play' && cbTier()) { e.preventDefault(); cbTrigger(); } });
 // ===== 項目 53：地圖動態事件 × MVP 護盾（第八批藍圖）=====
 // 依「事件數量」出事件（同時只有 1 個）：淨化嚕啦族祭壇（光圈內累積站 5 秒）、追擊黃金大盜（限時打倒會逃跑的金色精英）、守護希爾特商隊（咕咕撐 30 秒不被打倒）
 // 每完成 1 個：結算寶箱品質提升、MVP 減傷護盾少一層（3 層、每層 HP ＋10%）；一個都沒完成：MVP 狂暴（HP ×1.3、攻擊 ×1.3）
@@ -356,7 +315,7 @@ function autoMount(dt, mv) {
   if (!getSettings().autoMount || !MOUNT_ON || state !== 'play') return;
   if (mv.ml > 0.5) { const d = Math.atan2(mv.mz, mv.mx); if (AM.dir != null && Math.abs(Math.atan2(Math.sin(d - AM.dir), Math.cos(d - AM.dir))) < 0.5) AM.t += dt; else { AM.dir = d; AM.t = 0; }
     if (AM.t > 2 && !rig.mounted) setMounted(true); }
-  else { AM.t = 0; AM.dir = null; if (rig.mounted && CB.st === 'ready') setMounted(false); }
+  else { AM.t = 0; AM.dir = null; if (rig.mounted && CB.g >= CB_MAX) setMounted(false); }
 }
 // 視角切換：V 鍵或右下按鈕
 function switchView() { const n = cycleView(); showBanner(`<small>視角</small><b>${n}</b>`, 700); }
@@ -457,7 +416,10 @@ const PASSIVES = {
   run: { name: '快跑', img: FX.gem, desc: () => '移動速度 +10%、經驗吸取範圍 +20%', apply: () => { P.speed *= 1.1; P.magnet *= 1.2; } },
   aid: { name: '緊急治療', img: FX.hit, desc: () => '每 10 秒自動回復 6% 最大 HP（可疊加）', apply: () => { P.aid = (P.aid || 0) + 1; } },
   feign: { name: '裝死', img: FX.hit, desc: () => 'HP 低於 25% 時倒地裝死：2 秒無敵（冷卻 60 秒，每多一級 −10 秒）', apply: () => { P.feign = (P.feign || 0) + 1; } },
-  comboExt: { name: '連段擴充', img: FX.lightning, desc: () => `A→S→D 連續技 +2 段（現在 ${Math.min(12, P.comboLen || 3)} 段，最多 12 段）`, apply: () => { P.comboLen = Math.min(12, (P.comboLen || 3) + 2); } },
+  orbDrop: { name: '能量球掉落', img: FX.gem, desc: () => '屬性能量球掉落率 +10%', apply: () => { P.orbDrop = (P.orbDrop || 0) + 0.1; } },
+  orbMag: { name: '能量吸取', img: FX.gem, desc: () => '能量球吸取範圍 +30%', apply: () => { P.orbMag = (P.orbMag || 0) + 0.3; } },
+  orbHeal: { name: '聚氣回生', img: FX.hit, desc: () => '撿到能量球回復 1% 生命（可疊加）', apply: () => { P.orbHeal = (P.orbHeal || 0) + 1; } },
+  comboExt: { name: '連段擴充', img: FX.lightning, desc: () => `完全體 A→S→D 連續技 +2 段（現在 ${Math.min(12, P.comboLen || 3)} 段，最多 12 段）`, apply: () => { P.comboLen = Math.min(12, (P.comboLen || 3) + 2); } },
   cheer: { name: '初心者鼓舞', img: FX.lightning, desc: () => '所有傷害 +10%、經驗 +10%', apply: () => { P.might *= 1.1; P.expMul = (P.expMul || 1) + 0.1; } },
 };
 
@@ -613,12 +575,11 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   if (st.poison) { e.poison = { dps: st.poison[0], t: st.poison[1], tick: 0.5 }; }
   if (st.stun && !e.ai && Math.random() < st.stun[0]) e.stunT = st.stun[1];
   // 連擊無雙已取消（使用者 11/18：怪一多隨便就能達成）
-  if (SKD.skills[src]?.basic) cbCharge(4); // 連擊 v3：普攻打中累積 3 顆連擊氣珠（每顆約 8 下）
   e.hp -= amt; trackDmg(src, amt); dmgNum(e.mesh.position, amt, crit, e.hgt || 1.2); e.flash = crit ? 0.18 : 0.1; if (crit) { e.mesh.userData.actor?.act('ms'); mobSound(e, 'ms', 0.18, 150); }
   if (from) { e.kb.subVectors(e.mesh.position, from).setY(0).normalize().multiplyScalar(e.boss ? 0.3 : e.elite ? 2 : 6); }
   play('hit', 0.25, 60);
   if (e.hp <= 0 && !e.dead) {
-    e.dead = true; kills++; dropGem(e.mesh.position, e.xp); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
+    e.dead = true; kills++; dropGem(e.mesh.position, e.xp); cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
     if (e.mvp) finalDown = true;
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
     else if (e.elite) { if (Math.random() < 0.4) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
@@ -821,7 +782,7 @@ const pAsk = on => { document.getElementById('pQuitAsk').style.display = on ? 'f
 document.getElementById('pQuit').onclick = () => pAsk(true);
 document.getElementById('pQuitNo').onclick = () => pAsk(false);
 document.getElementById('pQuitYes').onclick = () => { pAsk(false); document.getElementById('pause').classList.remove('on'); state = 'play'; gameOver(false); };
-addEventListener('keydown', e => { if (state === 'osu') return; if (e.code === 'Escape' || e.code === 'KeyP') setPause(state === 'play'); });
+addEventListener('keydown', e => { if (state === 'hitstop') return; if (e.code === 'Escape' || e.code === 'KeyP') setPause(state === 'play'); });
 document.getElementById('pSettings').onclick = () => openSettings();
 
 // ===== 主迴圈 =====
@@ -844,7 +805,7 @@ function towerFloorUp() {
 function update(dt) {
   t += dt;
   // 移動（player.js）
-  rig.move(dt, input.read(), P); comboUpdate(); eventsUpdate(dt);
+  rig.move(dt, input.read(), P); comboUpdate(dt); eventsUpdate(dt);
   autoMount(dt, input.read()); // 第八批 54 選配：趕路自動上馬 // 項目 52 連續技、53 地圖事件
   const pp = player.position;
   // 換區域：跳區域名
@@ -980,7 +941,6 @@ function drawSkillCd() {
 }
 let hudLast = 0;
 function render() {
-  if (camera.zoom !== 1 / camZoom) { camera.zoom = 1 / camZoom; camera.updateProjectionMatrix(); } // 蓄力每升一階鏡頭拉近
   const pp = player.position;
   if (!opts.shake) bossFx.shake = 0;
   const gy = groundY();
