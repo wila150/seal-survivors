@@ -321,3 +321,9 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .box.pcf header .pct-txt { display: inline-block; font-size: 22px; font-weight: 900; letter-spacing: 2px; color: #3fc4ff;
   background: linear-gradient(#bff0ff 10%, #3fb8ff 55%, #1a7fe0); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
   -webkit-text-stroke: 1px #0f3f8a; filter: drop-shadow(0 0 0 #fff) drop-shadow(1px 1px 0 #fff) drop-shadow(-1px -1px 0 #fff) drop-shadow(0 2px 1px #0005); padding: 0 4px; }
+
+/* 11/20 自測（手機 390 寬）：分頁按鈕不准一個字一行（拍賣所「瀏覽／上架／我的拍賣」）；長標題（天賦）縮字不換行 */
+#dlg .tabs2 .btn { white-space: nowrap; flex-shrink: 0; }
+@media (max-width: 640px) {
+  #dlg .box.pcf header .pct-txt { font-size: 17px; letter-spacing: 0; white-space: nowrap; max-width: calc(100vw - 110px); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+}
