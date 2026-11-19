@@ -1,5 +1,6 @@
 // 項目 28：主城「技能寶石」視窗（照 PC：裝備／開放／合成三個分頁）
 import { askConfirm } from './ask.js';
+import { itemName, itemIcon, RARITY } from '../1_data/items.js';
 import { STONES, STONE_UP, STONE_MAX, STONE_CHANGE, STONE_ORDER, CHANGE_MAX, RARE_AT, fmtAttr, attrWeights, STONE_ATTRS } from '../1_data/stones.js';
 import { GRADES, GEM_ATTRS, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, gemValue, gemName } from '../1_data/gems.js';
 
@@ -17,9 +18,10 @@ const CSS = `
 const PAT_ICON = ['☀', '🌙', '★', '☄'];
 
 // ctx：{ char, D（skills.json）, T（talents.json）, openDlg, call, onSaved(char), toast }
-export function openGems(ctx, tab = 'equip') {
+// mode＝'stone'：官方 wiki 87「石頭鑲嵌」——左側 UI 石頭圖示進入，只有「強化」「分解」兩頁
+export function openGems(ctx, tab = 'equip', mode = 'gem') {
   if (!document.getElementById('gm-css')) { const st = document.createElement('style'); st.id = 'gm-css'; st.textContent = CSS; document.head.appendChild(st); }
-  const { D, T, openDlg, call, toast } = ctx; let c = ctx.char, sel = null, picks = new Set(), slots = (c.gemSlots || []).slice();
+  const { D, T, openDlg, call, toast } = ctx; let c = ctx.char, sel = null, picks = new Set(), slots = (c.gemSlots || []).slice(), brk = new Set();
   const J = D.jobs[c.job], B = c.job2 && T.jobs[c.job]?.branches?.find(b => b.key === c.job2);
   const skills = [J.basic, ...J.pool, ...(B?.skills || []), ...D.fusions.filter(f => J.pool.includes(f.a)).map(f => f.into)];
   const inUse = () => new Set(slots.filter(Boolean).map(x => x.gem));
@@ -28,7 +30,7 @@ export function openGems(ctx, tab = 'equip') {
 
   function render() {
     const gems = c.gems || [];
-    let h = `<div class="tabs2">${[['equip', '裝備'], ['open', '開放'], ['fuse', '合成'], ['stone', '鑲嵌石']].map(([k, v]) => `<button class="btn ${tab === k ? 'primary' : ''}" data-tab="${k}">${v}</button>`).join('')}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
+    let h = `<div class="tabs2">${(mode === 'stone' ? [['stone', '強化'], ['break', '分解']] : [['equip', '裝備'], ['open', '開放'], ['fuse', '合成']]).map(([k, v]) => `<button class="btn ${tab === k ? 'primary' : ''}" data-tab="${k}">${v}</button>`).join('')}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
     if (tab === 'equip') {
       h += `<p><small>每格放「一招技能＋一顆已開放的寶石」。同一招可以裝多顆，但同一種屬性只能一顆。出征時生效。</small></p>`;
       for (let i = 0; i < 5; i++) {
@@ -53,6 +55,11 @@ export function openGems(ctx, tab = 'equip') {
           <div class="gm-pats">${PATTERNS.map((P, i) => `<button class="btn" data-pat="${i}" ${g.tries.length >= OPEN_TRIES || (P.needFails && g.fails < P.needFails) || c.gold < OPEN_COST[g.grade] ? 'disabled' : ''}>${PAT_ICON[i]} ${P.name} ${Math.round(P.rate * 100)}%<br><small>+${A.pat[g.grade][i]}%${P.needFails ? `（失敗 ${P.needFails} 次）` : ''}</small></button>`).join('')}</div>
           <button class="btn primary" id="gmOpen" ${g.tries.length < OPEN_TRIES ? 'disabled' : ''}>開放（${g.tries.length}/${OPEN_TRIES}）</button>`;
       }
+    } else if (tab === 'break') { // 分解：放入裝備 → 分解成石頭強化素材（閃亮粉末、閃亮結晶、七彩粉末）
+      const its = (c.items || []).filter(i => !i.equipped && !i.locked);
+      h += `<p><small>放入不要的裝備按「分解」，會得到石頭強化素材（閃亮粉末、閃亮結晶、七彩粉末；品質越高越容易出結晶）。<b>分解後裝備會全部消失</b>。鎖定、穿著的不能放。</small></p>
+        <div class="bag" style="grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px">${its.map(i => `<div class="cell ${brk.has(i.id) ? 'sel' : ''}" data-bk="${i.id}" title="${itemName(i)}" style="border-color:${RARITY[i.rarity]?.color}"><img src="${itemIcon(i)}" alt=""></div>`).join('') || '<small>背包沒有可以分解的裝備</small>'}</div>
+        <div style="margin-top:8px"><button class="btn primary" id="gmBreak" ${brk.size ? '' : 'disabled'}>分解 ${brk.size} 件</button></div>`;
     } else if (tab === 'stone') {
       const M = c.mats || {};
       h += `<p><small>三顆石頭各自 +0～+12 強化合成，成功就多 1 條屬性（會疊加，直接加到角色）；+3／+6／+9／+12 可能出稀有屬性。成功失敗材料都會消失。
@@ -74,7 +81,7 @@ export function openGems(ctx, tab = 'equip') {
         <div class="gm-list">${free.map(g => chip(g, (picks.has(g.id) ? 'sel ' : '') + (grade != null && g.grade !== grade ? 'off' : ''))).join('') || '<small>沒有寶石</small>'}</div>
         <button class="btn primary" id="gmFuse" ${picks.size === FUSE_NEED ? '' : 'disabled'}>合成（${picks.size}/${FUSE_NEED}${grade != null ? `・${FUSE_COST[grade]} 金幣` : ''}）</button>`;
     }
-    openDlg('技能寶石', h, [], true);
+    openDlg(mode === 'stone' ? '石頭鑲嵌' : '技能寶石', h, [], true);
     const b = document.getElementById('dlgBody');
     b.querySelectorAll('[data-tab]').forEach(x => x.onclick = () => { tab = x.dataset.tab; sel = null; picks.clear(); slots = (c.gemSlots || []).slice(); render(); });
     b.querySelectorAll('[data-g]').forEach(x => x.onclick = () => {
@@ -84,6 +91,8 @@ export function openGems(ctx, tab = 'equip') {
       else sel = sel === id ? null : id;
       render();
     });
+    b.querySelectorAll('[data-bk]').forEach(x => x.onclick = () => { const id = +x.dataset.bk; brk.has(id) ? brk.delete(id) : brk.add(id); render(); });
+    b.querySelector('#gmBreak')?.addEventListener('click', async () => { if (!(await (ctx.askConfirm || (async () => true))(`分解 ${brk.size} 件裝備？分解後會全部消失。`, { ok: '分解', danger: true }))) return; const r = await save('/api/decompose', { charId: c.id, itemIds: [...brk] }, r => `分解完成：閃亮粉末 +${r.got?.dust || 0}、閃亮結晶 +${r.got?.crystal || 0}、七彩粉末 +${r.got?.rainbow || 0}`); if (r) { brk.clear(); render(); } });
     b.querySelectorAll('[data-sk]').forEach(x => x.onchange = () => { const i = +x.dataset.sk; slots[i] = x.value ? { skill: x.value, gem: slots[i]?.gem ?? null } : null; render(); });
     b.querySelectorAll('[data-put]').forEach(x => x.onclick = () => { const i = +x.dataset.put; if (!slots[i]?.skill) return toast('先選這格要強化的技能'); if (inUse().has(sel)) return toast('這顆已經裝在別格'); slots[i] = { ...slots[i], gem: sel }; sel = null; render(); });
     b.querySelectorAll('[data-off]').forEach(x => x.onclick = () => { const i = +x.dataset.off; slots[i] = { ...slots[i], gem: null }; render(); });
