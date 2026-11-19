@@ -139,6 +139,15 @@ if (!metaGet('fixPoints1')) {
   }
   metaSet('fixPoints1', 1);
 }
+// 11/20 使用者「已經 50 等了但能力點不成比例」：GM /lv 直接改等級沒補點 → 應有點數（20＋轉生×75＋(Base Lv−1)×3）只補不扣；GM /lv 之後也自動補
+const pointsShould = (lv, d) => FREE_POINTS + REBIRTH_BONUS * (d.rebirth || 0) + 3 * (lv - 1) - statsUsed(d.stats);
+if (!metaGet('fixPoints2')) {
+  for (const c of db.prepare('SELECT id, base_lv, data FROM characters').all()) {
+    const d = JSON.parse(c.data || '{}'), should = pointsShould(c.base_lv, d);
+    if (should > (d.points || 0)) { d.points = should; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); }
+  }
+  metaSet('fixPoints2', 1);
+}
 // 11/20 寵物 v3 照 PC：舊的戰鬥寵物精靈（pets[].kind）一次換成天上之蛋並存回資料庫（charView 也會即時換，這裡是永久寫回）
 if (!metaGet('petsPc1')) {
   for (const c of db.prepare('SELECT id, data FROM characters').all()) { const d = JSON.parse(c.data || '{}'); if (migratePets(d)) db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); }
@@ -923,7 +932,7 @@ const api = {
     let msg;
     try {
       switch (cmd) {
-        case 'lv': { const v = int(0, 1, 99); db.prepare('UPDATE characters SET base_lv=?, exp=0 WHERE id=?').run(v, c.id); msg = `Base Lv → ${v}`; break; }
+        case 'lv': { const v = int(0, 1, 99); db.prepare('UPDATE characters SET base_lv=?, exp=0 WHERE id=?').run(v, c.id); { const sh = pointsShould(v, d); if (sh > (d.points || 0)) { d.points = sh; saveD(); } } msg = `Base Lv → ${v}`; break; }
         case 'job': { const max = jobMaxOf(d), v = int(0, 1, max); d.jobExp = 0; saveD(); db.prepare('UPDATE characters SET job_lv=? WHERE id=?').run(v, c.id); msg = `Job Lv → ${v}`; break; }
         case 'gold': { const v = int(0, -1e9, 1e9); db.prepare('UPDATE characters SET gold=MAX(0, gold+?) WHERE id=?').run(v, c.id); msg = `金幣 ${v >= 0 ? '+' : ''}${v}`; break; }
         case 'points': { const v = int(0, -999, 999); d.points = Math.max(0, (d.points || 0) + v); saveD(); msg = `素質點 → ${d.points}`; break; }
