@@ -26,6 +26,20 @@
   #place small{display:block;font-weight:500;color:#6b7896;font-size:12px}
   #menu{position:fixed;left:50%;bottom:max(4px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:2px;padding:4px 10px;background:linear-gradient(#ffffffb0,#e9eefcb0);border:2px solid #fff;border-radius:18px;box-shadow:0 3px 12px #0005;z-index:5;max-width:calc(100vw - 16px)}
   .pcb{width:54px;height:54px;border:0;padding:0;margin:0;background:transparent center/contain no-repeat;cursor:pointer;font-size:0;color:transparent;flex:0 0 auto}
+  /* ESC 菜單（照使用者 11/20 給的 PC 截圖：中間黑色尖角圓「菜單」，外圍 5 顆白色圓鈕；客戶端沒有這張圖，用同樣造型畫） */
+  #escMenu{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:#0003}
+  #escMenu[hidden]{display:none}
+  .esc-ring{position:relative;width:300px;height:300px}
+  .esc-core{position:absolute;left:50%;top:50%;width:110px;height:110px;margin:-55px 0 0 -55px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:22px;letter-spacing:2px;text-shadow:0 2px 0 #000;
+    background:radial-gradient(circle,#3a3a3a 0 55%,#222 56%);clip-path:polygon(50% 0,61% 22%,85% 15%,78% 39%,100% 50%,78% 61%,85% 85%,61% 78%,50% 100%,39% 78%,15% 85%,22% 61%,0 50%,22% 39%,15% 15%,39% 22%);filter:drop-shadow(0 3px 6px #000a)}
+  .esc-b{position:absolute;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;border:3px solid #6b4a3a;background:radial-gradient(circle at 40% 35%,#fff,#f1ece6 70%,#d8cfc4);box-shadow:0 4px 10px #0007,inset 0 -3px 0 #0001;cursor:pointer;padding:0;
+    transform:rotate(var(--a)) translate(112px) rotate(calc(-1 * var(--a)));transition:transform .12s}
+  .esc-b:hover{transform:rotate(var(--a)) translate(112px) rotate(calc(-1 * var(--a))) scale(1.08)}
+  .esc-b svg{width:50px;height:50px;display:block;margin:6px auto 0}
+  .esc-b span{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);white-space:nowrap;color:#fff;font-weight:900;font-size:15px;text-shadow:0 0 3px #000,0 2px 0 #000,1px 1px 0 #000,-1px -1px 0 #000}
+  @media (max-width:640px){.esc-ring{transform:scale(.85)}}
+  .pcb.qparty{background-image:url(assets/ui/btn_qparty_0.png);position:relative}.pcb.qparty:hover{background-image:url(assets/ui/btn_qparty_1.png)}.pcb.qparty:active{background-image:url(assets/ui/btn_qparty_2.png)}.pcb.friend{background-image:url(assets/ui/btn_friend_0.png)}.pcb.friend:hover{background-image:url(assets/ui/btn_friend_2.png)}.pcb.friend:active{background-image:url(assets/ui/btn_friend_1.png)}
+  .pcb.qparty[data-n]::after{content:attr(data-n);position:absolute;right:-4px;top:-4px;font-size:11px;line-height:1;color:#fff;background:#2b6fd6;border:2px solid #fff;border-radius:9px;padding:2px 5px;font-weight:900} /* 組隊中：右上角 2/4 */
   .pcb.status{background-image:url(assets/ui/btn_status_0.png)}.pcb.status:hover{background-image:url(assets/ui/btn_status_1.png)}.pcb.status:active{background-image:url(assets/ui/btn_status_2.png)}
   .pcb.bag{background-image:url(assets/ui/btn_bag_0.png)}.pcb.bag:hover{background-image:url(assets/ui/btn_bag_1.png)}.pcb.bag:active{background-image:url(assets/ui/btn_bag_2.png)}
   .pcb.skill{background-image:url(assets/ui/btn_skill_0.png)}.pcb.skill:hover{background-image:url(assets/ui/btn_skill_1.png)}.pcb.skill:active{background-image:url(assets/ui/btn_skill_2.png)}
@@ -34,7 +48,7 @@
   .pcb.power{width:34px;height:34px;background-image:url(assets/ui/btn_power_0.png)}.pcb.power:hover{background-image:url(assets/ui/btn_power_1.png)}.pcb.power:active{background-image:url(assets/ui/btn_power_2.png)}
   .pct{height:40px;min-width:44px;border-radius:14px;padding:0 10px;border:2px solid #fff;background:linear-gradient(#8ec0ff,#2f62d6);color:#fff;font-weight:800;font-size:14px;text-shadow:0 1px 2px #0009;box-shadow:inset 0 -3px 0 #1d3f9a,0 2px 4px #0004;cursor:pointer;flex:0 0 auto}
   .pct:hover{filter:brightness(1.12)}.pct:active{transform:translateY(1px);box-shadow:inset 0 -1px 0 #1d3f9a}
-  @media (max-width:640px){.pcb{width:38px;height:38px}.pcb.power{width:26px;height:26px}.pct{height:32px;min-width:0;padding:0 5px;font-size:11px;border-radius:10px}#menu{gap:0;padding:3px 4px;border-radius:14px}}
+  @media (max-width:640px){.pcb{width:38px;height:38px}.pcb.power{width:26px;height:26px}.pct{height:32px;min-width:0;padding:0 5px;font-size:11px;border-radius:10px}#menu{gap:0;padding:3px 4px;border-radius:14px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:calc(100vw - 12px)}} /* 11/20：多了組隊、好友，手機一行放不下（電源鈕被擠出畫面）→ 換行 */
   .btn{font:inherit;font-weight:700;font-size:14px;padding:8px 14px;border-radius:10px;border:1px solid #b8c6e8;background:#fff;color:#26324d;cursor:pointer}
   .btn.primary{background:linear-gradient(#5b7fe0,#3a5bbf);color:#fff;border-color:#2c4aa0}
   #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
@@ -150,7 +164,15 @@
 <div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Lv 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">EXP<div class="bar"><i id="meExp"></i></div><span id="xpPct">0%</span></div></div></div>
 <div id="place" class="chip">希望之城<small>中央廣場</small></div>
 <!-- PC 原版主選單按鈕列（assets/ui/btn_*：tools/build-ui.mjs 從客戶端 mainbutton_all.tex 切）；原版沒有的功能用同色系文字鈕 -->
-<div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pct" id="fishBtn" title="釣魚（要在水池邊）">釣魚</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pct" id="partyBtn" title="組隊（PARTY SEARCH）">組隊</button><button class="pct" id="friendBtn" title="好友（FRIENDS）">好友</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
+<div id="escMenu" hidden><div class="esc-ring">
+  <div class="esc-core">菜單</div>
+  <button class="esc-b" data-esc="resume" style="--a:-90deg"><svg viewBox="0 0 48 48"><ellipse cx="24" cy="40" rx="13" ry="4" fill="#1aa3c8"/><rect x="22.5" y="18" width="3" height="21" rx="1.5" fill="#8a96a8"/><circle cx="24" cy="15" r="10" fill="#e8322b"/><circle cx="20.5" cy="11.5" r="3.2" fill="#ff9a8f"/></svg><span>繼續遊戲</span></button>
+  <button class="esc-b" data-esc="settings" style="--a:-18deg"><svg viewBox="0 0 48 48"><g fill="#1aa3c8"><path d="M24 6l3 5 6-2 1 6 6 1-2 6 5 3-5 3 2 6-6 1-1 6-6-2-3 5-3-5-6 2-1-6-6-1 2-6-5-3 5-3-2-6 6-1 1-6 6 2z"/></g><circle cx="24" cy="24" r="7" fill="#fff"/><circle cx="36" cy="36" r="6" fill="#16c0b0"/><circle cx="36" cy="36" r="2.5" fill="#fff"/></svg><span>設置</span></button>
+  <button class="esc-b" data-esc="exit" style="--a:54deg"><svg viewBox="0 0 48 48"><path d="M16 13a15 15 0 1 0 16 0" fill="none" stroke="#1aa3c8" stroke-width="5" stroke-linecap="round"/><line x1="24" y1="7" x2="24" y2="24" stroke="#1aa3c8" stroke-width="5" stroke-linecap="round"/></svg><span>退出</span></button>
+  <button class="esc-b" data-esc="chars" style="--a:126deg"><svg viewBox="0 0 48 48"><path d="M40 12c-14 0-22 6-24 17l-5-5-3 3 10 11 11-9-3-3-6 5c2-8 8-13 20-13z" fill="#1aa3c8"/><rect x="8" y="38" width="12" height="3" rx="1.5" fill="#1aa3c8"/></svg><span>返回選角</span></button>
+  <button class="esc-b" data-esc="keys" style="--a:198deg"><svg viewBox="0 0 48 48"><path d="M6 22l22-12 16 10-22 13z" fill="#1aa3c8"/><path d="M6 22v6l16 11 22-13v-6L22 33z" fill="#127a96"/><g fill="#7fe0f5"><rect x="15" y="17" width="5" height="3" transform="rotate(-28 17 18)"/><rect x="22" y="13" width="5" height="3" transform="rotate(-28 24 14)"/><rect x="20" y="21" width="5" height="3" transform="rotate(-28 22 22)"/><rect x="27" y="17" width="5" height="3" transform="rotate(-28 29 18)"/><rect x="26" y="25" width="9" height="3" transform="rotate(-28 30 26)"/></g></svg><span>快捷鍵</span></button>
+</div></div>
+<div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pct" id="fishBtn" title="釣魚（要在水池邊）">釣魚</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pcb qparty" id="partyBtn" title="快速組隊（組隊搜尋）">組隊</button><button class="pcb friend" id="friendBtn" title="好友名單">好友</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
 <button class="btn primary chip" id="talk"></button>
 <div id="tmmBox" title="主城地圖（點 MAP 放大，放大後點地圖可以直接走過去）"><canvas id="tmm" width="196" height="196"></canvas><button id="tmmMap">MAP</button></div>
 <button id="gmBtn" title="GM 指令（本機或 GM 帳號）" style="display:none;position:fixed;right:12px;top:calc(220px + env(safe-area-inset-top));z-index:5;border:2px solid #fff;border-radius:10px;background:linear-gradient(#ffb55a,#e07a1c);color:#fff;font-weight:900;padding:6px 12px;box-shadow:0 2px 8px #0005;cursor:pointer">GM</button>
@@ -237,7 +259,18 @@ Promise.all([refreshChar(), moduleDone]).then(() => { if (CHAR.unreadMail) toast
 $('#charsBtn').onclick = () => location.href = './';
 // 右上選單（項目 14）：技能＝本職業 PC 版技能一覽、角色＝素質頁、⚙＝設定
 $('#statBtn').onclick = () => openCharInfo(); // 11/19 使用者附 PC「CHARACTER INFO」截圖：照 PC 版改
-$('#setBtn').onclick = () => openSettings();
+$('#setBtn').onclick = () => escMenu(true); // 電源鈕＝菜單（手機沒有 Esc 鍵）
+// ESC 菜單：繼續遊戲／設置／退出／返回選角／快捷鍵
+function escMenu(on) { $('#escMenu').hidden = !on; }
+$('#escMenu').onclick = e => { if (e.target.id === 'escMenu') escMenu(false); };
+document.querySelectorAll('[data-esc]').forEach(b => b.onclick = async () => {
+  const k = b.dataset.esc; escMenu(false);
+  if (k === 'settings') openSettings();
+  if (k === 'chars') location.href = './';
+  if (k === 'exit') { if (!(await askConfirm('登出並回到登入畫面？'))) return; try { await call('POST', '/api/logout'); } catch {} try { localStorage.removeItem('ss_token'); sessionStorage.removeItem('ss_char'); } catch {} location.href = './'; }
+  if (k === 'keys') openDlg('快捷鍵', `<table class="ps-table"><thead><tr><th>按鍵</th><th>主城</th><th>出征</th></tr></thead><tbody>
+    ${[['W A S D／方向鍵', '移動', '移動'], ['滑鼠左鍵點地面', '走過去', '—'], ['空白鍵／Enter', '跟 NPC 交談', '—'], ['I', '背包', '—'], ['R', '上／下坐騎', '上／下坐騎'], ['A S D', '—', '連續技（照能量球按）'], ['1 2 3', '—', '選升級卡片'], ['U', '—', '升級（累積模式）'], ['Esc', '菜單', '暫停'], ['P', '—', '暫停']].map(r => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table>`, [], true);
+});
 $('#mapBtn').onclick = () => openExpedition(); // PC「傳送」＝遠征
 $('#partyBtn').onclick = () => openParty();
 $('#friendBtn').onclick = () => openFriends();
@@ -383,7 +416,7 @@ Promise.race([Promise.all([playerFirst, ...npcReady]), new Promise(r => setTimeo
 const meLbl = document.createElement('div'); meLbl.className = 'lbl me'; meLbl.textContent = CHAR?.name || ''; labels.appendChild(meLbl);
 
 // ===== 輸入 =====
-const keys = {}; addEventListener('keydown', e => { if (e.target.closest?.('input,textarea,select')) return; keys[e.code] = true; if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (dlgOpen) closeDlg(); else if (nearNpc) talk(nearNpc); } if (e.code === 'Escape') closeDlg(); if (e.code === 'KeyI' && !dlgOpen) openBag('bag'); });
+const keys = {}; addEventListener('keydown', e => { if (e.target.closest?.('input,textarea,select')) return; keys[e.code] = true; if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (dlgOpen) closeDlg(); else if (nearNpc) talk(nearNpc); } if (e.code === 'Escape') { if (!$('#escMenu').hidden) escMenu(false); else if (dlgOpen) closeDlg(); else escMenu(true); } if (e.code === 'KeyI' && !dlgOpen) openBag('bag'); });
 addEventListener('keyup', e => keys[e.code] = false);
 const joy = { on: false, ox: 0, oy: 0, dx: 0, dy: 0 }, joyEl = $('#joy');
 // 滑鼠：左鍵點地移動（按住跟著滑鼠）、右鍵轉視角；觸控：浮動搖桿
@@ -902,7 +935,7 @@ function ptyConnect(code, opt = {}) {
 }
 const boxOpen = t => dlgBoxes().some(b => !b.hidden && b.dataset.k === dlgKey(t));
 function ptyRedraw() { redrawBg(() => { if (boxOpen(PTY_T)) openParty(); if (boxOpen(FR_T)) openFriends(); }); updatePartyBtn(); }
-function updatePartyBtn() { const b = $('#partyBtn'); if (b) b.textContent = PTY?.room ? `組隊 ${PTY.room.members.length}/${PTY.room.max}` : '組隊'; }
+function updatePartyBtn() { const b = $('#partyBtn'); if (!b) return; if (PTY?.room) b.dataset.n = `${PTY.room.members.length}/${PTY.room.max}`; else delete b.dataset.n; }
 const NOCLOUD = '<p>組隊要連雲端伺服器。用 <b>https://wila150.github.io/seal-survivors/</b> 開遊戲就可以組隊（離線模式、本機伺服器不能組隊）。</p>';
 async function ptyRefresh() { try { ptyList = (await call('GET', '/api/parties')).parties; } catch (e) { ptyList = []; toast(e.message); } if (boxOpen(PTY_T)) redrawBg(openParty); }
 function openParty() {
