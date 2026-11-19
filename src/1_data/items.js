@@ -159,6 +159,7 @@ export const ORES = {
   abis: { name: '艾彼斯的祝福', icon: 1351, price: 0, desc: '精煉失敗時裝備不會碎掉，只降 1 級（+6 以上才用得到）；跟釣魚老人用稀有魚換', scroll: true, noshop: true },
   reset: { name: '技能屬性初始化卷軸', icon: 2313, price: 2000, desc: '把裝備的技能屬性重置成「尚未鑑定」，可以再鑑定一次', scroll: true },
   // 項目 28 鑲嵌石用的券（PC 是商城道具，售價暫定；圖示＝item.scr：固定券 4256、充值券 4257）
+  personaTicket: { name: '個性化固定券', icon: 4256, price: 800, desc: '個性化「展現」時鎖定 1 條能力種類（數值等級還是會重擲）', scroll: true },
   fixTicket:    { name: '石頭屬性固定券',       icon: 4256, price: 1000, desc: '變更鑲嵌石屬性時只重抽數值、不換屬性', scroll: true },
   chargeTicket: { name: '石頭屬性變更次數充值券', icon: 4257, price: 3000, desc: '鑲嵌石屬性變更次數 +50（上限 300）', scroll: true },
   // 項目 46 G 化材料（服務端 item.scr：紅寶石 433 售 980000、鑽石 434 售 1000000、粉紅鑽 3981 售 5000000 → 金幣 ÷1000；圖示＝item.scr 圖示欄）

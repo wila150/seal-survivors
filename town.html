@@ -162,6 +162,7 @@ import { renderLook } from './src/2_core/look-ui.js';
 import { sealModel, sealProp, sealActor, sealMob, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
 import { pcLoading } from './src/2_core/pc-loading.js';
+import * as PSN from './src/1_data/persona.js';
 import * as EL from './src/1_data/element.js';
 const TLOAD = pcLoading({ img: 'assets/load/elim_load.png', title: '希望之城' }); document.getElementById('tload0')?.remove(); // PC 原版載入畫面（艾林＝獅子城插畫）
 import { RODS, BAIT, CATCH } from './src/1_data/fishing.js';
@@ -1152,16 +1153,34 @@ function openCharInfo() {
   B.querySelectorAll('[data-sedit]').forEach(b => b.onclick = async () => { const k = b.dataset.sedit, n = parseInt(await askText(`${STATS[k].name} 要加幾點？（剩 ${CHAR.points} 點）`, String(CHAR.points), { title: 'EDIT', max: 3 }), 10);
     if (!(n > 0)) return; let done = 0; try { for (let i = 0; i < Math.min(n, CHAR.points); i++) { showChar(await call('POST', '/api/statup', { charId: c.id, stat: k })); done++; } } catch (e) { toast(e.message); } if (done) toast(`${STATS[k].name} +${done}`); openCharInfo(); });
 }
-// 指令 4-2 個性化（PC 主要個性／次要個性）
+// 個性化 v2（照官方 wiki id=110；src/1_data/persona.js）：分頁 展現／升級／次要個性／初始化，貨幣＝名聲
+let psTab = 'main', psLocks = new Set();
 function openPersona() {
-  const c = CHAR, P = c.persona || { lv: 0, pts: {} }, used = Object.values(P.pts).reduce((a, b) => a + b, 0), left = P.lv * 3 - used, cost = 1500 * (P.lv + 1);
-  const rows = Object.entries(STATS).map(([k, d]) => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><b style="width:52px">${d.name}</b><span style="flex:1">次要個性 +${P.pts[k] || 0}</span><button class="btn" data-pp="${k}" ${left > 0 ? '' : 'disabled'}>＋</button></div>`).join('');
-  openDlg('個性化', `<p>「個性決定你是怎樣的冒險者。」<br><small>主要個性每升 1 級得到 3 點次要個性，次要個性 100% 加到對應素質（不佔素質點，永久）。</small></p>
-    <div style="background:#fff;border-radius:12px;padding:10px 12px"><b style="font-size:16px">主要個性 Lv ${P.lv}</b> / 10　<small>次要個性點數剩 <b>${left}</b></small>
-      <div style="margin:6px 0">${P.lv < 10 ? `<button class="btn primary" id="ppUp">升級主要個性（${cost} 希幣，持有 ${c.gold}）</button>` : '<small>已滿級</small>'} <button class="btn" id="ppReset" ${used ? '' : 'disabled'}>重置次要個性（1000 希幣）</button></div>${rows}</div>`, []);
-  const go = async (op, stat) => { try { showChar(await call('POST', '/api/persona', { charId: c.id, op, stat })); openPersona(); } catch (e) { toast(e.message); } };
-  $('#ppUp')?.addEventListener('click', () => go('up')); $('#ppReset')?.addEventListener('click', async () => { if (await askConfirm('重置次要個性要 1000 希幣，確定？')) go('reset'); });
-  $('#dlgBody').querySelectorAll('[data-pp]').forEach(b => b.onclick = () => go('add', b.dataset.pp));
+  const c = CHAR, P = { lv: 0, lines: [], sub: {}, corr: 0, ...(c.persona || {}) }, fame = c.fameCur ?? c.fame ?? 0, tk = c.mats?.personaTicket || 0;
+  const used = Object.values(P.sub || {}).reduce((a, b) => a + b, 0), tab = (k, n) => `<button class="btn ${psTab === k ? 'primary' : ''}" data-pst="${k}">${n}</button>`;
+  let body = '';
+  if (psTab === 'main') {
+    const cnt = PSN.lineCount(P.lv);
+    body = `<p><small>消耗名聲展現能力值（${cnt} 條，同一次不會重複；等級 S／A／B）。勾選＝用個性化固定券鎖定能力種類（數值等級還是會重擲）。</small></p>`
+      + (P.lines.length ? P.lines.map((l, i) => `<label style="display:flex;align-items:center;gap:8px;margin:4px 0;background:#fff;border-radius:8px;padding:6px 10px"><input type="checkbox" data-psl="${i}" ${psLocks.has(i) ? 'checked' : ''}><b style="color:${['#ff7a3d', '#4fb4ff', '#8a94a8'][l.g]}">${PSN.GRADE[l.g]}</b> ${PSN.lineText(l)}</label>`).join('') : '<p><small>還沒展現過能力值</small></p>')
+      + (cnt ? `<button class="btn primary" id="psRoll">展現（${PSN.rollCost(P.lv)} 名聲${psLocks.size ? `＋固定券 ${psLocks.size}` : ''}）</button> <small>固定券 ${tk}（裝備商人「購買」）</small>` : '<p><small>主要個性升到 1 階段才能展現能力值</small></p>');
+  } else if (psTab === 'up') {
+    const rate = Math.min(1, (PSN.UP_RATE[P.lv] ?? 0) + (P.corr || 0));
+    body = P.lv >= PSN.PERSONA_MAX ? '<p>主要個性已經是最高階段（10）</p>' : `<p>主要個性 <b>${P.lv}</b> → <b>${P.lv + 1}</b> 階段<br>成功率 <b>${Math.round(rate * 100)}%</b>${P.corr ? `（含校正 +${Math.round(P.corr * 100)}%）` : ''}　消耗 ${PSN.upCost(P.lv)} 名聲<br><small>5 階段以後失敗會累積校正值，下一次比較容易成功。階段越高稱號顏色越亮。</small></p><button class="btn primary" id="psUp">升級</button>`;
+  } else if (psTab === 'sub') {
+    body = `<p><small>次要個性強化 100% 成功，每次對應素質 +3。可強化次數＝主要個性階段 ×3（剩 <b>${PSN.subMax(P.lv) - used}</b> 次），每次 ${PSN.SUB_GOLD} 希幣。</small></p>` + Object.entries(STATS).map(([k, d]) => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><b style="width:52px">${d.name}</b><span style="flex:1">強化 ${P.sub?.[k] || 0} 次（+${(P.sub?.[k] || 0) * 3}）</span><button class="btn" data-pss="${k}" ${used < PSN.subMax(P.lv) ? '' : 'disabled'}>強化</button></div>`).join('');
+  } else {
+    body = `<p><small>選一項次要個性、自己決定返還幾次。每次返還 ${PSN.initCost(P.lv, 1).fame} 名聲＋${PSN.initCost(P.lv, 1).gold} 希幣。</small></p>` + Object.entries(STATS).filter(([k]) => P.sub?.[k]).map(([k, d]) => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><b style="width:52px">${d.name}</b><span style="flex:1">強化 ${P.sub[k]} 次</span><button class="btn" data-psi="${k}">初始化…</button></div>`).join('') || '<p><small>還沒有強化過次要個性</small></p>';
+  }
+  openDlg('個性化', `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="color:${PSN.STAGE_COLOR[P.lv]};text-shadow:0 1px 2px #000;font-size:16px">主要個性 ${P.lv} 階段</b><small>名聲 <b>${fame.toLocaleString()}</b> / ${(c.fame || 0).toLocaleString()}　希幣 ${c.gold}</small></div>
+    <div class="tabs2">${tab('main', '主要個性')}${tab('up', '升級')}${tab('sub', '次要個性')}${tab('init', '初始化')}</div><div style="background:#fff8;border-radius:10px;padding:8px 10px">${body}</div>`, []);
+  const B = $('#dlgBody'), go = async (data, msg) => { try { const r = await call('POST', '/api/persona', { charId: c.id, ...data }); showChar(r.char); const m = msg?.(r); if (m) toast(m); openPersona(); } catch (e) { toast(e.message); } };
+  B.querySelectorAll('[data-pst]').forEach(b => b.onclick = () => { psTab = b.dataset.pst; openPersona(); });
+  B.querySelectorAll('[data-psl]').forEach(b => b.onchange = () => { const i = +b.dataset.psl; b.checked ? psLocks.add(i) : psLocks.delete(i); openPersona(); });
+  $('#psRoll')?.addEventListener('click', () => go({ op: 'roll', locks: [...psLocks] }, () => { psLocks.clear(); return '展現了新的能力值'; }));
+  $('#psUp')?.addEventListener('click', () => go({ op: 'up' }, r => r.result === 'ok' ? '主要個性升級成功！' : '升級失敗…' + ((CHAR.persona?.lv || 0) >= 5 ? '（校正值提高了）' : '')));
+  B.querySelectorAll('[data-pss]').forEach(b => b.onclick = () => go({ op: 'sub', stat: b.dataset.pss }, () => `${STATS[b.dataset.pss].name} +3`));
+  B.querySelectorAll('[data-psi]').forEach(b => b.onclick = async () => { const k = b.dataset.psi, n = parseInt(await askText(`${STATS[k].name} 要返還幾次？（最多 ${P.sub[k]} 次）`, '1', { title: '初始化', max: 3 }), 10); if (n > 0) go({ op: 'init', stat: k, n }, () => `${STATS[k].name} 返還 ${n} 次`); });
 }
 function openBag(mode) { bagMode = mode; bagTab = 'items'; selItem = null; renderBag(); }
 function renderBag() {

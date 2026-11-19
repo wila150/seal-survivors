@@ -1,6 +1,7 @@
 // 希望倖存者 出征：只負責組裝（場景、介面、傷害、升級），各模組在 src/
 //   玩家 src/2_core/player.js、攝影機 camera.js、流程／首領／結算 game-manager.js、物件池 pool.js、技能 src/3_skills/skills.js
 import { pcLoading } from './src/2_core/pc-loading.js';
+import { personaBonus } from './src/1_data/persona.js';
 import { askConfirm } from './src/2_core/ask.js';
 import * as THREE from 'three';
 import { JOBS, defaultStats, MOUNT } from './src/1_data/jobs.js';
@@ -445,6 +446,9 @@ function reset() {
   // 項目 47：裝上的稱號加成
   { const tb = titleOf(CHAR.title)?.bonus || {}; P.might *= 1 + (tb.atk || 0); P.magic += tb.magic || 0; P.crit += tb.crit || 0; P.speed *= 1 + (tb.speed || 0);
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
+  // 個性化 v2 主要個性能力值（src/1_data/persona.js；次要個性已經加在素質裡）
+  { const pb = personaBonus(CHAR.persona); P.might *= 1 + (pb.atk || 0); P.crit += pb.crit || 0; P.armor += pb.armor || 0; P.hasteV += (pb.haste || 0) * 100; P.speed *= 1 + (pb.speed || 0);
+    P.magnet *= 1 + (pb.magnet || 0); P.dr = Math.min(0.5, (P.dr || 0) + (pb.dmgDown || 0)); P.magic += pb.magic || 0; P.expMul = (P.expMul || 1) + (pb.exp || 0); if (pb.hp) { P.maxHp = Math.round(P.maxHp * (1 + pb.hp)); P.hp = P.maxHp; } }
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
   chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
