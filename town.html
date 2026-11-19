@@ -192,7 +192,7 @@ import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
 import { PETS, PET_MAX, PET_MAX_LV, EGG_PRICE, FEED_EXP, petStage, petName, petNeed, petAtk, petBonusText } from './src/1_data/pets.js';
 import * as PV2 from './src/1_data/pets.js';
-import { DIFF_KEYS, DIFF_MAX, LV_MAX, cleanDiff, diffMods, diffLoot, lootBonus, legendRate, stageBaseLv, pcRef } from './src/1_data/difficulty.js';
+import { diffRows, DIFF_KEYS, DIFF_MAX, LV_MAX, cleanDiff, diffMods, diffLoot, lootBonus, legendRate, stageBaseLv, pcRef } from './src/1_data/difficulty.js';
 import { DECOMPOSE, DUST_PER_CRYSTAL } from './src/1_data/stones.js';
 import { GUIDE_CATS, buildGuide, guideImg } from './src/1_data/guide.js';
 import { TOWER_NAME, CURSES, PICK, checkTowerSetup } from './src/1_data/tower.js';
@@ -882,14 +882,29 @@ function openExpedition() {
   const BASE = stageBaseLv(S); let DF = cleanDiff(null, BASE); try { DF = cleanDiff(JSON.parse(localStorage.getItem('ss_diff_saved')), BASE); } catch {}
   const diffTxt = () => { const m = diffMods(DF, BASE), L = diffLoot(DF, BASE), lr = legendRate(lootBonus(L.gear, 0.3) + expSel * 0.4), lrb = legendRate(lootBonus(L.boss, 2) + expSel * 0.4), R = pcRef(DF.monLv);
     return `PC Lv${DF.monLv} 一般怪：HP ${R.hp.toLocaleString()}・攻擊 ${R.atk}　→ 這張地圖的怪 HP ×${+m.hp.toFixed(2)}・攻擊 ×${+m.dmg.toFixed(2)}・生怪 ×${m.spawn}・精英 ×${m.event}<br><b>裝備 ×${L.gear}</b>（一般寶箱品質）・<b>掉寶 ×${L.boss}</b>（首領寶箱品質）・傳說率 一般 ${(lr * 100).toFixed(2)}%／首領 ${(lrb * 100).toFixed(2)}%<br><b>經驗 +${Math.round(12 * ((DF.count - 1) + (DF.event - 1)))}%</b>（敵人數量、事件數量每多一階 +12%；怪物等級越高 Base 經驗也越多）・<small>金幣不受難度影響</small>`; };
-  const diffHtml = `<div class="sec"><h4>難度（同一張地圖，怪物強度照 PC 等級）</h4>${[['monLv', '怪物等級'], ...DIFF_KEYS].map(([k, n]) => `<div style="display:flex;align-items:center;gap:8px;margin:2px 0"><small style="width:64px">${n}</small><input type="range" data-df="${k}" min="${k === 'monLv' ? BASE : 1}" max="${k === 'monLv' ? LV_MAX : DIFF_MAX}" value="${DF[k]}" style="flex:1"><b data-dfv="${k}" style="width:52px;text-align:right">${k === 'monLv' ? 'Lv' : '×'}${DF[k]}</b></div>`).join('')}
-    <div id="dfTxt" style="font-size:12px;line-height:1.6;margin-top:4px">${diffTxt()}</div><button class="btn" id="dfReset" style="margin-top:4px;padding:4px 10px">恢復預設</button></div>`;
-  openDlg('遠征', `<div class="exp"><div class="list">${list}</div><div class="info">${info}${diffHtml}</div></div>`,
-    [...(unlocked ? [['出發', () => { try { sessionStorage.setItem('ss_stage', String(expSel)); sessionStorage.setItem('ss_diff', JSON.stringify(DF)); } catch {} location.href = 'game.html'; }, true]] : [])], true); // 賢者之塔改成找主城的「越過次元的修道士」（官方 wiki 83；不在遠征視窗跳轉）
+  // 11/20 照 RO 遠征前的難度視窗：怪物等級＋敵人數量／傷害／血量／速度／事件數量、升級「立即／累積」、戰利品倍率
+  const ROWS = diffRows(BASE), fmtV = (u, v) => u === 'Lv' ? 'Lv' + v : u === '%' ? v + '%' : '×' + v;
+  const lootTxt = () => { const L = diffLoot(DF, BASE); return `戰利品 <b style="color:#2b6fd6">×${L.gear}</b>　<small>首領寶箱 ×${L.boss}</small>`; };
+  const diffHtml = `<div class="sec" style="padding:0;border:0;background:none">${ROWS.map(([k, n, lo, hi, st, u]) => `<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><span style="width:72px">${n}</span><input type="range" data-df="${k}" data-u="${u}" min="${lo}" max="${hi}" step="${st}" value="${DF[k]}" style="flex:1"><b data-dfv="${k}" style="width:56px;text-align:right;color:#2b6fd6">${fmtV(u, DF[k])}</b></div>`).join('')}
+    <div style="display:flex;align-items:center;gap:8px;margin:10px 0 2px"><span style="width:72px">升級</span><span style="flex:1"></span><button class="btn${DF.stack ? '' : ' primary'}" data-stack="0" style="padding:4px 14px">立即</button><button class="btn${DF.stack ? ' primary' : ''}" data-stack="1" style="padding:4px 14px">累積</button></div>
+    <small id="stackTip" style="color:#5a6478">${DF.stack ? '升級先存起來，按畫面上的「升級」鈕（或 U 鍵）再一次選，不會一直被打斷' : '每次升級和每個寶箱都會暫停，和以前一樣'}</small>
+    <div id="lootTxt" style="margin:10px 0 6px;padding:8px;border-radius:8px;background:#eef3fb;text-align:center;font-size:16px">${lootTxt()}</div>
+    <details><summary style="cursor:pointer;font-size:12px;color:#5a6478">詳細數值</summary><div id="dfTxt" style="font-size:12px;line-height:1.6;margin-top:4px">${diffTxt()}</div></details>
+    <button class="btn" id="dfReset" style="margin-top:6px;padding:4px 10px">恢復預設</button></div>`;
+  const go = () => { try { sessionStorage.setItem('ss_stage', String(expSel)); sessionStorage.setItem('ss_diff', JSON.stringify(DF)); } catch {} location.href = 'game.html'; };
+  // 11/20 照 RO：按「出發」先跳「難度」視窗（敵人數量／傷害／血量／速度／事件、升級立即／累積、戰利品），再「前往野外」
+  const openDiff = () => {
+    openDlg('難度', diffHtml, [['前往野外', go, true]]);
+    const B = $('#dlgBody');
+    const saveDF = () => { try { localStorage.setItem('ss_diff_saved', JSON.stringify(DF)); } catch {} B.querySelector('#dfTxt').innerHTML = diffTxt(); B.querySelector('#lootTxt').innerHTML = lootTxt(); };
+    B.querySelectorAll('[data-df]').forEach(el => el.oninput = () => { const k = el.dataset.df; DF[k] = +el.value; B.querySelector(`[data-dfv="${k}"]`).textContent = fmtV(el.dataset.u, DF[k]); saveDF(); });
+    B.querySelectorAll('[data-stack]').forEach(b => b.onclick = () => { DF.stack = b.dataset.stack === '1'; B.querySelectorAll('[data-stack]').forEach(x => x.classList.toggle('primary', x === b)); B.querySelector('#stackTip').textContent = DF.stack ? '升級先存起來，按畫面上的「升級」鈕（或 U 鍵）再一次選，不會一直被打斷' : '每次升級和每個寶箱都會暫停，和以前一樣'; saveDF(); });
+    B.querySelector('#dfReset').onclick = () => { DF = cleanDiff(null, BASE); try { localStorage.setItem('ss_diff_saved', JSON.stringify(DF)); } catch {} openDiff(); };
+  };
+  const dshort = `<div class="sec"><h4>難度</h4>${lootTxt()}　<small>怪物 Lv${DF.monLv}・數量 ×${DF.count}・傷害 ${DF.dmgP}%・血量 ${DF.hpP}%・速度 ${DF.spdP}%・事件 ×${DF.event}・升級${DF.stack ? '累積' : '立即'}</small><br><small style="color:#5a6478">按「出發」可以調整</small></div>`;
+  openDlg('遠征', `<div class="exp"><div class="list">${list}</div><div class="info">${dshort}${info}</div></div>`,
+    [...(unlocked ? [['出發', openDiff, true]] : [])], true); // 賢者之塔改成找主城的「越過次元的修道士」（官方 wiki 83；不在遠征視窗跳轉）
   $('#dlgBody').querySelectorAll('[data-st]').forEach(el => el.onclick = () => { const i = +el.dataset.st; if (!stageUnlocked(i, cl)) return toast('先通關前一張地圖才會解鎖'); expSel = i; openExpedition(); });
-  const saveDF = () => { try { localStorage.setItem('ss_diff_saved', JSON.stringify(DF)); } catch {} $('#dfTxt').innerHTML = diffTxt(); };
-  $('#dlgBody').querySelectorAll('[data-df]').forEach(el => el.oninput = () => { const k = el.dataset.df; DF[k] = +el.value; $(`[data-dfv="${k}"]`).textContent = (k === 'monLv' ? 'Lv' : '×') + DF[k]; saveDF(); });
-  $('#dfReset').onclick = () => { DF = cleanDiff(null, BASE); $('#dlgBody').querySelectorAll('[data-df]').forEach(el => { el.value = DF[el.dataset.df]; $(`[data-dfv="${el.dataset.df}"]`).textContent = (el.dataset.df === 'monLv' ? 'Lv' : '×') + DF[el.dataset.df]; }); saveDF(); };
   fillThumbs($('#dlgBody'));
 }
 

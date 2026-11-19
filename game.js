@@ -487,6 +487,7 @@ const enemyPool = new MeshPool(scene, '怪物'), gemPool = new MeshPool(scene, '
 const numsEl = document.getElementById('dmgnums'), nums = [], numPool = new DomPool(numsEl, 40);
 
 function reset() {
+  try { pendLv = 0; pendShow(); } catch {} // 升級累積清空（宣告在後面，太早呼叫時略過）
   if (enemies) for (const e of enemies) enemyPool.release(e.mesh); for (const c of corpses) enemyPool.release(c.m); corpses.length = 0;
   if (gems) for (const g of gems) gemPool.release(g.mesh);
   for (const c of coins) scene.remove(c.mesh); coins = [];
@@ -719,6 +720,15 @@ function levelBonus() {
   const L = SKD.status.perLevel || { dmg: 0, hp: 0 };
   P.might *= 1 + L.dmg; const add = P.maxHp * L.hp; P.maxHp += add; P.hp = Math.min(P.maxHp, P.hp + add);
 }
+// 11/20 照 RO「升級：累積」：升級先存起來，按「升級」鈕（或 U 鍵）再一次一次選，不會一直被打斷
+let pendLv = 0; const pendBtn = document.createElement('button'); pendBtn.id = 'pendLv'; document.body.appendChild(pendBtn);
+pendBtn.style.cssText = 'position:fixed;left:calc(50% - 215px);bottom:calc(max(10px,env(safe-area-inset-bottom)) + 18px);z-index:7;display:none;min-width:66px;height:66px;border-radius:50%;border:3px solid #fff;background:radial-gradient(#fff6,#4d9dff 60%,#1a3f8a);color:#fff;font:900 14px sans-serif;text-shadow:0 1px 3px #000;box-shadow:0 0 18px #4d9dff;pointer-events:auto;padding:0 6px';
+if (innerWidth <= 600) Object.assign(pendBtn.style, { left: '12px', bottom: 'calc(max(10px,env(safe-area-inset-bottom)) + 108px)', minWidth: '72px', height: '72px' });
+const pendShow = () => { pendBtn.style.display = pendLv > 0 ? 'block' : 'none'; pendBtn.innerHTML = `升級<br>×${pendLv}`; };
+function pendLvAdd() { pendLv++; pendShow(); play('level', 0.4, 0); }
+function pendOpen() { if (pendLv <= 0 || state !== 'play') return; pendLv--; pendShow(); levelUp(); }
+pendBtn.addEventListener('click', e => { e.stopPropagation(); pendOpen(); });
+addEventListener('keydown', e => { if (e.code === 'KeyU') pendOpen(); });
 function levelUp() {
   document.getElementById('combo')?.classList.remove('on');
   state = 'level';
@@ -948,7 +958,7 @@ function update(dt) {
   const mg0 = P.magnet; if (rig.moving) P.magnet *= 1.3; // 移動中拾取範圍 ×1.3（鼓勵走位）
   magnetGems(gems, pp, P, dt, g => {
     gemPool.release(g.mesh); P.xp += g.xp * (P.expMul || 1); play('gem', 0.2, 50); // 初心者鼓舞：經驗 +10%
-    if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = needFor(P.lv); levelBonus(); if (!finalDown) levelUp(); } // 項目 37：打倒最後的首領後不再跳升級卡（以前 MVP 倒下後 3 秒內升級會卡在選卡、通關不觸發）
+    if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = needFor(P.lv); levelBonus(); if (!finalDown) { if (DIFF.stack && !TOWER) pendLvAdd(); else levelUp(); } } // 項目 37：打倒最後的首領後不再跳升級卡（以前 MVP 倒下後 3 秒內升級會卡在選卡、通關不觸發）
   });
   magnetGems(coins, pp, P, dt, c => { scene.remove(c.mesh); play('gem', 0.25, 400); });
   P.magnet = mg0;
