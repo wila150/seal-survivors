@@ -372,7 +372,7 @@ Promise.race([Promise.all([playerFirst, ...npcReady]), new Promise(r => setTimeo
 const meLbl = document.createElement('div'); meLbl.className = 'lbl me'; meLbl.textContent = CHAR?.name || ''; labels.appendChild(meLbl);
 
 // ===== 輸入 =====
-const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (dlgOpen) closeDlg(); else if (nearNpc) talk(nearNpc); } if (e.code === 'Escape') closeDlg(); if (e.code === 'KeyI' && !dlgOpen) openBag('bag'); });
+const keys = {}; addEventListener('keydown', e => { if (e.target.closest?.('input,textarea,select')) return; keys[e.code] = true; if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (dlgOpen) closeDlg(); else if (nearNpc) talk(nearNpc); } if (e.code === 'Escape') closeDlg(); if (e.code === 'KeyI' && !dlgOpen) openBag('bag'); });
 addEventListener('keyup', e => keys[e.code] = false);
 const joy = { on: false, ox: 0, oy: 0, dx: 0, dy: 0 }, joyEl = $('#joy');
 // 滑鼠：左鍵點地移動（按住跟著滑鼠）、右鍵轉視角；觸控：浮動搖桿
@@ -412,23 +412,76 @@ function checkUnfinishedRun() {
 // 用「在視窗內容裡的位置」（一路往上的子元素序號）認同一個區塊；只記有捲動過的
 const dlgPath = (root, el) => { const p = []; while (el && el !== root) { p.unshift([...el.parentNode.children].indexOf(el)); el = el.parentNode; } return p; };
 const dlgAt = (root, p) => p.reduce((el, i) => el?.children[i], root);
+// ===== 視窗管理（11/19 使用者：「PC 介面可以移動、可以同時開多個視窗；手機固定就好」）=====
+// 電腦（滑鼠＋寬螢幕）：每種視窗一個 .box，拖標題列移動、同時開好幾個、點哪個哪個在最上面；位置記在 localStorage
+// 手機：維持一個置中的視窗（跟以前一樣）
+// 舊程式都用 #dlgTitle／#dlgBody／#dlgOpts 這三個 id 畫內容 → 「現在要畫的那個視窗」才掛這三個 id（dlgActivate）
+const DLG_MULTI = matchMedia('(pointer: fine) and (min-width: 900px)').matches;
+const dlgKey = t => String(t).replace(/[（(][^（）()]*[）)]\s*$/, '').trim(); // 「郵差（3 封）」跟「郵差（2 封）」是同一個視窗
+const DLG_TPL = (() => { const b = document.querySelector('#dlg .box').cloneNode(true); for (const el of b.querySelectorAll('[id]')) el.removeAttribute('id'); return b; })();
+let dlgZ = 30, dlgPos = {}; try { dlgPos = JSON.parse(localStorage.getItem('ss_dlgpos') || '{}'); } catch {}
+const dlgBoxes = () => [...document.querySelectorAll('#dlg .box')];
+const dlgShown = () => dlgBoxes().filter(b => !b.hidden);
+function dlgActivate(box) {
+  for (const id of ['dlgTitle', 'dlgBody', 'dlgOpts', 'dlgX']) document.getElementById(id)?.removeAttribute('id');
+  box.querySelector('header').id = 'dlgTitle'; box.querySelector('.body').id = 'dlgBody'; box.querySelector('.opts').id = 'dlgOpts'; box.querySelector('button').id = 'dlgX';
+}
+function dlgFront(box) { if (DLG_MULTI) box.style.zIndex = ++dlgZ; }
+function dlgBoxFor(title) {
+  const k = dlgKey(title), all = dlgBoxes();
+  if (!DLG_MULTI) { const b = all[0]; b.dataset.k = k; return b; }
+  let b = all.find(x => x.dataset.k === k) || all.find(x => x.hidden && !x.dataset.k);
+  if (!b) { b = DLG_TPL.cloneNode(true); $('#dlg').appendChild(b); }
+  if (b.dataset.k !== k) {
+    b.dataset.k = k; b.hidden = true;
+    b.querySelector('button').onclick = () => closeBox(b);
+    b.onpointerdown = () => { dlgActivate(b); dlgFront(b); }; // 點到哪個視窗：那個在最上面，而且之後的操作畫在它身上
+    const head = b.querySelector('header'); head.onpointerdown = e => { if (e.button !== 0 || e.target.closest('button,input,select')) return; dlgDrag(b, e); };
+  }
+  return b;
+}
+function dlgDrag(b, e) {
+  const r = b.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top; b.classList.add('drag');
+  const mv = ev => { const x = Math.min(innerWidth - 80, Math.max(-r.width + 120, ev.clientX - ox)), y = Math.min(innerHeight - 40, Math.max(0, ev.clientY - oy)); b.style.left = x + 'px'; b.style.top = y + 'px'; };
+  const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); b.classList.remove('drag'); dlgPos[b.dataset.k] = [parseInt(b.style.left), parseInt(b.style.top)]; try { localStorage.setItem('ss_dlgpos', JSON.stringify(dlgPos)); } catch {} };
+  addEventListener('pointermove', mv); addEventListener('pointerup', up); e.preventDefault();
+}
+function dlgPlace(b) {
+  if (!DLG_MULTI) return;
+  const p = dlgPos[b.dataset.k]; if (p) { b.style.left = Math.min(innerWidth - 120, Math.max(-200, p[0])) + 'px'; b.style.top = Math.min(innerHeight - 60, Math.max(0, p[1])) + 'px'; return; }
+  // 沒放過的視窗：第一個置中；有別的視窗開著就排在最右邊那個的右側（放不下就往右下錯開）
+  const others = dlgShown().filter(x => x !== b), w = b.offsetWidth || 560, h = b.offsetHeight || 500, top = Math.max(8, (innerHeight - h) / 2);
+  if (!others.length) { b.style.left = Math.max(8, (innerWidth - w) / 2) + 'px'; b.style.top = top + 'px'; return; }
+  const right = Math.max(...others.map(x => x.getBoundingClientRect().right));
+  if (right + 16 + w <= innerWidth - 8) { b.style.left = (right + 16) + 'px'; b.style.top = top + 'px'; }
+  else { const left = Math.min(...others.map(x => x.getBoundingClientRect().left)); if (left - 16 - w >= 8) { b.style.left = (left - 16 - w) + 'px'; b.style.top = top + 'px'; }
+    else { b.style.left = Math.min(innerWidth - w - 8, 40 + others.length * 40) + 'px'; b.style.top = Math.min(innerHeight - 120, 40 + others.length * 34) + 'px'; } }
+}
+function closeBox(b) {
+  b.hidden = true; if (DLG_MULTI) b.dataset.k = ''; // 關掉的視窗可以給下一個用
+  dlgOpen = dlgShown().length > 0; if (!dlgOpen) $('#dlg').classList.remove('on');
+  const top = dlgShown().sort((a, c) => (+c.style.zIndex || 0) - (+a.style.zIndex || 0))[0]; if (top) dlgActivate(top);
+}
 function openDlg(title, html, opts, wide = false) {
-  const B = $('#dlgBody'), same = dlgOpen && $('#dlgTitle').dataset.t === title;
+  const bx = dlgBoxFor(title), fresh = bx.hidden; dlgActivate(bx);
+  const B = $('#dlgBody'), same = !fresh && $('#dlgTitle').dataset.t === title;
   const keep = same ? [B, ...B.querySelectorAll('*')].filter(el => el.scrollTop || el.scrollLeft).map(el => [dlgPath(B, el), el.scrollTop, el.scrollLeft]) : null;
-  dlgOpen = true; document.querySelector('#dlg .box').classList.toggle('wide', wide); $('#dlgTitle').dataset.t = title;
+  dlgOpen = true; bx.classList.toggle('wide', wide); $('#dlgTitle').dataset.t = title;
   // PC 原版標題圖（藍色泡泡字，assets/ui/pc/t_*.png）；其他標題照舊文字
   const TIMG = [['背包', 'item'], ['技能', 'skill'], ['裝備商人', 'shop'], ['郵差', 'mail'], ['倉庫管理員', 'bank']].find(([k]) => title.startsWith(k));
-  document.querySelector('#dlg .box').classList.toggle('pcf', !!TIMG); // PC 原版外框（白框＋藍色泡泡字標題）
+  bx.classList.toggle('pcf', !!TIMG); // PC 原版外框（白框＋藍色泡泡字標題）
   if (TIMG) { const extra = title.slice(TIMG[0].length).trim(); $('#dlgTitle').innerHTML = `<img class="pct-img" src="assets/ui/pc/t_${TIMG[1]}.png" alt="${esc(title)}">${extra ? ` <small>${esc(extra)}</small>` : ''}`; } else $('#dlgTitle').textContent = title;
   B.innerHTML = html;
   if (keep?.length) { const restore = () => keep.forEach(([p, t, l]) => { const el = dlgAt(B, p); if (el) { el.scrollTop = t; el.scrollLeft = l; } }); restore(); requestAnimationFrame(restore); } else if (!same) B.scrollTop = 0;
   const box = $('#dlgOpts'); box.innerHTML = '';
-  for (const [label, fn, primary] of [...opts, ['離開', closeDlg]]) { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.textContent = label; b.onclick = fn; box.appendChild(b); }
-  $('#dlg').classList.add('on');
+  for (const [label, fn, primary] of [...opts, ['離開', () => closeBox(bx)]]) { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.textContent = label; b.onclick = fn; box.appendChild(b); }
+  $('#dlg').classList.add('on'); $('#dlg').classList.toggle('multi', DLG_MULTI);
+  if (fresh) { bx.hidden = false; dlgPlace(bx); } dlgFront(bx);
 }
-function closeDlg() { dlgOpen = false; $('#dlg').classList.remove('on'); }
-$('#dlgX').onclick = () => closeDlg();
-$('#dlg').addEventListener('pointerdown', e => { if (e.target.id === 'dlg') closeDlg(); });
+// 關掉「現在這個」視窗（Esc、按鈕裡的 closeDlg()）
+function closeDlg() { const b = $('#dlgTitle')?.closest('.box'); if (b && !b.hidden) closeBox(b); else { dlgOpen = false; $('#dlg').classList.remove('on'); } }
+dlgBoxes()[0].querySelector('button').onclick = () => closeBox(dlgBoxes()[0]); dlgBoxes()[0].hidden = true;
+$('#dlg').addEventListener('pointerdown', e => { if (e.target.id === 'dlg' && !DLG_MULTI) closeDlg(); });
 $('#talk').onclick = () => nearNpc && talk(nearNpc);
 
 async function talk(n) {
@@ -1442,8 +1495,9 @@ const wd = createWatchdog({ page: '主城', renderer, scene, counts: () => ({ NP
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   for (const A of npcActors) A.update(dt);
-  if (dlgOpen) { pActor?.update(dt, false); townMoving = false; }
-  if (!dlgOpen) {
+  const uiLock = dlgOpen && !DLG_MULTI; // 電腦開著視窗也能走（PC 一樣）；手機開視窗時不動
+  if (uiLock) { pActor?.update(dt, false); townMoving = false; }
+  if (!uiLock) {
     let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.dx;
     let mz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + joy.dy;
     { const c = Math.cos(view.yaw), sn = Math.sin(view.yaw), x = mx * c + mz * sn; mz = -mx * sn + mz * c; mx = x; } // 方向跟著視角
