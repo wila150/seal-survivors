@@ -169,10 +169,10 @@ const input = createInput(renderer.domElement, document.getElementById('joy'), {
 enableOrbit(renderer.domElement); // 右鍵拖曳轉視角
 rig.walk = (p, nx, nz) => walkMove(MAP, p, nx, nz); // 原版可走區（水、懸崖、建築擋路）
 // ===== 項目 52 定案：A→S→D 連續技 × 機率掉落屬性能量球（使用者 11/19 asd_combo_design_v3 定案版；取代 osu! 節點版）=====
-// 1 刷怪撿球：普通怪 20% 掉小型能量球（+1）、菁英 75% 掉中型結晶（+10～25）、首領噴一地小球＋1 顆中型；走位撿起來累積 0～1000 點
+// 1 刷怪撿球：普通怪 20% 掉小型能量球（+1）、菁英 75% 掉中型結晶（+3～6）、首領噴一地小球＋1 顆中型（+5）；走位撿起來累積 0～100 點
 //   能量球外觀＝屬性（局內最高屬性寶石；沒有＝武器屬性；都沒有＝經典 A／S／D 徽章白球）；80% 以上進入過載磁場（吸球更快、身上燃起氣場）
-// 2 觸發：300 點亮 A（小爆發）、600 亮 S（中爆發）、1000 亮 D（完全體）；點大招鈕／空白鍵／滑鼠右鍵點一下 → 用目前的階梯放招
-// 3 演出：全程無敵、可以自由走位；跑馬燈依序點亮；每段一道巨型屬性劍氣橫越畫面，命中的怪 0.03 秒頓幀＋震動＋沿切線被噴飛（一刀兩斷）；
+// 2 觸發：30 點亮 A（小爆發）、60 亮 S（中爆發）、100 亮 D（完全體）；點大招鈕／空白鍵／滑鼠右鍵點一下 → 用目前的階梯放招
+// 3 演出（11/19 改 PC 式連段，見 cbUnleash 上方說明）：全程無敵、可以自由走位；跑馬燈依序點亮；每段一道巨型屬性劍氣橫越畫面，命中的怪 0.03 秒頓幀＋震動＋沿切線被噴飛（一刀兩斷）；
 //   最後一擊跳職業台詞大字；1000 點的完全體加屬性追加效果；放完能量歸零
 // 局內卡片：能量球掉落 +10%、能量球吸取 +30%、撿球回 1% HP；寵物進化過＝掉落 +10%、吸取 ×1.5
 const CB = { g: 0, st: 'charge', done: 0 };
@@ -230,36 +230,86 @@ function slashFx(pp, ang, col) { // 一道巨型劍氣（地面上的細長發�
   m.rotation.set(-Math.PI / 2, 0, -ang); m.position.set(pp.x, 1.0, pp.z); m.userData.fixed = false; scene.add(m);
   const t0 = performance.now(); const fade = () => { const k = (performance.now() - t0) / 350; m.material.opacity = 0.95 * (1 - k); m.scale.y = 1 + k * 0.6; if (k < 1) requestAnimationFrame(fade); else { scene.remove(m); m.geometry.dispose(); } }; requestAnimationFrame(fade);
 }
+// 11/19 使用者：「連續技的持續時間太少了，沒有玩到的感覺」→ 照 PC 連續技：放招後進入連段時間，畫面依序跳出 A／S／D 提示，
+//   外圈收縮到內圈時按對＝PERFECT（×1.3），太早＝GOOD；按錯或超時＝連段結束、放終結技。越接越多段、每段傷害越高。
+//   段數上限 A 6／S 9／D 12（連段擴充卡再加）；每段時限 1.1 秒起、越後面越短（最短 0.6 秒）；全程無敵可走位
+//   鍵盤 A／S／D（或 J／K／L）、手機下方三顆大按鈕
+const CBQ = { on: false };
+const cbPad = document.createElement('div'); cbPad.id = 'cbPad'; cbPad.innerHTML = '<div id="cbPrompt"><span class="ring"></span><b></b><em></em></div><div class="keys"><button data-k="A">A</button><button data-k="S">S</button><button data-k="D">D</button></div>'; document.body.appendChild(cbPad);
+cbStyle.textContent += `#cbPad{position:fixed;inset:0;z-index:8;display:none;pointer-events:none}
+#cbPrompt{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 15%);width:92px;height:92px;margin-left:-46px;display:flex;align-items:center;justify-content:center}
+#cbPrompt b{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 34px sans-serif;color:#3a1d00;background:radial-gradient(#fff,#ffe28a 45%,#ff9d3d);box-shadow:0 0 18px var(--ec,#ffd36b);border:3px solid #fff}
+#cbPrompt .ring{position:absolute;inset:-40px;border-radius:50%;border:4px solid var(--ec,#ffd36b);box-shadow:0 0 10px var(--ec,#ffd36b);transform:scale(var(--r,1))}
+#cbPrompt em{position:absolute;bottom:-72px;left:50%;transform:translateX(-50%);white-space:nowrap;font:900 20px sans-serif;font-style:normal;color:#fff;text-shadow:0 0 6px #000,0 0 12px var(--ec,#ffd36b)}
+#cbPrompt.hit b{animation:cbHit .18s}@keyframes cbHit{50%{transform:scale(1.35)}}
+#cbPad .keys{position:absolute;left:50%;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 20px);transform:translateX(-50%);display:flex;gap:14px;pointer-events:auto}
+#cbPad .keys button{width:64px;height:64px;border-radius:14px;border:2px solid #fff8;background:linear-gradient(#2b3550,#0b1430);color:#fff;font:900 26px sans-serif;box-shadow:0 3px 10px #000a;touch-action:manipulation}
+#cbPad .keys button.want{border-color:#fff;background:linear-gradient(#ffe28a,#ff9d3d);color:#3a1d00}
+@media (max-width:600px){#cbPad .keys{bottom:calc(max(10px,env(safe-area-inset-bottom)) + 96px);gap:18px}#cbPad .keys button{width:80px;height:80px;font-size:32px}}`;
+const cbPromptEl = cbPad.querySelector('#cbPrompt');
+cbPad.querySelectorAll('.keys button').forEach(b => b.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); cbPress(b.dataset.k); }));
 function cbUnleash(tier, e) {
-  CB.st = 'unleash'; const full = tier === 3, mult = [0, 1.0, 1.6, 2.6][tier], extra = full ? Math.max(0, Math.min(9, (P.comboLen || 3) - 3)) : 0;
-  const SEGN = ['A', 'S', 'D', 'AS', 'AD', 'SD', 'ASD', 'SA', 'DA', 'DS', 'DSA', 'ASDA'], n = tier + extra;
-  P.inv = Math.max(P.inv, n * 0.45 + 0.6);
-  showBanner(`<small>${['', 'A 小爆發', 'S 中爆發', 'D 完全體・千人斬'][tier]}</small><b>A→S→D 連續技</b><span>傷害 ×${mult}${full ? '・必定爆擊' : ''}</span>`, 1100);
-  marq.innerHTML = SEGN.slice(0, n).map(x => `<b>${x}</b>`).join(''); marq.style.display = 'flex';
-  const owned = Object.keys(SM.skills).filter(k => !SKD.skills[k]?.basic), base = 10 * (1 + 0.12 * P.lv), col = new THREE.Color(e ? ELEM_COLOR[e] : '#fff6c0').getHex();
-  for (let i = 0; i < n; i++) setTimeout(() => {
-    if (state === 'over') return; const last = i === n - 1, pp = player.position, k = owned.length ? owned[i % owned.length] : SKD.jobs[CHAR.job]?.basic;
-    marq.children[i]?.classList.add('on'); play(last ? 'boom' : 'hit', 0.7, 0);
-    const ang = (P.face || 0) + (i % 3 - 1) * 1.05 + (i >= 3 ? 0.5 : 0), ux = Math.cos(ang), uz = Math.sin(ang), dmg = base * (last ? 4 : 2) * mult * (full ? 1.6 : 1);
-    slashFx(pp, ang, col);
-    if (k) PCFX.play(SKD.skills[k]?.pcfx || k, 'hit', pp, ang, { fit: 4 }) || PCFX.play(SKD.skills[k]?.pcfx || k, 'cast', pp, ang, { fit: 4, follow: player });
-    if (last && full && e) P.egem.combo = { e, lv: 5 };
-    rig.swing(ang, 'p' + (1 + i % 4)); let hits = 0;
-    for (const en of enemies) { if (en.dead) continue; const dx = en.mesh.position.x - pp.x, dz = en.mesh.position.z - pp.z, along = dx * ux + dz * uz, side = -dx * uz + dz * ux;
-      if (Math.abs(along) > 15 || Math.abs(side) > 1.6 + en.r) continue; hits++;
-      hurt(en, dmg, null, 'phys', 'combo', { tags: ['heavy'] });
-      if (!en.ai) en.kb.set(-uz * Math.sign(side || 1), 0, ux * Math.sign(side || 1)).multiplyScalar(18); // 沿切線兩邊噴飛（一刀兩斷）
-      if (last && full) { if (e === 2) { en.slowK = 0.6; en.slowT = 4; } if ((e === 4 || e === 5) && !en.ai) en.stunT = 1.2; if (e === 7 && !en.boss && !en.dead && en.hp < en.maxHp * 0.25) hurt(en, en.hp + 1, null, 'phys', 'combo'); } }
-    if (hits) { const was = state; if (was === 'play') { state = 'hitstop'; setTimeout(() => { if (state === 'hitstop') { state = 'play'; last0(); } }, 30); } bossFx.shake = Math.max(bossFx.shake, 0.25 + (last ? 0.4 : 0)); }
-    if (last) { delete P.egem.combo;
-      showBanner(`<b>${JOB_LINE[CHAR.job] || '一刀兩斷！'}</b>`, 1000);
-      if (full) { if (e === 1) P.tmp.dmg = Math.max(P.tmp.dmg, 8); if (e === 3) { P.tmp.speed = 6; P.tmp.haste = 6; } if (e === 4 || e === 5) P.shield = Math.round(P.maxHp * 0.3);
-        if (e === 6) { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.3); P.inv += 1.5; } if (e === 7) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * Math.min(0.3, hits * 0.02)); }
-      CB.done++; if (full) maybeElemGem(false); setTimeout(cbEnd, 400); }
-  }, 150 + i * 420);
+  CB.st = 'unleash'; const full = tier === 3, extra = full ? Math.max(0, Math.min(9, (P.comboLen || 3) - 3)) : 0;
+  const owned = Object.keys(SM.skills).filter(k => !SKD.skills[k]?.basic), col = new THREE.Color(e ? ELEM_COLOR[e] : '#fff6c0');
+  Object.assign(CBQ, { on: true, tier, full, e, col: col.getHex(), owned, max: [0, 6, 9, 12][tier] + extra, i: 0, perfect: 0, key: null, prev: '', t: 0, dur: 1.1,
+    mult: [0, 1.0, 1.6, 2.6][tier], base: 10 * (1 + 0.12 * P.lv) });
+  cbPad.style.setProperty('--ec', '#' + col.getHexString()); cbPad.style.display = 'block'; ultBtn.style.visibility = 'hidden';
+  marq.innerHTML = ''; marq.style.display = 'flex';
+  showBanner(`<small>${['', 'A 小爆發', 'S 中爆發', 'D 完全體・千人斬'][tier]}</small><b>A→S→D 連續技</b><span>照提示按 A／S／D・最多 ${CBQ.max} 段</span>`, 1100);
+  CBQ.t = -1.0; cbPromptEl.querySelector('em').textContent = 'READY'; cbNext(); // 第一段多給 1 秒反應（橫幅還在）
 }
+function cbNext() {
+  let k; do k = 'ASD'[Math.floor(Math.random() * 3)]; while (k === CBQ.prev && Math.random() < 0.6);
+  CBQ.prev = CBQ.key = k; if (CBQ.t >= 0) CBQ.t = 0; CBQ.dur = Math.max(0.6, 1.1 - CBQ.i * 0.05);
+  cbPromptEl.querySelector('b').textContent = k; cbPad.querySelectorAll('.keys button').forEach(b => b.classList.toggle('want', b.dataset.k === k));
+}
+function cbPress(k) {
+  if (!CBQ.on || state === 'over') return;
+  if (k !== CBQ.key) return cbFinish(false, '按錯了');
+  const perfect = CBQ.t / CBQ.dur >= 0.5; if (perfect) CBQ.perfect++;
+  const em = cbPromptEl.querySelector('em'); em.textContent = (perfect ? 'PERFECT' : 'GOOD') + `  ${CBQ.i + 1} COMBO`;
+  cbPromptEl.classList.remove('hit'); void cbPromptEl.offsetWidth; cbPromptEl.classList.add('hit');
+  const chip = document.createElement('b'); chip.textContent = k; chip.className = 'on'; marq.appendChild(chip); while (marq.children.length > 12) marq.firstChild.remove();
+  const ang = (P.face || 0) + [0, 1.05, -1.05, 0.5, -0.5, 1.57][CBQ.i % 6];
+  cbSlash(ang, CBQ.base * 2 * CBQ.mult * (1 + 0.12 * CBQ.i) * (perfect ? 1.3 : 1), false, CBQ.i);
+  play('hit', 0.7, 200 + CBQ.i * 60); CBQ.i++;
+  if (CBQ.i >= CBQ.max) cbFinish(true); else cbNext();
+}
+function cbSlash(ang, dmg, last, idx) { // 一道劍氣：30 公尺帶狀範圍、命中頓幀＋震動＋沿切線兩邊噴飛
+  const pp = player.position, ux = Math.cos(ang), uz = Math.sin(ang), O = CBQ.owned, k = O.length ? O[idx % O.length] : SKD.jobs[CHAR.job]?.basic, e = CBQ.e;
+  slashFx(pp, ang, CBQ.col);
+  if (k) PCFX.play(SKD.skills[k]?.pcfx || k, 'hit', pp, ang, { fit: 4 }) || PCFX.play(SKD.skills[k]?.pcfx || k, 'cast', pp, ang, { fit: 4, follow: player });
+  rig.swing(ang, 'p' + (1 + idx % 4)); let hits = 0; const fx = last && CBQ.full && CBQ.i >= CBQ.max;
+  if (fx && e) P.egem.combo = { e, lv: 5 };
+  for (const en of enemies) { if (en.dead) continue; const dx = en.mesh.position.x - pp.x, dz = en.mesh.position.z - pp.z, along = dx * ux + dz * uz, side = -dx * uz + dz * ux;
+    if (Math.abs(along) > 15 || Math.abs(side) > 1.6 + en.r) continue; hits++;
+    hurt(en, dmg, null, 'phys', 'combo', { tags: ['heavy'] });
+    if (!en.ai) en.kb.set(-uz * Math.sign(side || 1), 0, ux * Math.sign(side || 1)).multiplyScalar(18);
+    if (fx) { if (e === 2) { en.slowK = 0.6; en.slowT = 4; } if ((e === 4 || e === 5) && !en.ai) en.stunT = 1.2; if (e === 7 && !en.boss && !en.dead && en.hp < en.maxHp * 0.25) hurt(en, en.hp + 1, null, 'phys', 'combo'); } }
+  delete P.egem.combo;
+  if (hits && state === 'play') { state = 'hitstop'; setTimeout(() => { if (state === 'hitstop') { state = 'play'; last0(); } }, last ? 60 : 30); }
+  if (hits) bossFx.shake = Math.max(bossFx.shake, 0.25 + (last ? 0.4 : 0));
+  return hits;
+}
+function cbFinish(complete, why = '') { // 終結技：三道劍氣（傷害照接到的段數）；D 階全部接完＝完全體屬性追加效果
+  if (!CBQ.on) return; CBQ.on = false; cbPad.style.display = 'none'; ultBtn.style.visibility = '';
+  const n = CBQ.i, full = CBQ.full && complete, e = CBQ.e, dmg = CBQ.base * 4 * CBQ.mult * (1 + 0.12 * n) * (full ? 1.6 : 1);
+  if (state === 'over') return cbEnd();
+  play('boom', 0.8, 0); let hits = 0;
+  for (let j = 0; j < 3; j++) hits += cbSlash((P.face || 0) + j * Math.PI / 3, dmg, true, n + j);
+  showBanner(`<small>${complete ? (full ? '完全體！' : '全段命中！') : why || '超時'}・${n} COMBO${CBQ.perfect ? `（PERFECT ${CBQ.perfect}）` : ''}</small><b>${JOB_LINE[CHAR.job] || '一刀兩斷！'}</b>`, 1200);
+  if (full) { if (e === 1) P.tmp.dmg = Math.max(P.tmp.dmg, 8); if (e === 3) { P.tmp.speed = 6; P.tmp.haste = 6; } if (e === 4 || e === 5) P.shield = Math.round(P.maxHp * 0.3);
+    if (e === 6) { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.3); P.inv = Math.max(P.inv, 1.5); } if (e === 7) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * Math.min(0.3, hits * 0.02)); maybeElemGem(false); }
+  P.inv = Math.max(P.inv, 0.8); CB.done++; setTimeout(cbEnd, 400);
+}
+function cbQUpdate(dt) { // 每格：計時、外圈收縮、無敵
+  if (!CBQ.on) return; P.inv = Math.max(P.inv, 0.3); CBQ.t += dt;
+  cbPromptEl.style.setProperty('--r', Math.max(0.5, 1 - Math.max(0, CBQ.t) / CBQ.dur * 0.5).toFixed(3));
+  if (CBQ.t > CBQ.dur) cbFinish(false, '超時');
+}
+addEventListener('keydown', ev => { if (!CBQ.on || ev.repeat) return; const k = { KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyJ: 'A', KeyK: 'S', KeyL: 'D' }[ev.code]; if (k) { ev.preventDefault(); cbPress(k); } });
 const last0 = () => { last = performance.now(); };
-function cbEnd() { CB.st = 'charge'; CB.g = 0; marq.style.display = 'none'; }
+function cbEnd() { CB.st = 'charge'; CB.g = 0; marq.style.display = 'none'; if (CBQ.on) { CBQ.on = false; cbPad.style.display = 'none'; ultBtn.style.visibility = ''; } }
 function cbReset() { cbEnd(); CB.done = 0; cbClearOrbs(); }
 ultBtn.addEventListener('click', e => { e.stopPropagation(); cbTrigger(); });
 addEventListener('keydown', e => { if (e.code === 'Space' && state === 'play' && cbTier()) { e.preventDefault(); cbTrigger(); } });
@@ -813,7 +863,7 @@ function towerFloorUp() {
 function update(dt) {
   t += dt;
   // 移動（player.js）
-  rig.move(dt, input.read(), P); comboUpdate(dt); eventsUpdate(dt);
+  rig.move(dt, input.read(), P); comboUpdate(dt); cbQUpdate(dt); eventsUpdate(dt);
   autoMount(dt, input.read()); // 第八批 54 選配：趕路自動上馬 // 項目 52 連續技、53 地圖事件
   const pp = player.position;
   // 換區域：跳區域名
