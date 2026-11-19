@@ -132,6 +132,11 @@ if (!metaGet('fixPoints1')) {
   }
   metaSet('fixPoints1', 1);
 }
+// 11/20 寵物 v3 照 PC：舊的戰鬥寵物精靈（pets[].kind）一次換成天上之蛋並存回資料庫（charView 也會即時換，這裡是永久寫回）
+if (!metaGet('petsPc1')) {
+  for (const c of db.prepare('SELECT id, data FROM characters').all()) { const d = JSON.parse(c.data || '{}'); if (migratePets(d)) db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); }
+  metaSet('petsPc1', 1);
+}
 const MAIL_MAX = 100;
 const isTowerKey = k => k === 'tower';
 const RARITY_N = ['普通', '精良', '稀有', '史詩', '傳說'];

@@ -646,7 +646,7 @@ $('#tmmMap').onclick = openTownMap; $('#tmm').onclick = openTownMap;
 let petSel = null, petFeed = new Set(), petEvo = {}; // petEvo：進化要放的材料 { key: 數量 }
 // 寵物 v3（11/20 照 PC：服務端 item.txt 類別 22＋官方 wiki 49）：蛋在這裡買 → 放進裝備欄（出戰）才會長大 → 第 9 階段帶材料進化成同系列下一階
 function openPets() {
-  const c = CHAR, pets = c.pets || [], p = pets.find(x => x.id === petSel) || pets.find(x => x.id === c.pet) || pets[0]; petSel = p?.id ?? null;
+  const c = CHAR, pets = (c.pets || []).filter(x => PC_PETS[x.pc]), p = pets.find(x => x.id === petSel) || pets.find(x => x.id === c.pet) || pets[0]; petSel = p?.id ?? null; // 舊格式（沒有 pc）不顯示，避免視窗打不開
   const D = p ? PC_PETS[p.pc] : null, ico = id => `<img src="assets/items/${PC_PETS[id]?.icon}.png" alt="" style="width:40px;height:40px;image-rendering:pixelated">`;
   const card = x => { const on = x.id === c.pet, X = PC_PETS[x.pc]; return `<div data-ps="${x.id}" style="cursor:pointer;flex:0 0 112px;background:#fff;border:2px solid ${x.id === petSel ? '#ff8a3d' : on ? '#e0a826' : '#c9d5f3'};border-radius:12px;padding:6px 8px;text-align:center">
     ${ico(x.pc)}<br><b style="font-size:13px">${esc(petName(x))}</b><br><small>${FAM_NAME[X?.fam] || ''}・第 ${PV2.petStage9(x.lv)} 階段${on ? '<br><b style="color:#c8901a">★ 裝備中</b>' : ''}</small></div>`; };
