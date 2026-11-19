@@ -162,7 +162,7 @@
 <div id="tload0" style="position:fixed;inset:0;background:#000;z-index:998"></div>
 <script type="module">
 import * as THREE from 'three';
-import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES, NOVICE, JOB1_AT, FIRST_JOBS, LIFE_LV } from './src/1_data/jobs.js';
+import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES, seatOf, NOVICE, JOB1_AT, FIRST_JOBS, LIFE_LV } from './src/1_data/jobs.js';
 import { renderLook } from './src/2_core/look-ui.js';
 import { sealModel, sealProp, sealActor, sealMob, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
@@ -362,7 +362,7 @@ function loadPlayer() {
       // 全身照（CHARACTER INFO 的 COSTUME 服裝格用）
       r.setSize(128, 160); const cam2 = new THREE.PerspectiveCamera(30, 0.8, 0.1, 50); cam2.position.set(0, 0.9, 2.5); cam2.lookAt(0, 0.82, 0); r.render(sc, cam2); BODY_SHOT = r.domElement.toDataURL();
       r.dispose(); sc.remove(m); m.rotation.y = 0; } catch {}
-    m.position.y = townRiding ? 0.85 : 0; player.add(m); pActor = m.userData.actor;
+    player.add(m); pActor = m.userData.actor; seatTownRider();
   }).catch(e => console.warn('玩家模型', e.message));
 }
 const playerFirst = loadPlayer();
@@ -1238,6 +1238,8 @@ async function styShow(st) {
 }
 // 主城坐騎外觀（R 切換）
 let townMount = null, townRiding = false, townRider = null;
+// 人物坐上／離開坐騎：照坐騎座位放好＋切換 PC 騎乘坐姿（跟出征 player.js 同一套，seatOf 在 jobs.js）
+function seatTownRider() { const [y, z] = townRiding ? seatOf(JOBS[CHAR.job].mount) : [0, 0]; for (const ch of player.children) if (ch !== townMount) { ch.position.y = y; ch.position.z = z; ch.userData.actor?.setRiding?.(townRiding); } }
 function loadTownMount() {
   if (townMount || !((CHAR.mountUntil || 0) > Date.now())) return;
   sealModel(JOBS[CHAR.job].mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; player.add(m); townMount = m; }).catch(() => {});
@@ -1245,7 +1247,7 @@ function loadTownMount() {
 addEventListener('keydown', e => {
   if (e.code !== 'KeyR' || dlgOpen || !townMount) return;
   townRiding = !townRiding; townMount.visible = townRiding;
-  for (const ch of player.children) if (ch !== townMount) ch.position.y = townRiding ? 0.85 : 0;
+  seatTownRider();
 });
 
 // ===== 裝備商人：販賣／購買／裝備 =====

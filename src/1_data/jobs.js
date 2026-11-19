@@ -51,6 +51,9 @@ export const playerAnimSet = (job, gender) => `${gender === '女' ? 'w' : 'm'}_$
 
 // 坐騎：租一次 3000 金幣、48 小時，最多累積 14 天；租約期間五項素質 +5、騎乘時移速 +15% 但不能攻擊
 export const MOUNT = { price: 3000, hours: 48, maxDays: 14, stat: 5, speed: 0.15, cd: 2 };
+// 騎乘座位（坐騎模型內 [高度, 前後]）：人物播 PC 騎乘坐姿（G2_m_pi／G2_m_run）坐到背上（11/20 使用者：上坐騎會穿模；截圖逐隻對過）
+export const MOUNT_SEAT = { G_dark_leopard_stand04: [0.7, -0.85], G_Unicon04: [0.7, -0.2], G_flame_dragon04: [0.63, -0.3], G_water_flog_stand04: [0.83, -0.6] };
+export const seatOf = mount => MOUNT_SEAT[mount] || [0.85, 0];
 export const MOUNT_NAMES = { G_dark_leopard_stand04: '暗影黑豹', G_Unicon04: '天馬獨角獸', G_flame_dragon04: '火焰飛龍', G_water_flog_stand04: '水晶巨蛙' };
 
 // 服裝顏色

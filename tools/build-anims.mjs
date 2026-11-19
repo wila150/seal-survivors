@@ -10,14 +10,15 @@ export const WEAPON = { novice: 'hd', musa: 'bgs', knight: 'ssh', magic: 'stm', 
 // 獵人（gunner，項目 45）的動作檔命名不同：hm_／hw_ + 動作（hm_w1、hm_rn、hm_f1、hm_p1…，見 actor/man20.act）
 // 動作組的鍵：pi＝平常站著（用原版 w1 安靜站姿；原版 pi 是戰鬥備戰、一直彈跳，使用者 11/18：不要一直動來動去）
 //            fid＝站久了偶爾播一次的等待動作（原版 w2：伸懶腰、東張西望，2～5 秒）
-const ACTS = ['pi', 'rn', 'f1', 'f2', 'f3', 'dd', 'fid', 'p1', 'p2', 'p3', 'p4']; // p1～p4＝原版技能動作（11/18 使用者：技能動畫要照 PC）
+const ACTS = ['pi', 'rn', 'f1', 'f2', 'f3', 'dd', 'fid', 'p1', 'p2', 'p3', 'p4', 'rpi', 'rrn']; // rpi／rrn＝騎坐騎（11/20 使用者：上坐騎會穿模 → 照 PC 騎乘坐姿 G2_m_pi／G2_m_run，每職業共用） // p1～p4＝原版技能動作（11/18 使用者：技能動畫要照 PC）
 const SRC = { pi: ['w1', 'pi'], fid: ['w2'] };
 // 獵人另外有每招專屬動作（skills.json 技能的 motion 欄指定）
 const GUNNER_EXTRA = ['multishot', 'doubleshot', 'powershot', 'pointshot', 'rapid', 'simpleshot', 'overdriveshot', 'shotshot'];
 const made = {};
 for (const g of ['Ma', 'Wa']) for (const [job, w] of Object.entries(WEAPON)) for (const a of (w === 'gunner' ? [...ACTS, ...GUNNER_EXTRA] : ACTS)) {
   // 女角少數動作沒有 → 用男角同一個，再沒有就用空手
-  const cands = w === 'gunner' ? (SRC[a] || [a]).flatMap(x => [(g === 'Ma' ? 'hm_' : 'hw_') + x, 'hm_' + x]) : (SRC[a] || [a]).flatMap(x => [g + w + x, 'Ma' + w + x, g + 'hd' + x, 'Mahd' + x]);
+  const RIDE = { rpi: 'pi', rrn: 'run' };
+  const cands = RIDE[a] ? [`G2_${g === 'Ma' ? 'm' : 'w'}_${RIDE[a]}`, `G2_m_${RIDE[a]}`] : w === 'gunner' ? (SRC[a] || [a]).flatMap(x => [(g === 'Ma' ? 'hm_' : 'hw_') + x, 'hm_' + x]) : (SRC[a] || [a]).flatMap(x => [g + w + x, 'Ma' + w + x, g + 'hd' + x, 'Mahd' + x]);
   const f = cands.map(c => lower.get(c.toLowerCase() + '.an1')).find(Boolean); if (!f) { console.log('缺', g + w + a); continue; }
   const id = f.slice(0, -4);
   (made[`${g[0].toLowerCase()}_${job}`] ||= {})[a] = id;

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { sealModel, sealActor, glowGear } from './seal-model.js';
 import { GUP } from '../1_data/items.js';
-import { OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT } from '../1_data/jobs.js';
+import { OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, seatOf } from '../1_data/jobs.js';
 import { view } from './camera.js';
 
 // ===== 輸入 =====
@@ -72,9 +72,9 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; group.add(ring); }
   scene.add(group);
 
-  const rig = { group, actor: null, mounted: false, mountCd: 0, mountObj: null, riderLift: 0 };
+  const rig = { group, actor: null, mounted: false, mountCd: 0, mountObj: null };
   // 坐騎：上坐騎時人坐到坐騎背上
-  const mountReady = MOUNT_ON ? sealModel(JOB.mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; group.add(m); rig.mountObj = m; rig.riderLift = 0.85; }).catch(() => {}) : Promise.resolve();
+  const mountReady = MOUNT_ON ? sealModel(JOB.mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; group.add(m); rig.mountObj = m; }).catch(() => {}) : Promise.resolve();
   const LOOK = playerLook(CHAR.job, CHAR.gender, CHAR.hair ?? 0, CHAR.hairColor ?? 0, CHAR.outfit ?? 0, CHAR.items, CHAR.costume);
   const actorReady = sealActor(playerModelId(CHAR.job, CHAR.gender), playerAnimSet(CHAR.job, CHAR.gender), 1.7, LOOK.gear, LOOK.opts).then(async m => {
     await Promise.race([m.userData.texReady, new Promise(r => setTimeout(r, 4000))]); // 等貼圖載好再拍頭像
@@ -85,7 +85,7 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
       const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 2)); sc.add(m); m.rotation.y = 0.35;  // 直接拍本體（clone 會丟掉骨架），拍完放回去
       const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50); cam.position.set(0, 1.45, 1.6); cam.lookAt(0, 1.35, 0); r.render(sc, cam);
       onPortrait?.(r.domElement.toDataURL()); r.dispose(); } catch {}
-    m.rotation.y = 0; group.add(m);
+    m.rotation.y = 0; group.add(m); rig.seatRider();
   }).catch(e => console.warn('玩家模型', e.message));
   rig.mountReady = mountReady; rig.actorReady = actorReady;
 
@@ -99,15 +99,16 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
     if (rig.swingCd > 0 || (rig.actor.busy && rig.actor.current !== 'fid')) return; // 等待動作（伸懶腰）可以被攻擊打斷
     rig.swingCd = motion ? 1.1 : 0.9; rig.actor.attack(1.6, motion);
   };
+  // 人物坐上／離開坐騎：照坐騎座位放好＋切換騎乘坐姿（seatOf，jobs.js）
+  rig.seatRider = () => { const m = group.userData.model; if (!m) return; const [y, z] = rig.mounted ? seatOf(JOB.mount) : [0, 0]; m.position.y = y; m.position.z = z; m.userData.actor?.setRiding?.(rig.mounted); };
   // 上下坐騎（冷卻中或沒租回傳 false）
   rig.setMounted = on => {
     if (!MOUNT_ON || rig.mountCd > 0) return false;
     rig.mounted = on; rig.mountCd = MOUNT.cd;
     if (rig.mountObj) rig.mountObj.visible = on;
-    if (group.userData.model) group.userData.model.position.y = on ? rig.riderLift : 0;
-    return true;
+    rig.seatRider(); return true;
   };
-  rig.resetMount = () => { rig.mounted = false; rig.mountCd = 0; if (rig.mountObj) rig.mountObj.visible = false; if (group.userData.model) group.userData.model.position.y = 0; };
+  rig.resetMount = () => { rig.mounted = false; rig.mountCd = 0; if (rig.mountObj) rig.mountObj.visible = false; rig.seatRider(); };
   // XZ 移動＋面向移動方向＋站／跑動作；騎乘移速 +15%
   rig.move = (dt, inp, P) => {
     rig.mountCd -= dt; const spd = P.speed * (rig.mounted ? 1 + MOUNT.speed : 1) * (P.tmp?.speed > 0 ? 1.2 : 1) * (P.tmp?.dash > 0 ? 1.6 : 1); // 項目 37 祝福、54 衝鋒加速

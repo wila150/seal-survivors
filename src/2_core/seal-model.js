@@ -176,7 +176,7 @@ export async function sealActor(modelName, setKey, height = 1.7, gear = [], opts
   // 攻擊：f1→f2→f3 輪流，播完回到原本動作。移動中不播全身攻擊（不然腳會停住、看起來在原地卡頓）
   // skill＝原版技能動作 'p1'～'p4'（放技能時用，照原速播；沒有就退回普攻）
   function attack(speed = 1.6, skill = null) {
-    if (moving) return 0;
+    if (moving || riding) return 0; // 騎坐騎時不播站姿攻擊（會從坐騎上站起來穿模）
     if (skill && clips[skill]) speed = 1.15;
     const key = skill && clips[skill] ? skill : ['f1', 'f2', 'f3'][combo++ % 3]; const clip = clips[key] || clips.f1; if (!clip) return 0;
     const a = mixer.clipAction(clip); a.reset(); a.setLoop(THREE.LoopOnce); a.timeScale = speed; a.play();
@@ -194,19 +194,24 @@ export async function sealActor(modelName, setKey, height = 1.7, gear = [], opts
     busy = clip.duration - 0.25; resume = 'pi';
   }
   function update(dt, wantMove, speedRatio = 1) {
-    if (moving || busy > 0 || curKey !== 'pi') idleT = 0;
+    if (moving || busy > 0 || curKey !== 'pi' || riding) idleT = 0;
     else if ((idleT += dt) > idleNext) { idleT = 0; idleNext = 8 + Math.random() * 7; fidget(); }
     moveT = wantMove ? Math.max(0, moveT) + dt : Math.min(0, moveT) - dt;
     if (!moving && moveT > 0.05) moving = true; else if (moving && moveT < -0.12) moving = false;
     runScale = 1.25 * speedRatio; if (curKey === 'rn' && cur) cur.timeScale = runScale;
     if (moving && busy > 0) { busy = 0; curKey = ''; } // 開始移動就中斷攻擊動作
     if (busy > 0) { busy -= dt; if (busy <= 0) { curKey = ''; play(resume, 0.25); } }
-    else if (curKey !== 'dd') play(moving ? 'rn' : 'pi');
+    else if (curKey !== 'dd') play(riding && clips.rpi ? (moving ? 'rrn' : 'rpi') : (moving ? 'rn' : 'pi'));
     mixer.update(dt);
   }
   play('pi', 0);
   group.userData.texReady = Promise.all(texWait);
-  group.userData.actor = { play, attack, update, mixer, get busy() { return busy > 0; }, get current() { return curKey; } };
+  // 騎坐騎：站／跑改播 PC 騎乘坐姿（rpi／rrn＝客戶端 G2_m_pi／G2_m_run）
+  let riding = false;
+  // 原版騎乘動作的根骨頭面向跟站姿相反 → 騎乘時模型多轉 180 度（面向才會跟坐騎一樣）
+  let baseRotY = null;
+  const setRiding = on => { if (!!on === riding) return; if (baseRotY == null) baseRotY = inner.rotation.y; riding = !!on; busy = 0; curKey = ''; inner.rotation.y = baseRotY + (riding && clips.rpi ? Math.PI : 0); };
+  group.userData.actor = { play, attack, update, mixer, setRiding, get riding() { return riding; }, get busy() { return busy > 0; }, get current() { return curKey; } };
   return group;
 }
 
