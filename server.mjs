@@ -22,7 +22,7 @@ import { PETS, PET_MAX, EGG_PRICE, MVP_EGG_RATE, FEED_EXP, addPetExp, petNeed, p
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from './src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from './src/1_data/talents.js';
 import { RODS, BAIT, CATCH, rollCatch } from './src/1_data/fishing.js';
-import { JOB_WEAPON, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
+import { rollClock, CLK_KINDS, JOB_WEAPON, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 
 const PORT = +process.env.PORT || 8765;
 let _skills = null; const SKILLS = () => (_skills ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'data', 'skills.json'), 'utf8')));
@@ -58,6 +58,7 @@ try { db.exec('ALTER TABLE items ADD COLUMN elem INTEGER NOT NULL DEFAULT 0'); }
 try { db.exec('ALTER TABLE items ADD COLUMN look INTEGER'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN setk TEXT'); } catch {} // 賢者之塔艾希頓套裝 // 指令 4-3 衣櫥外觀複製（顯示成這個 PC 道具的外觀） // 項目 50：鎖定（不會被一鍵餵食／分解／賣掉） // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
 // 項目 18：倉庫（整個帳號共用）。存進倉庫的裝備 char_id＝0、acct＝帳號、stash＝分頁 0～5
+try { db.exec('ALTER TABLE items ADD COLUMN clk TEXT'); } catch {} try { db.exec('ALTER TABLE items ADD COLUMN clkp TEXT'); } catch {} // 指令 4-2 發條屬性／武爾坎努斯待選
 try { db.exec('ALTER TABLE items ADD COLUMN acct INTEGER'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN stash INTEGER'); } catch {}
 try { db.exec('ALTER TABLE accounts ADD COLUMN stash TEXT'); } catch {}
@@ -170,9 +171,9 @@ function auth(req) {
   if (!s || s.expires < Date.now()) return null;
   return s.account_id;
 }
-const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])) }; };
+const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0 }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
-const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, setk: r.setk || null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
+const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, setk: r.setk || null, clk: r.clk ? JSON.parse(r.clk) : null, clkp: r.clkp ? JSON.parse(r.clkp) : null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
 const ownChar = (uid, cid) => db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+cid, uid);
 const ownItem = (uid, iid) => db.prepare('SELECT i.* FROM items i JOIN characters c ON c.id=i.char_id WHERE i.id=? AND c.account_id=?').get(+iid, uid);
@@ -330,6 +331,7 @@ const api = {
       else { petUp = addPetExp(ap, Math.floor(gain * 0.3)); if (petStage9(ap.lv) === 9) ap.s9 = (ap.s9 || 0) + secs; } }
     if (bl.some(n => mvpNames.has(n)) && Math.random() < MVP_EGG_RATE && d.pets.length < PET_MAX) { const k = Object.keys(PETS)[Math.random() * 4 | 0]; petEgg = { id: Date.now(), kind: k, lv: 1, exp: 0 }; d.pets.push(petEgg); }
     // 11/19 使用者企劃 指令 3：每打完一套 A→S→D 連續技，身上鑲著的技能寶石各 +20 融合經驗，滿 100 升一級（N → G → DG → XG）
+    d.cbTotal = (d.cbTotal || 0) + Math.max(0, Math.min(30, combos | 0)); // 項目 52 連續技熟練度（局外縮減門檻）
     const gemUps = []; { const n = Math.max(0, Math.min(30, combos | 0)); if (n) for (const sl of d.gemSlots || []) { const g = sl && (d.gems || []).find(x => x.id === sl.gem); if (!g) continue;
       g.fx = (g.fx || 0) + 20 * n; while (g.fx >= 100 && g.grade < 3) { g.fx -= 100; g.grade++; gemUps.push(g.grade); } if (g.grade >= 3) g.fx = Math.min(g.fx, 100); } }
     let souls = 0; if (isTower) { delete d.towerPass; souls = Math.floor(floor / 3); if (souls) { d.mats ??= {}; d.mats.ashton = (d.mats.ashton || 0) + souls; } } // 賢者之塔：入場證用掉、每 3 層 1 個艾希頓之魂
@@ -466,6 +468,33 @@ const api = {
     if (a.equipped || a.locked) return send(res, 400, { error: '來源裝備要先卸下、解鎖' }); if (!(a.look || a.pc)) return send(res, 400, { error: '這件沒有原版外觀' });
     const c = ownChar(uid, a.char_id); if ((c.gold ?? 0) < 1000) return send(res, 400, { error: '希幣不夠（要 1000）' });
     db.prepare('UPDATE items SET look=? WHERE id=?').run(a.look || a.pc, b.id); db.prepare('DELETE FROM items WHERE id=?').run(a.id); db.prepare('UPDATE characters SET gold=gold-1000 WHERE id=?').run(c.id);
+    send(res, 200, { char: fullChar(ownChar(uid, c.id)) });
+  },
+  // ===== 指令 4-2 發條配件（服務端 item.txt：實習生 N～G／高手 N～XG／武爾坎努斯 N～XG 可保留原屬性；繼承卷軸）=====
+  'POST /api/clock': async (req, res, _, uid) => {
+    const { itemId, kind } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
+    if (!CLK_KINDS.includes(kind)) return send(res, 400, { error: '沒有這種發條' }); if (it.clkp) return send(res, 400, { error: '先決定武爾坎努斯的發條要用哪一組屬性' });
+    const c = ownChar(uid, it.char_id), d = JSON.parse(c.data || '{}'); d.mats ??= {};
+    if (!(d.mats[kind] > 0)) return send(res, 400, { error: `沒有「${ORES[kind].name}」（裝備商人有賣）` });
+    d.mats[kind]--; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    const lines = rollClock(kind);
+    if (kind === 'clk3' && it.clk) db.prepare('UPDATE items SET clkp=? WHERE id=?').run(JSON.stringify(lines), it.id); // 有舊屬性才需要選
+    else db.prepare('UPDATE items SET clk=? WHERE id=?').run(JSON.stringify(lines), it.id);
+    send(res, 200, { lines, pending: kind === 'clk3' && !!it.clk, char: fullChar(ownChar(uid, c.id)) });
+  },
+  'POST /api/clockpick': async (req, res, _, uid) => {
+    const { itemId, keep } = await body(req); const it = ownItem(uid, itemId); if (!it || !it.clkp) return send(res, 404, { error: '沒有待選的發條屬性' });
+    if (keep) db.prepare('UPDATE items SET clkp=NULL WHERE id=?').run(it.id); else db.prepare('UPDATE items SET clk=clkp, clkp=NULL WHERE id=?').run(it.id);
+    send(res, 200, { char: fullChar(ownChar(uid, it.char_id)) });
+  },
+  'POST /api/clockinherit': async (req, res, _, uid) => {
+    const { fromId, toId } = await body(req); const a = ownItem(uid, fromId), b = ownItem(uid, toId);
+    if (!a || !b || a.id === b.id) return send(res, 404, { error: '找不到裝備' }); if (a.char_id !== b.char_id || a.slot !== b.slot) return send(res, 400, { error: '只能移到同部位的裝備' });
+    if (!a.clk) return send(res, 400, { error: '來源裝備沒有發條屬性' }); if (a.clkp || b.clkp) return send(res, 400, { error: '先決定武爾坎努斯的發條要用哪一組屬性' });
+    const c = ownChar(uid, a.char_id), d = JSON.parse(c.data || '{}'); d.mats ??= {};
+    if (!(d.mats.clkInherit > 0)) return send(res, 400, { error: '沒有「發條屬性繼承卷軸」（裝備商人有賣）' });
+    d.mats.clkInherit--; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    db.prepare('UPDATE items SET clk=? WHERE id=?').run(a.clk, b.id); db.prepare('UPDATE items SET clk=NULL WHERE id=?').run(a.id);
     send(res, 200, { char: fullChar(ownChar(uid, c.id)) });
   },
   // ===== 賢者之塔 Another（官方 wiki 83；src/1_data/tower.js）=====

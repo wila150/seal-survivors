@@ -1450,7 +1450,7 @@ function identLine(it) {
   const learned = own && (it.ident.tree === 0 ? CHAR.talents : it.ident.tree === CHAR.job2 ? CHAR.talents2 : null)?.[n.id] > 0;
   return `<small style="color:#2b6fd6"><b>技能屬性：${n.name} Lv+${it.ident.lv}</b>（${it.ident.job}${br ? '・' + br : ''}）${learned ? '' : '<span style="color:#c0392b">　目前沒有生效：要點過這個天賦才會提升</span>'}</small><br>`;
 }
-const clkHtml = it => it.clk ? `<div class="affx">${it.clk.map(l => `<span style="color:${CLK_COLOR[l[2]]};text-shadow:0 0 2px #000">⚙ ${clkText(l)}</span>`).join('')}</div>` : ''; // 指令 4-2 發條屬性
+const clkHtml = it => it.clk ? `<div class="affx">${it.clk.map(l => `<span style="color:${CLK_COLOR[l[2]]};font-weight:700">⚙ ${clkText(l)}</span>`).join('')}</div>` : ''; // 指令 4-2 發條屬性
 const inheritCost = x => 300 * (x.refine || 0) + 1000 * (x.gup || 0) + 200; // 指令 4-2 裝備繼承費用（暫定）
 function itemDetail(it) {
   // 項目 32：★ 特性與詞綴另外列一行（數值已經算進上面的總數值）

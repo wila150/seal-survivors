@@ -176,7 +176,9 @@ rig.walk = (p, nx, nz) => walkMove(MAP, p, nx, nz); // 原版可走區（水、�
 //   最後一擊跳職業台詞大字；1000 點的完全體加屬性追加效果；放完能量歸零
 // 局內卡片：能量球掉落 +10%、能量球吸取 +30%、撿球回 1% HP；寵物進化過＝掉落 +10%、吸取 ×1.5
 const CB = { g: 0, st: 'charge', done: 0 };
-const CB_MAX = 100, CB_TIER = [30, 60, 100]; // 11/19 使用者：「連續技改一百，集滿一千太久了」
+// 11/19 使用者：「連續技改一百，集滿一千太久了」；asd_combo_design_v3「可透過局外成長逐步縮減門檻至 800／600」→ 改 100 後＝80／60
+// 局外成長＝連續技熟練度（累計放過的連續技次數）：50 次 → 滿格 80、200 次 → 60（三階一起照比例縮；PC 天賦樹沒有這種節點，不塞進天賦樹）
+const CB_MAX = (CHAR.cbTotal || 0) >= 200 ? 60 : (CHAR.cbTotal || 0) >= 50 ? 80 : 100, CB_TIER = [0.3, 0.6, 1].map(k => Math.round(CB_MAX * k));
 const W_ELEM = (CHAR.items || []).find(i => i.equipped && i.slot === 'weapon')?.elem || 0; // 指令 4-3 武器七大屬性合成
 const JOB_LINE = { 劍士: '一刀兩斷！', 騎士: '以盾為誓，斬！', 法師: '元素聽我號令！', 祭司: '我要代替聖光懲罰你！', 小丑: '表演開始～', 鐵匠: '人蔘攻擊！', 獵人: '百步穿楊！', 初心者: '別小看初心者！' };
 const cbStyle = document.createElement('style'); cbStyle.textContent = `#ultBtn{position:fixed;right:calc(50% - 215px);bottom:calc(max(10px,env(safe-area-inset-bottom)) + 18px);z-index:7;width:66px;height:66px;border-radius:50%;padding:0;border:0;pointer-events:auto;--p:0;--ec:#ffd36b;
@@ -196,8 +198,15 @@ const cbTier = () => CB_TIER.filter(v => CB.g >= v).length;
 // ---- 能量球 ----
 const CBO = [], orbGeo = new THREE.SphereGeometry(0.22, 10, 8), orbMats = {};
 const orbMat = e => orbMats[e] ??= new THREE.MeshBasicMaterial({ color: new THREE.Color(e ? ELEM_COLOR[e] : '#ffffff'), transparent: true, opacity: 0.95 });
+// 無屬性＝經典 A／S／D 鍵盤徽章（asd_combo_design_v3 第 6 點）：畫在 canvas 上的鍵帽貼圖
+const asdTex = 'ASD'.split('').map(ch => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  g.fillStyle = '#2b3550'; g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.roundRect(6, 6, 52, 52, 10); g.fill(); g.stroke();
+  g.fillStyle = '#ffe28a'; g.font = '900 36px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 32, 34);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return new THREE.SpriteMaterial({ map: t, depthWrite: false }); });
 function cbDropOrb(pos, pts, scale = 1) {
-  if (CBO.length > 160) return; const m = new THREE.Mesh(orbGeo, orbMat(cbElem())); m.scale.setScalar(scale);
+  if (CBO.length > 160) return;
+  if (!cbElem()) { const m = new THREE.Sprite(asdTex[Math.floor(Math.random() * 3)]); m.scale.setScalar(0.7 * scale); m.position.set(pos.x + (Math.random() - 0.5) * 1.2, 0.6, pos.z + (Math.random() - 0.5) * 1.2); scene.add(m); CBO.push({ m, pts, ph: Math.random() * 6 }); return; }
+  const m = new THREE.Mesh(orbGeo, orbMat(cbElem())); m.scale.setScalar(scale);
   const halo = new THREE.Sprite(addMat(tex.gem, new THREE.Color(cbElem() ? ELEM_COLOR[cbElem()] : '#ffffff').getHex())); halo.scale.setScalar(1.1 * scale); m.add(halo);
   m.position.set(pos.x + (Math.random() - 0.5) * 1.2, 0.6, pos.z + (Math.random() - 0.5) * 1.2); scene.add(m); CBO.push({ m, pts, ph: Math.random() * 6 });
 }

@@ -116,6 +116,7 @@ export function itemStats(it) {
   // ★ 特性＋詞綴（項目 32）
   const T = traitOf(it); if (T) o[T.k] = (o[T.k] || 0) + T.v;
   for (const [k, v] of it.aff?.a || []) o[k] = (o[k] || 0) + v;
+  for (const [k, v] of it.clk || []) o[k] = (o[k] || 0) + v; // 指令 4-2 發條屬性
   return o;
 }
 const SET_NAME = { chaos: '渾沌的炙卡爾', white: '純白的坦柏特' }; // 賢者之塔艾希頓套裝（tower.js ASHTON_SETS）
@@ -171,7 +172,26 @@ export const ORES = {
   pinkdia: { name: '粉紅鑽', icon: 380, price: 5000, desc: 'G 化材料：DG → XG', scroll: true },
   gbox80:  { name: '艾彼雷歐的 G 化工具箱 80%',  icon: 3427, price: 3000, desc: 'G 化時一起用：成功率至少 80%', scroll: true },
   gbox100: { name: '艾彼雷歐的 G 化工具箱 100%', icon: 3428, price: 8000, desc: 'G 化時一起用：一定成功', scroll: true },
+  // 指令 4-2 發條配件（服務端 item.txt 26731～26733、26948：實習生的發條 N～G、高手的發條 N～XG、武爾坎努斯的發條 N～XG＋可保留原屬性、發條屬性繼承卷軸；
+  // 實習生售價 50000 → ÷10；其他三個原版是商城道具（售價 0）→ 暫定）
+  clk1: { name: '實習生的發條', icon: 4298, price: 5000, desc: '使用後，賦予裝備 N～G 等級的 3 種隨機屬性（會蓋掉原本的發條屬性）', scroll: true },
+  clk2: { name: '高手的發條', icon: 4299, price: 15000, desc: '進階發條：賦予裝備 N～XG 等級的 3 種隨機屬性', scroll: true },
+  clk3: { name: '武爾坎努斯的發條', icon: 4300, price: 30000, desc: '最高級的發條：N～XG 等級的 3 種隨機屬性，可以選擇維持使用前的屬性', scroll: true },
+  clkInherit: { name: '發條屬性繼承卷軸', icon: 4336, price: 10000, desc: '把一件裝備的發條屬性移到同部位的另一件裝備上（原本那件的發條屬性會消失）', scroll: true },
 };
+// ===== 指令 4-2 發條配件：items.clk＝[[屬性, 數值, 等級 0 N／1 G／2 DG／3 XG], ×3]（同一次不重複；數值 🔢 暫定）=====
+export const CLK_GRADE = ['N', 'G', 'DG', 'XG'], CLK_COLOR = ['#5a6070', '#1e9e45', '#1f6fd6', '#d9740a'];
+export const CLK_POOL = { atk: [0.02, 0.03, 0.045, 0.06], hp: [8, 14, 22, 32], armor: [1, 2, 3, 4], crit: [0.01, 0.02, 0.03, 0.04], haste: [0.02, 0.03, 0.045, 0.06],
+  speed: [0.015, 0.025, 0.035, 0.05], magnet: [0.1, 0.15, 0.22, 0.3], skd: [0.03, 0.05, 0.07, 0.1], str: [1, 2, 3, 5], agi: [1, 2, 3, 5], int: [1, 2, 3, 5], vit: [1, 2, 3, 5], wis: [1, 2, 3, 5], luk: [1, 2, 3, 5] };
+const CLK_W = { clk1: [70, 30, 0, 0], clk2: [50, 30, 15, 5], clk3: [40, 32, 20, 8] }; // 等級機率
+export const CLK_KINDS = ['clk1', 'clk2', 'clk3'];
+export function rollClock(kind, rand = Math.random) {
+  const W = CLK_W[kind], keys = Object.keys(CLK_POOL), out = [];
+  while (out.length < 3) { const k = keys[Math.floor(rand() * keys.length)]; if (out.some(x => x[0] === k)) continue;
+    let r = rand() * 100, g = 0; while (g < 3 && r >= W[g]) r -= W[g++]; out.push([k, CLK_POOL[k][g], g]); }
+  return out;
+}
+export const clkText = l => `${STAT_NAMES[l[0]]} ${fmtStat(l[0], l[1])}（${CLK_GRADE[l[2]]}）`;
 // ===== 項目 46：G 化（一般 → G → DG → XG）=====
 // 照服務端 item.scr 的 .G／.DG／.XG 版本：強化鎚 攻擊 64 → 74 → 79 → 84（×1.16／1.23／1.31）；
 // 成功率（第 47 欄）隨裝備等級遞減：低階 97／82／56%、高階 42／29／16% → 我們用品質內插（普通＝低階、傳說＝高階）
