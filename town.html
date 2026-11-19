@@ -525,6 +525,7 @@ function openDlg(title, html, opts, wide = false) {
   for (const [label, fn, primary] of [...opts, ['離開', () => closeBox(bx)]]) { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.textContent = label; b.onclick = fn; box.appendChild(b); }
   $('#dlg').classList.add('on'); $('#dlg').classList.toggle('multi', DLG_MULTI);
   if (fresh) { bx.hidden = false; dlgPlace(bx); } if (!dlgBg) dlgFront(bx); // 背景自動刷新（dlgBg）不搶到最上層
+  if (DLG_MULTI) requestAnimationFrame(() => { const r = bx.getBoundingClientRect(); if (r.bottom > innerHeight - 8) bx.style.top = Math.max(8, innerHeight - 8 - r.height) + 'px'; }); // 內容變長（例：背包點裝備出現說明）超出螢幕底部 → 往上移
 }
 // 關掉「現在這個」視窗（Esc、按鈕裡的 closeDlg()）
 function closeDlg() { const b = $('#dlgTitle')?.closest('.box'); if (b && !b.hidden) closeBox(b); else { dlgOpen = false; $('#dlg').classList.remove('on'); } }
@@ -1637,6 +1638,24 @@ function identLine(it) {
 }
 const clkHtml = it => it.clk ? `<div class="affx">${it.clk.map(l => `<span style="color:${CLK_COLOR[l[2]]};font-weight:700">⚙ ${clkText(l)}</span>`).join('')}</div>` : ''; // 指令 4-2 發條屬性
 const inheritCost = x => 300 * (x.refine || 0) + 1000 * (x.gup || 0) + 200; // 指令 4-2 裝備繼承費用（暫定）
+// 11/20 使用者：「背包有辦法改進嗎？」（附 RO Survivors 截圖）→ 裝備說明加「分數＋跟身上同部位那件逐項比較（▲▼）」，穿著的那件列出同部位其他裝備，一鍵換上
+function compareHtml(it) {
+  const eq = (CHAR.items || []).find(x => x.equipped && x.slot === it.slot && x.id !== it.id), sc = score(it), arrow = d => d ? `<b style="color:${d > 0 ? '#2e7d32' : '#c0392b'}">${d > 0 ? '▲' : '▼'}${fmtNum(Math.abs(d))}</b>` : '<small>－</small>';
+  const fmtNum = v => Math.abs(v) < 1 ? +v.toFixed(3) : Math.abs(v) < 10 ? +v.toFixed(1) : Math.round(v);
+  let h = `<div class="cmp" style="flex-basis:100%">`;
+  if (!it.equipped) {
+    if (!eq) h += `<div class="cmp-h">分數 <b>${sc}</b>　<small>這個部位現在沒穿東西</small></div>`;
+    else {
+      const A = itemStats(it), Bv = itemStats(eq), keys = [...new Set([...Object.keys(A), ...Object.keys(Bv)])].filter(k => (A[k] || 0) || (Bv[k] || 0));
+      h += `<div class="cmp-h">換成這件：分數 <b>${sc}</b> ${arrow(sc - score(eq))}　<small>（身上：${esc(itemName(eq))} ${score(eq)}）</small></div>
+        <table class="cmp-t">${keys.map(k => `<tr><td>${STAT_NAMES[k] || k}</td><td>${fmtStat(k, A[k] || 0)}</td><td>${(d => d ? `<b style="color:${d > 0 ? '#2e7d32' : '#c0392b'}">${d > 0 ? '▲' : '▼'}${String(fmtStat(k, Math.abs(d))).replace(/^\+/, '')}</b>` : '<small>－</small>')((A[k] || 0) - (Bv[k] || 0))}</td></tr>`).join('')}</table>`;
+    }
+  } else {
+    const alt = (CHAR.items || []).filter(x => !x.equipped && x.slot === it.slot && !wearBlock(x, CHAR)).sort((a, b) => score(b) - score(a)).slice(0, 6);
+    h += `<div class="cmp-h">分數 <b>${sc}</b>　<small>此欄位可換（${alt.length}）</small></div>` + (alt.length ? alt.map(x => `<div class="cmp-row"><img src="${itemIcon(x)}" alt=""><span style="color:${RARITY[x.rarity].color}">${esc(itemName(x))}</span><small>分數 ${score(x)} ${arrow(score(x) - sc)}</small><button class="btn" data-act="equip" data-item="${x.id}">裝備</button></div>`).join('') : '<small>背包裡沒有能換的同部位裝備</small>');
+  }
+  return h + '</div>';
+}
 function itemDetail(it) {
   // 項目 32：★ 特性與詞綴另外列一行（數值已經算進上面的總數值）
   const T = traitOf(it), AF = it.aff?.a || [], affHtml = (T || AF.length) ? `<div class="affx">${T ? `<span class="trait">${T.name} ${STAT_NAMES[T.k]} ${fmtStat(T.k, T.v)}</span>` : ''}${AF.map(([k, v]) => `<span>${STAT_NAMES[k]} ${fmtStat(k, v)}</span>`).join('')}</div>` : '';
@@ -1661,6 +1680,7 @@ function itemDetail(it) {
   } else {
     const cant = !it.equipped && wearBlock(it, CHAR); // 照 PC：武器看職業、盾只有騎士、防具看職業位元、需求等級
     h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : cant ? `<button class="btn" disabled title="${cant}">不能裝備（${cant}）</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
+    h += compareHtml(it);
     if (!it.equipped && !it.locked) h += `<button class="btn" data-act="sell" data-item="${it.id}">賣出（${sellPrice(it)} 金幣）</button>`;
     // 11/20 使用者：「裝備賣出，沒辦法分解拿取道具」→ 每件都能單獨分解（得到強化金屬，強化師精煉用）
     if (!it.equipped && !it.locked) { const y = dismantleYield(it); h += `<button class="btn" data-act="dism" data-item="${it.id}">🔨 分解（強化金屬・一 ×${y.ore1}${y.ore2 ? `、二 ×${y.ore2}` : ''}、${y.gold} 希幣）</button>`; }

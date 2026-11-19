@@ -377,3 +377,13 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .fr-row .dot.on { background: #34c759; }
 #dlg .fr-on { margin-bottom: 6px; color: #6b5a48; font-weight: 700; }
 @media (max-width: 640px) { #dlg .ps-table { font-size: 12px; } #dlg .ps-table td { padding: 5px 3px; } #dlg .ps-table td small { display: none; } }
+/* 背包：裝備比較（分數＋逐項 ▲▼、此欄位可換） */
+#dlg .cmp { margin: 6px 0; padding: 8px 10px; border-radius: 10px; background: #f3f6fd; border: 1px solid #d3ddf2; font-size: 13px; }
+#dlg .cmp-h { margin-bottom: 4px; }
+#dlg .cmp-t { width: 100%; border-collapse: collapse; }
+#dlg .cmp-t td { padding: 2px 4px; border-bottom: 1px dashed #dbe3f3; }
+#dlg .cmp-t td:nth-child(2), #dlg .cmp-t td:nth-child(3) { text-align: right; white-space: nowrap; }
+#dlg .cmp-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #dbe3f3; }
+#dlg .cmp-row img { width: 28px; height: 28px; }
+#dlg .cmp-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+#dlg .cmp-row .btn { padding: 3px 10px; font-size: 12px; }
