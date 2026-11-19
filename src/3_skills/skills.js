@@ -7,6 +7,9 @@ export const TAG_NAMES = { ice: '冰', fire: '火', heavy: '重擊' };
 const STAT_NAMES = { dmg: '傷害', cd: '冷卻', range: '範圍', arc: '角度', count: '數量', radius: '範圍', bounce: '彈射', pierce: '穿透', spin: '轉速' };
 
 // 平面距離平方（只看 X、Z；投射物在半空、怪在地上）
+// 借用的原版飛行物（技能 → 有飛行特效的技能）：彈弓石頭、紅／藍石頭、毒匕首、卡片、炸彈
+const FLY_ALT = { luanshe: 'b_hunter', n_stone: 'b_hunter', n_sling: 'b_hunter', k2_guanchuan: 'b_hunter', k2_zhimiao: 'hongxin', k3_huoli: 'hongxin', k2_hunxuan: 'shuangzi',
+  k2_anying: 'duzhi', tiannv: 'suiyi', k3_quanlei: 'zhadan' };
 const d2 = (a, b) => (a.x - b.x) ** 2 + (a.z - b.z) ** 2;
 
 export async function loadSkills() { const r = await fetch('assets/data/skills.json'); return r.json(); }
@@ -92,6 +95,8 @@ export class SkillManager {
   // 原版特效（seal-fx.js；this.pcfx 有給、而且這招轉得出來才用；沒有就用原本的貼圖特效）
   fxk(k) { return this.def(k)?.pcfx || k; } // 初心者入門技借用職業招式的原版特效（skills.json pcfx 欄）
   pc(k, stage) { return !!this.pcfx?.has(this.fxk(k), stage); }
+  // 沒有自己原版飛行特效的投射技：借同類原版飛行物（11/20 使用者：「把那些光點都改成 PC 該有的樣子」——石頭、匕首、卡片）
+  flyKey(k) { const f = this.fxk(k); if (this.pcfx?.has(f, 'fly')) return f; const a = FLY_ALT[k]; return a && this.pcfx?.has(a, 'fly') ? a : null; }
   pcPlay(k, stage, pos, face, opts) { k = this.fxk(k); const r = this.pcfx?.play(k, stage, pos, face, stage === 'cast' && pos === this.player.position ? { ...opts, follow: this.player } : opts); if (r && stage !== 'cast') { const f = this.pcfx.index?.[k]?.sound?.[stage]; if (f) this.sound?.(f); } return r; }
   // 出招音效：這招有原版施放音效就播原版的，沒有就播通用的（hit／zap／boom）
   castSound(k, generic) { const f = this.pcfx?.index?.[this.fxk(k)]?.sound?.cast; this.sound?.(f || generic); }
@@ -241,14 +246,14 @@ export class SkillManager {
     if (!tg && !st.ring) return false;
     const base = tg ? Math.atan2(tg.mesh.position.z - pp.z, tg.mesh.position.x - pp.x) : this.P.face;
     this.onCast?.(base, this.motion(k)); this.castSound(k, 'zap');
-    const c = new THREE.Color(d.color).getHex(), n = st.count, pcFly = this.pc(k, 'fly');
+    const c = new THREE.Color(d.color).getHex(), n = st.count, flyK = this.flyKey(k);
     this.pcPlay(k, 'cast', pp, base, { fit: 2.5 });
     for (let i = 0; i < n; i++) {
-      const a = st.ring ? base + i / n * 6.283 : base + (i - (n - 1) / 2) * 0.2;
+      const a = st.ring ? base + i / n * 6.283 : base + (i - (n - 1) / 2) * (n > 1 ? 0.3 : 0); // 散射：每支錯開約 17 度，看得出是好幾支
       const m = this.fx.get(false); m.material.map = this.fx.tex[d.fx]; m.material.color.set(c); m.material.opacity = 1; m.material.needsUpdate = true;
       m.position.set(pp.x, 1, pp.z); m.scale.setScalar(st.size || 1.2);
       // 原版飛行特效：跟著投射物走、朝飛行方向；原本的光球藏起來
-      const pcm = pcFly ? this.pcPlay(k, 'fly', pp, a, { y: 1, fit: (st.size || 1.2) * 1.2 }) : null; if (pcm) m.visible = false;
+      const pcm = flyK ? this.pcfx.play(flyK, 'fly', pp, a, { y: 1, fit: (st.size || 1.2) * 1.2 }) : null; if (pcm) m.visible = false;
       this.shots.push({ m, k, pcm, vx: Math.cos(a) * st.speed, vz: Math.sin(a) * st.speed, life: 1.6, dmg: st.dmg, bounce: st.bounce || 0, pierce: st.pierce || 0, pierceP: st.pierceP || 0, blast: st.blast || 0, hit: new Set(), trail: 0, c });
     }
   }
@@ -256,7 +261,7 @@ export class SkillManager {
     for (let i = this.shots.length - 1; i >= 0; i--) {
       const s = this.shots[i], p = s.m.position; s.life -= dt;
       p.x += s.vx * dt; p.z += s.vz * dt; s.m.material.rotation += dt * 10;
-      if (s.pcm) { s.pcm.position.set(p.x, 1, p.z); s.pcm.rotation.y = Math.atan2(-s.vx, -s.vz); }
+      if (s.pcm) this.pcfx.moveFly(s.pcm, p.x, 1, p.z, Math.atan2(-s.vx, -s.vz));
       // 粒子拖尾（有原版飛行特效就不畫）
       else if ((s.trail -= dt) <= 0) { s.trail = 0.035; this.fx.spawn('dot', p, { scale: 0.7, life: 0.28, grow: 0.3, color: s.c, y: 1 }); }
       for (const e of this.enemies()) {
@@ -326,7 +331,7 @@ export class SkillManager {
   updateLobs(dt) {
     for (let i = this.lobs.length - 1; i >= 0; i--) {
       const L = this.lobs[i]; L.t += dt; const f = Math.min(1, L.t / L.dur);
-      if (L.pcm) L.pcm.position.set(L.from.x + (L.p.x - L.from.x) * f, 1, L.from.z + (L.p.z - L.from.z) * f);
+      if (L.pcm) this.pcfx.moveFly(L.pcm, L.from.x + (L.p.x - L.from.x) * f, 1, L.from.z + (L.p.z - L.from.z) * f, L.pcm.rotation.y);
       if (f >= 1) { this.pcfx?.stop(L.pcm); this.lobs.splice(i, 1); this.zoneHit(L.k, L.d, L.st, L.p, L.from, L.pc, L.c); }
     }
   }

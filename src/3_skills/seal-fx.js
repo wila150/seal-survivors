@@ -119,12 +119,14 @@ export class SealFx {
       if (!this.done.has(n.mesh)) { this.load(n.mesh); continue; } // 還在載入
       const T = this.done.get(n.mesh); if (!T) continue;
       // 腳本的延遲是從施法開始算；命中／飛行我們在真的打中／射出時才播，所以不再延遲
-      const fx = this.spawn(T, stage === 'cast' ? n : { ...n, delay: 0 }, pos, face, opts, stage === 'fly'); if (fx && !first) first = fx;
+      const fx = this.spawn(T, stage === 'cast' ? n : { ...n, delay: 0 }, pos, face, opts, stage === 'fly'); if (!fx) continue;
+      // 飛行特效有好幾個部位（例：雙子爆發兩顆石頭）：以前只回傳第一個，其他的無限循環留在原地 → 一直累積到上限，之後全部變光點（11/20 使用者：普攻特效有時候跟不上）
+      if (!first) { first = fx; fx.userData.extras = []; } else if (stage === 'fly') { fx.userData.follow = null; first.userData.extras.push(fx); }
     }
     return first;
   }
   spawn(T, n, pos, face, opts, loop) {
-    if (this.live.length >= MAX_ALL) return null;
+    if (this.live.length >= MAX_ALL && !loop) return null; // 飛行特效（loop）跟著投射物、一定會停 → 不受總數上限，不然戰況激烈時投射物會變光點
     const pool = this.free.get(T) || this.free.set(T, []).get(T);
     if (this.live.filter(f => f.userData.T === T).length >= MAX_EACH && !loop) return null;
     const g = pool.pop() || this.instance(T);
@@ -140,7 +142,9 @@ export class SealFx {
     this.scene.add(g); this.live.push(g);
     return g;
   }
-  stop(g) { if (g) g.userData.life = 0; }
+  stop(g) { if (!g) return; g.userData.life = 0; for (const x of g.userData.extras || []) x.userData.life = 0; }
+  // 飛行特效跟著投射物：所有部位一起移動
+  moveFly(g, x, y, z, ry) { if (!g) return; for (const m of [g, ...(g.userData.extras || [])]) { m.position.set(x, y, z); m.rotation.y = ry; } }
   update(dt) {
     const camQ = this.camera.quaternion, inv = new THREE.Quaternion(), moved = new Set(); this.clock = (this.clock || 0) + dt;
     for (let i = this.live.length - 1; i >= 0; i--) {
