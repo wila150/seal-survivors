@@ -260,7 +260,7 @@ async function openSkillWin() {
   const spent = Object.values(CHAR.talents || {}).reduce((a, b) => a + b, 0) + Object.values(CHAR.talents2 || {}).reduce((a, b) => a + b, 0);
   openDlg('技能', `<div class="pcwinx"><div class="pcs-top"><span class="sp">SP</span><b>${Math.max(0, (CHAR.jobLv || 1) - spent)}</b><span class="sp ep">EP</span><b>${CHAR.jobLv || 1}</b><small>SP＝剩餘天賦點、EP＝Job 等級</small></div>
     <div class="pcs-grid">${cells}</div><div class="pcs-tabs" style="background-image:url(assets/ui/pc/tab_skill_${skTab}.png)">${[0, 1, 2].map(i => `<button data-skt="${i}" title="${['基本', '職業', '轉職'][i]}"></button>`).join('')}</div>${detail}</div>`,
-    [['天賦樹', () => $('#talentBtn').click(), true]]);
+    []); // 不放跳到別的視窗的按鈕（天賦在下方選單自己的鈕）
   $('#dlgBody').querySelectorAll('[data-sk]').forEach(el => el.onclick = () => { skSel = el.dataset.sk; openSkillWin(); });
   $('#dlgBody').querySelectorAll('[data-skt]').forEach(el => el.onclick = () => { skTab = +el.dataset.skt; skSel = null; openSkillWin(); });
 }
@@ -405,7 +405,8 @@ function openDlg(title, html, opts, wide = false) {
   const keep = same ? [B, ...B.querySelectorAll('*')].filter(el => el.scrollTop || el.scrollLeft).map(el => [dlgPath(B, el), el.scrollTop, el.scrollLeft]) : null;
   dlgOpen = true; document.querySelector('#dlg .box').classList.toggle('wide', wide); $('#dlgTitle').dataset.t = title;
   // PC 原版標題圖（藍色泡泡字，assets/ui/pc/t_*.png）；其他標題照舊文字
-  const TIMG = [['技能', 'skill'], ['裝備商人', 'shop'], ['郵差', 'mail'], ['倉庫管理員', 'bank']].find(([k]) => title.startsWith(k));
+  const TIMG = [['背包', 'item'], ['技能', 'skill'], ['裝備商人', 'shop'], ['郵差', 'mail'], ['倉庫管理員', 'bank']].find(([k]) => title.startsWith(k));
+  document.querySelector('#dlg .box').classList.toggle('pcf', !!TIMG); // PC 原版外框（白框＋藍色泡泡字標題）
   if (TIMG) { const extra = title.slice(TIMG[0].length).trim(); $('#dlgTitle').innerHTML = `<img class="pct-img" src="assets/ui/pc/t_${TIMG[1]}.png" alt="${esc(title)}">${extra ? ` <small>${esc(extra)}</small>` : ''}`; } else $('#dlgTitle').textContent = title;
   B.innerHTML = html;
   if (keep?.length) { const restore = () => keep.forEach(([p, t, l]) => { const el = dlgAt(B, p); if (el) { el.scrollTop = t; el.scrollLeft = l; } }); restore(); requestAnimationFrame(restore); } else if (!same) B.scrollTop = 0;
@@ -1118,6 +1119,7 @@ const statLine = it => Object.entries(itemStats(it)).map(([k, v]) => `${STAT_NAM
 // 照 PC 新版角色視窗：左 EQUIPMENT 4×4（空格畫原版剪影 interface/look.tex）＋COSTUME；右 INFO 表格＋STATUS（點數條、⊕、EDIT）
 // 空格畫原版剪影；騎士以外的盾牌格上鎖
 const LOOK_SIL = { head: [12, 81], top: [57, 81], bottom: [102, 81], shoes: [147, 81], costume: [192, 81], acc: [35, 125], neck: [80, 125], ring: [125, 125], weapon: [170, 125], earring: [125, 125], bracelet: [125, 125], deco: [12, 81] };
+let ciSel = null;
 function openCharInfo() {
   const c = CHAR, items = c.items || [], eq = k => items.find(i => i.equipped && i.slot === k), hex = n => '#' + (n ?? 0).toString(16).padStart(6, '0');
   const sil = (k, lock) => { const s = LOOK_SIL[k]; return s ? `<i class="sil${lock ? ' lock' : ''}" style="background-position:-${s[0]}px -${s[1]}px"></i>` : ''; };
@@ -1137,12 +1139,14 @@ function openCharInfo() {
     ['名聲數值', `Lv ${c.fameLv ?? 0}　${(c.fame || 0).toLocaleString()}${c.fameNext ? ' / ' + c.fameNext.toLocaleString() : ''}`], ['WIN', `${(c.cleared || []).length}`], ['裝備分數', `<b style="color:#2a4fb8">${gearScore(items)}</b>`]]
     .map(([k, v]) => `<div class="ci-row"><span>${k}</span><b>${v}</b></div>`).join('');
   const stat = Object.entries(STATS).map(([k, d]) => `<div class="ci-st"><span>${d.name}</span><b>${c.stats[k]}</b><button class="btn ci-plus" data-stat="${k}" ${c.points ? '' : 'disabled'} title="${d.desc}">＋</button><button class="btn ci-edit" data-sedit="${k}" ${c.points ? '' : 'disabled'}>EDIT</button></div>`).join('');
-  const html = `<div class="ci"><div class="ci-col"><section><h4>EQUIPMENT</h4><div class="ci-grid">${grid}</div></section><section><h4>COSTUME</h4><div class="ci-grid c2">${cos}</div><small class="ci-hint">髮型、髮色、服裝配色找廣場的造型師</small></section></div>
+  const html = `<div class="ci"><div class="ci-col"><section><h4>EQUIPMENT</h4><div class="ci-grid">${grid}</div>${(() => { const it = items.find(i => i.id === ciSel && i.equipped); return it ? `<div class="ci-sel"><b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${esc(itemName(it))}</b>　<small>${SLOTS[it.slot]}</small><br><small>${statLine(it)}</small><br><button class="btn" id="ciUneq" style="margin-top:4px">卸下</button></div>` : ''; })()}</section><section><h4>COSTUME</h4><div class="ci-grid c2">${cos}</div><small class="ci-hint">髮型、髮色、服裝配色找廣場的造型師</small></section></div>
     <div class="ci-col"><section><h4>INFO</h4><div class="ci-info">${info}</div></section><section><h4>STATUS</h4><div class="ci-pts"><span>點數</span><b>${c.points}</b></div>${stat}
     <small class="ci-hint">每升 1 級 +3 點${c.rebirth ? `・已轉生 ${c.rebirth} 次` : ''}　Base 經驗 ${c.exp} / ${c.need}</small><button class="btn" id="ciPersonal" style="margin-top:6px;background:linear-gradient(#9fe39a,#4cae4c);color:#fff;border-color:#3d8b3d">個性化${c.persona?.lv ? ` Lv${c.persona.lv}` : ''}</button></section></div></div>`;
-  openDlg('CHARACTER INFO', html, [['背包', () => { openBag('bag'); }], ['詳細觀看', () => { openBag('bag'); bagTab = 'stats'; renderBag(); }, true]], true);
+  openDlg('CHARACTER INFO', html, [['詳細觀看', () => { bagMode = 'bag'; bagTab = 'stats'; renderBag(); }, true]], true); // PC 只有「詳細觀看」；不放跳到背包的鈕
   const B = $('#dlgBody');
-  B.querySelectorAll('[data-ci]').forEach(el => el.onclick = () => { const id = +el.dataset.ci; if (!id) return openBag('bag'); openBag('bag'); selItem = id; renderBag(); });
+  // 點裝備格：在角色視窗裡顯示那件的資訊（不跳去背包）；卸下在這裡做，穿上去背包
+  B.querySelectorAll('[data-ci]').forEach(el => el.onclick = () => { const id = +el.dataset.ci; ciSel = ciSel === id || !id ? null : id; openCharInfo(); });
+  B.querySelector('#ciUneq')?.addEventListener('click', async () => { try { showChar(await call('POST', '/api/unequip', { itemId: ciSel })); ciSel = null; openCharInfo(); } catch (e) { toast(e.message); } });
   B.querySelectorAll('[data-stat]').forEach(b => b.onclick = async () => { try { showChar(await call('POST', '/api/statup', { charId: c.id, stat: b.dataset.stat })); openCharInfo(); } catch (e) { toast(e.message); } });
   $('#ciPersonal')?.addEventListener('click', openPersona); // 指令 4-2 個性化
   B.querySelectorAll('[data-sedit]').forEach(b => b.onclick = async () => { const k = b.dataset.sedit, n = parseInt(await askText(`${STATS[k].name} 要加幾點？（剩 ${CHAR.points} 點）`, String(CHAR.points), { title: 'EDIT', max: 3 }), 10);
@@ -1186,20 +1190,25 @@ function renderBag() {
     if (bagMode === 'shop') html += `<div class="pcshop"><img class="pct-img" src="assets/ui/pc/t_shop.png" alt="SHOP">${Object.entries(SLOTS).filter(([k]) => k !== 'shield' || CHAR.job === '騎士').map(([k, v]) => { const b0 = BASES[k]?.[0];
       return `<div class="pcshop-row"><span class="ic">${b0 ? `<img src="assets/items/${b0.icon}.png" alt="">` : ''}</span><b>${v}</b><small>普通～精良・照你的等級挑 PC 原版道具</small><span class="pr">150</span><button class="btn primary" data-buy="${k}">購買</button></div>`; }).join('')}</div>`;
     // 背包＝PC 原版 ITEM 視窗（只有道具格＋希幣）；穿著的裝備在「狀態」CHARACTER INFO
-    if (bagMode === 'bag') html += `<div class="acts" style="display:flex;gap:6px;margin-bottom:6px"><button class="btn" id="toCI">👤 角色裝備（CHARACTER INFO）</button></div>`;
-    else html += `<div class="slots pc">${Object.entries(SLOTS).filter(([k]) => (bagMode !== 'smith' || smithOk({ slot: k })) && (k !== 'shield' || CHAR.job === '騎士')).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
+    if (bagMode !== 'bag') html += `<div class="slots pc">${Object.entries(SLOTS).filter(([k]) => (bagMode !== 'smith' || smithOk({ slot: k })) && (k !== 'shield' || CHAR.job === '騎士')).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
       return `<div class="eq" data-id="${it?.id || ''}" title="${it ? esc(itemName(it)) : v + '：沒有裝備'}"><span class="sl">${v}</span><div class="ico" ${it ? `style="border-color:${RARITY[it.rarity].color}!important"` : ''}>${it ? `<img src="${itemIcon(it)}" alt="">` : ''}</div>${it ? `<b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small>` : `<b>${v}</b><small>沒有裝備</small>`}</div>`; }).join('')}</div>`;
     const shown = items.filter(it => bagMode !== 'smith' || smithOk(it)), BAG_CAP = 40; // 伺服器 BAG_MAX＝40；PC 背包空格也畫出來
-    html += `<div class="bag pc"><b class="pct"><img src="assets/ui/pc/t_item.png" alt="ITEM" style="height:20px;display:block"></b>${shown.map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('')}${bagMode === 'smith' ? '' : '<div class="cell empty"></div>'.repeat(Math.max(0, BAG_CAP - shown.length))}${shown.length ? '' : '<small style="color:#8a7a6a">背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
-    html += `<div class="pcgold">希幣<span>${(c.gold || 0).toLocaleString()}</span></div>`;
-    if (bagMode === 'bag') html += `<div class="acts" style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="dismAll">🔨 一鍵分解（非本職業＋普通／精良）</button></div>`;
-    const it = items.find(i => i.id === selItem);
-    html += `<div class="detail">${it ? itemDetail(it) : '<small>點一件裝備看詳細</small>'}</div>`;
+    // PC：材料、卷軸也在 ITEM 格子裡，數量用紅字標在右下（強化金屬、寶石、券…）
+    const matCells = bagMode === 'bag' ? Object.entries(c.mats || {}).filter(([k, n]) => n > 0 && ORES[k]).map(([k, n]) => `<div class="cell mat ${selItem === 'm:' + k ? 'sel' : ''}" data-mat="${k}" title="${ORES[k].name}"><img src="assets/items/${ORES[k].icon}.png" alt=""><i class="cnt">${n}</i></div>`) : [];
+    if (bagMode === 'bag') html += `<div class="pcgold top">希幣<span>${(c.gold || 0).toLocaleString()}</span></div>`;
+    html += `<div class="bag pc${bagMode === 'bag' ? ' itemwin' : ''}">${bagMode === 'bag' ? '' : '<b class="pct"><img src="assets/ui/pc/t_item.png" alt="ITEM" style="height:20px;display:block"></b>'}${matCells.join('')}${shown.map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('')}${bagMode === 'smith' ? '' : '<div class="cell empty"></div>'.repeat(Math.max(0, BAG_CAP - shown.length - matCells.length))}${shown.length ? '' : '<small style="color:#8a7a6a">背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
+    if (bagMode !== 'bag') html += `<div class="pcgold">希幣<span>${(c.gold || 0).toLocaleString()}</span></div>`;
+    // 一鍵分解：PC 的 ITEM 沒有 → 移到強化師
+    if (bagMode === 'smith') html += `<div class="acts" style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="dismAll">🔨 一鍵分解（非本職業＋普通／精良）</button></div>`;
+    const it = items.find(i => i.id === selItem), mk = typeof selItem === 'string' && selItem.startsWith('m:') ? selItem.slice(2) : null;
+    if (it) html += `<div class="detail">${itemDetail(it)}</div>`;
+    else if (mk && ORES[mk]) html += `<div class="detail"><b>${ORES[mk].name}</b>　<small>×${c.mats?.[mk] || 0}</small><br><small>${ORES[mk].desc}</small></div>`;
+    else if (bagMode !== 'bag') html += `<div class="detail"><small>點一件裝備看詳細</small></div>`;
   }
-  openDlg(title, html, [], true);
+  openDlg(title, html, [], bagMode !== 'bag'); // 背包＝小視窗（PC ITEM 大小）
   const body = $('#dlgBody');
+  body.querySelectorAll('[data-mat]').forEach(el => el.onclick = () => { selItem = selItem === 'm:' + el.dataset.mat ? null : 'm:' + el.dataset.mat; renderBag(); });
   body.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bagTab = b.dataset.tab; renderBag(); });
-  body.querySelector('#toCI')?.addEventListener('click', () => openCharInfo());
   // 項目 50：一鍵分解：沒穿、沒鎖，而且（非本職業 或 普通／精良）
   body.querySelector('#dismAll')?.addEventListener('click', async () => {
     const pick = items.filter(i => !i.equipped && !i.locked && (offJob(i, c.job) || i.rarity <= 1));
@@ -1209,7 +1218,7 @@ function renderBag() {
     act('/api/dismantle', { charId: c.id, itemIds: pick.map(i => i.id) }, r => { selItem = null; return `分解 ${r.n} 件：強化金屬・一 +${r.ore1}${r.ore2 ? `、強化金屬・二 +${r.ore2}` : ''}、希幣 +${r.gold}`; });
   });
   body.querySelectorAll('[data-smt]').forEach(b => b.onclick = () => { smithTab = b.dataset.smt; selItem = null; renderBag(); });
-  body.querySelectorAll('.cell[data-id],.eq[data-id]').forEach(el => el.onclick = () => { if (el.dataset.id) { selItem = +el.dataset.id; renderBag(); } });
+  body.querySelectorAll('.cell[data-id],.eq[data-id]').forEach(el => el.onclick = () => { if (el.dataset.id) { selItem = selItem === +el.dataset.id ? null : +el.dataset.id; renderBag(); } }); // 再點一次收起
   body.querySelectorAll('[data-stat]').forEach(b => b.onclick = () => act('/api/statup', { charId: c.id, stat: b.dataset.stat }));
   body.querySelectorAll('[data-title]').forEach(b => b.onclick = async () => { try { const c2 = await call('POST', '/api/title', { charId: c.id, title: b.dataset.title || null }); showChar(c2); refreshChar(); renderBag(); toast(b.dataset.title ? `裝上稱號【${titleOf(b.dataset.title).name}】` : '卸下稱號'); } catch (e) { toast(e.message); } });
   body.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => act('/api/buy', { charId: c.id, slot: b.dataset.buy }, r => { selItem = r.item.id; return `買到 ${RARITY[r.item.rarity].name} ${itemName(r.item)}`; }));
