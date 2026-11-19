@@ -249,3 +249,22 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #fishWin .go { left: 30px; background-image: url(../../assets/ui/pc/fish_start.png); } #fishWin .go:hover:not(:disabled) { background-image: url(../../assets/ui/pc/fish_start_h.png); }
 #fishWin .st { left: 98px; background-image: url(../../assets/ui/pc/fish_stop.png); } #fishWin .st:hover:not(:disabled) { background-image: url(../../assets/ui/pc/fish_stop_h.png); }
 #fishWin button:disabled { filter: grayscale(.8) brightness(.95); cursor: default; }
+/* ===== 衣櫥（照 PC：FAVORITE／4 PIECE／ALL IN ONE，淺綠標題、灰綠格子）===== */
+#dlg .wtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+#dlg .ward { display: grid; grid-template-columns: 200px 210px minmax(0, 1fr); gap: 10px; align-items: start; }
+#dlg .ward .wpan.wide { grid-row: span 1; }
+#dlg .ward > .wpan:last-child { grid-column: 2 / 4; }
+@media (max-width: 860px) { #dlg .ward { grid-template-columns: 1fr; } #dlg .ward > .wpan:last-child { grid-column: auto; } }
+#dlg .wpv { position: relative; height: 300px; background: radial-gradient(#fff, #c9d6f3); border-radius: 12px; touch-action: none; cursor: grab; }
+#dlg .wpan { background: linear-gradient(#fdfcf8, #e9e3d7); border: 3px solid #fff; box-shadow: 0 0 0 2px #a89d97; border-radius: 14px; padding: 8px; }
+#dlg .wt { text-align: center; font: 900 16px "Arial Rounded MT Bold", system-ui; color: #8ff7ff; -webkit-text-stroke: 3px #0b4a74; paint-order: stroke fill; letter-spacing: 1px; margin-bottom: 6px; }
+#dlg .wsub { background: linear-gradient(#d6f37a, #a9d63c); border: 1px solid #7fa82a; border-radius: 999px; text-align: center; font-weight: 900; color: #3a5210; font-size: 12px; margin: 4px 0; }
+#dlg .wf-row { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; }
+#dlg .wf-row .btn { padding: 2px 6px !important; font-size: 11px !important; }
+#dlg .wgrid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; max-height: 230px; overflow: auto; padding: 4px; background: #c9cbb8; border-radius: 8px; }
+#dlg .wgrid.s { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+#dlg .wcell { aspect-ratio: 1; background: linear-gradient(#bfc2ad, #a9ad95); border: 2px solid #d9dccb; border-radius: 5px; display: flex; align-items: center; justify-content: center; }
+#dlg .wcell.sm { width: 34px; height: 34px; aspect-ratio: auto; }
+#dlg .wcell img { width: 80%; height: 80%; image-rendering: pixelated; }
+#dlg .wcell[data-wp] { cursor: pointer; } #dlg .wcell.on { box-shadow: 0 0 0 3px var(--th-blue); }
+#dlg .wcell.lock { font-size: 12px; opacity: .6; }

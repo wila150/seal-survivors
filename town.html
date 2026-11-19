@@ -170,6 +170,7 @@ import { loadSealMap, buildSealMap, liftScene, walkMove, addWalkSurfaces } from 
 import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
 import { offJob, dismantleYield } from './src/1_data/items.js';
+import { PC_ITEMS } from './src/1_data/pc-items.js';
 import { JOB_WEAPON, traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 import { STATS, HAIR_COLORS } from './src/1_data/jobs.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime, bossTimes, GS_REQ, EARLY_WEAK } from './src/1_data/stages.js';
@@ -217,7 +218,8 @@ let wearKey = null; // 穿著外觀（武器、盾、頭、上衣、下衣、鞋
 function showChar(c) {
   CHAR = c; try { sessionStorage.setItem('ss_char', JSON.stringify(c)); } catch {}
   { const k = (c.items || []).filter(i => i.equipped && ['weapon', 'shield', 'head', 'top', 'bottom', 'shoes'].includes(i.slot)).map(i => i.slot + ':' + (i.pc || '')).sort().join();
-    if (wearKey !== null && k !== wearKey && typeof loadPlayer === 'function') loadPlayer(); wearKey = k; }
+    const k2 = k + JSON.stringify(c.costume || {}); // 衣櫥時裝也算
+    if (wearKey !== null && k2 !== wearKey && typeof loadPlayer === 'function') loadPlayer(); wearKey = k2; }
   $('#meGold').textContent = `💰 ${c.gold}` + (c.points ? `　素質點 ${c.points}` : '');
   $('#meLv').textContent = `Job ${c.jobLv}　經驗 ${c.exp} / ${c.need}`; $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
 }
@@ -334,7 +336,7 @@ const START = walkable(TC.x, TC.z + 26);
 const player = makeChar(OUTFITS[CHAR?.outfit] ?? JOBS[CHAR?.job]?.color ?? 0x4fa3ff, START.x, START.z);
 let pActor = null; // 玩家動作（站／跑）
 // 載入玩家模型（造型師改完外觀會再叫一次）；坐騎留著
-const lookOf = c => playerLook(c?.job, c?.gender, c?.hair ?? 0, c?.hairColor ?? 0, c?.outfit ?? 0, c?.items);
+const lookOf = c => playerLook(c?.job, c?.gender, c?.hair ?? 0, c?.hairColor ?? 0, c?.outfit ?? 0, c?.items, c?.costume);
 let playerLoadId = 0, BODY_SHOT = '';
 function loadPlayer() {
   const id = ++playerLoadId, L = lookOf(CHAR);
@@ -1041,19 +1043,52 @@ function openMount() {
 }
 // ===== 造型師：髮型／髮色／服裝配色，免費隨時改；左邊 3D 預覽可以拖曳旋轉 =====
 let sty = null;
-function openStylist(keep) {
+// ===== 造型師＝衣櫥（照 PC：FAVORITE／4 PIECE／ALL IN ONE；時裝只改外觀不改數值）=====
+const PC_BY_ID = new Map(Object.values(PC_ITEMS).flat().map(x => [x[0], x]));
+const WSLOT = { head: '頭部', top: '上衣', bottom: '下衣', shoes: '鞋子' };
+let styTab = 'ward', wSel = 'top';
+function openStylist(keep) { if (styTab === 'ward') return openWardrobe(keep); return openHairStyle(keep); }
+function openWardrobe(keep) {
+  const st = keep || { hair: CHAR.hair ?? 0, hairColor: CHAR.hairColor ?? 0, outfit: CHAR.outfit ?? 0, costume: { ...(CHAR.costume || {}) } };
+  const W = CHAR.wardrobe || {}, favs = CHAR.favs || [], ic = pc => { const x = PC_BY_ID.get(pc); return x ? `<img src="assets/items/${x[4]}.png" alt="" title="${esc(x[1])}">` : ''; };
+  const fav = [0, 1, 2, 3].map(i => `<div class="wf-row">${Object.keys(WSLOT).map(k => `<div class="wcell sm">${favs[i]?.[k] ? ic(favs[i][k]) : ''}</div>`).join('')}<button class="btn" data-fuse="${i}" ${favs[i] ? '' : 'disabled'}>套</button><button class="btn" data-fsave="${i}">存</button></div>`).join('');
+  const list = W[wSel] || [], cells = [...list.map(pc => `<div class="wcell${st.costume?.[wSel] === pc ? ' on' : ''}" data-wp="${pc}">${ic(pc)}</div>`), ...Array.from({ length: Math.max(0, 40 - list.length) }, () => '<div class="wcell"></div>')].join('');
+  const html = `<div class="wtabs"><button class="btn primary">衣櫥</button><button class="btn" id="toHair">髮型・配色</button></div>
+    <div class="ward"><div id="styPv" class="wpv"><div id="styLoad" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#5a6a90">載入中…</div>
+      <div style="position:absolute;bottom:6px;left:0;right:0;display:flex;justify-content:center;gap:6px"><button class="btn" data-rot="-1">⟲</button><button class="btn" data-rot="1">⟳</button></div></div>
+    <div class="wpan"><div class="wt">FAVORITE</div><div class="wsub">分離式</div>${fav}<div class="wsub">一件式</div><div class="wf-row">${'<div class="wcell sm lock">🔒</div>'.repeat(4)}</div><small>* 存＝把目前時裝存成一套，套＝換上那一套</small></div>
+    <div class="wpan wide"><div class="wt">4 PIECE</div><div class="wtabs">${Object.entries(WSLOT).map(([k, v]) => `<button class="btn ${wSel === k ? 'primary' : ''}" data-ws="${k}">${v} ${(W[k] || []).length}</button>`).join('')}<button class="btn" data-wnone="1">脫掉${WSLOT[wSel]}時裝</button></div><div class="wgrid">${cells}</div>
+      <small>拿到過的原版裝備外觀會自動收進衣櫥（賣掉也保留）。時裝只改外觀，不影響數值。</small></div>
+    <div class="wpan"><div class="wt">ALL IN ONE</div><div class="wgrid s">${'<div class="wcell"></div>'.repeat(16)}</div><small>一件式時裝（原版商城套裝）尚未開放</small></div></div>`;
+  openDlg('造型師・衣櫥', html, [['復原', () => openWardrobe()], ['套用', async () => {
+    try { for (const k of Object.keys(WSLOT)) if ((st.costume[k] ?? null) !== (CHAR.costume?.[k] ?? null)) showChar(await call('POST', '/api/costume', { charId: CHAR.id, slot: k, pc: st.costume[k] ?? null })); toast('換好了！'); openWardrobe(); } catch (e) { toast(e.message); } }, true]], true);
+  const B = $('#dlgBody');
+  $('#toHair').onclick = () => { styTab = 'hair'; openStylist(); };
+  B.querySelectorAll('[data-ws]').forEach(b => b.onclick = () => { wSel = b.dataset.ws; openWardrobe(st); });
+  B.querySelectorAll('[data-wp]').forEach(b => b.onclick = () => { const pc = +b.dataset.wp; st.costume[wSel] = st.costume[wSel] === pc ? undefined : pc; openWardrobe(st); });
+  B.querySelector('[data-wnone]').onclick = () => { delete st.costume[wSel]; openWardrobe(st); };
+  B.querySelectorAll('[data-fsave]').forEach(b => b.onclick = async () => { try { showChar(await call('POST', '/api/costumefav', { charId: CHAR.id, i: +b.dataset.fsave, act: 'save' })); toast(`存到第 ${+b.dataset.fsave + 1} 套`); openWardrobe(st); } catch (e) { toast(e.message); } });
+  B.querySelectorAll('[data-fuse]').forEach(b => b.onclick = () => { st.costume = { ...(favs[+b.dataset.fuse] || {}) }; openWardrobe(st); });
+  stylistPreview(st);
+}
+function openHairStyle(keep) {
   const saved = { hair: CHAR.hair ?? 0, hairColor: CHAR.hairColor ?? 0, outfit: CHAR.outfit ?? 0 };
   const st = keep || { ...saved };
-  openDlg('造型師', `<p style="margin:0 0 8px">「想換個樣子嗎？在我這裡改造型<b>免費</b>，隨時都可以再來。」</p>
+  openDlg('造型師・衣櫥', `<div class="wtabs"><button class="btn" id="toWard">衣櫥</button><button class="btn primary">髮型・配色</button></div><p style="margin:0 0 8px">「想換個樣子嗎？在我這裡改造型<b>免費</b>，隨時都可以再來。」</p>
     <div style="display:flex;gap:14px;flex-wrap:wrap"><div id="styPv" style="flex:0 0 220px;height:280px;max-width:100%;background:radial-gradient(#fff,#c9d6f3);border-radius:12px;position:relative;touch-action:none;cursor:grab">
       <div id="styLoad" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#5a6a90">載入中…</div>
       <div style="position:absolute;bottom:6px;left:0;right:0;display:flex;justify-content:center;gap:6px"><button class="btn" data-rot="-1">⟲</button><button class="btn" data-rot="1">⟳</button></div></div>
     <div style="flex:1;min-width:240px"><div id="styLook"></div><small style="color:#5a6a90">轉職後髮型和配色會保留。上鎖的配色之後開放。</small></div></div>`, [
-    ['復原', () => openStylist()],
+    ['復原', () => openHairStyle()],
     ['套用', async () => {
       try { showChar(await call('POST', '/api/look', { charId: CHAR.id, ...st })); loadPlayer(); toast('造型換好了！'); closeDlg(); } catch (e) { toast(e.message); }
     }, true]], true);
+  $('#toWard').onclick = () => { styTab = 'ward'; openStylist(); };
   const changed = () => { const dirty = st.hair !== saved.hair || st.hairColor !== saved.hairColor || st.outfit !== saved.outfit; $('#dlgOpts').children[1].disabled = !dirty; $('#dlgOpts').children[0].disabled = !dirty; styShow(st); };
+  stylistPreview(st);
+  renderLook($('#styLook'), st, CHAR.job, changed); changed();
+}
+function stylistPreview(st) {
   // 預覽（同一個 renderer 重複用；對話框關掉就停止繪圖）
   if (!sty) {
     const r = new THREE.WebGLRenderer({ antialias: true, alpha: true }); r.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -1068,10 +1103,10 @@ function openStylist(keep) {
   let drag = null; box.onpointerdown = e => { if (e.target.closest('button')) return; drag = e.clientX; box.setPointerCapture(e.pointerId); };
   box.onpointermove = e => { if (drag == null) return; sty.rot += (e.clientX - drag) * 0.012; drag = e.clientX; }; box.onpointerup = box.onpointercancel = () => drag = null;
   if (!sty.raf) { sty.last = performance.now(); sty.raf = requestAnimationFrame(sty.loop); }
-  renderLook($('#styLook'), st, CHAR.job, changed); changed();
+  if (st.costume) styShow(st);
 }
 async function styShow(st) {
-  const key = [st.hair, st.hairColor, st.outfit].join(); sty.key = key; const L = playerLook(CHAR.job, CHAR.gender, st.hair, st.hairColor, st.outfit, CHAR.items);
+  const cos = st.costume || CHAR.costume; const key = [st.hair, st.hairColor, st.outfit, JSON.stringify(cos || {})].join(); sty.key = key; const L = playerLook(CHAR.job, CHAR.gender, st.hair, st.hairColor, st.outfit, CHAR.items, cos);
   if (!sty.cache.has(key)) { $('#styLoad').style.display = 'flex'; sty.cache.set(key, sealActor(playerModelId(CHAR.job, CHAR.gender), playerAnimSet(CHAR.job, CHAR.gender), 1.7, L.gear, L.opts).then(m => { m.children[0].rotation.y = Math.PI; return m; })); }
   const m = await sty.cache.get(key).catch(() => null); if (sty.key !== key) return;
   if (sty.cur) sty.sc.remove(sty.cur); sty.cur = m; if (m) sty.sc.add(m); const ld = $('#styLoad'); if (ld) { ld.style.display = m ? 'none' : 'flex'; ld.textContent = m ? '' : '模型載入失敗'; }

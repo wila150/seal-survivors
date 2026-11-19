@@ -5,6 +5,7 @@ export { handle };
 // 啟動：node server.mjs   → http://localhost:8765
 import * as PS from '../1_data/persona.js';
 import { JOBS, OUTFITS, validateStats, STATS, MOUNT, validLook, defaultStats, FREE_POINTS, NOVICE, JOB1_AT, FIRST_JOBS } from '../1_data/jobs.js';
+import { PC_WEAR } from '../1_data/pc-wear.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime } from '../1_data/stages.js';
 import { NEED as PC_NEED, BASE_MAX } from '../1_data/pc-level.js';
 import PC_CURVE from '../1_data/pc-curve.js';
@@ -184,7 +185,18 @@ function shopState(d, hour) {
   const sh = d.shop || {}; if (sh.day !== day) { sh.day = day; sh.bought = 0; } if (sh.hour !== hour) { sh.hour = hour; sh.taken = []; }
   sh.taken ??= []; sh.bought ??= 0; return sh;
 }
-function fullChar(c) { const items = itemsOf(c.id), tb = towerBest(c.id), cd = JSON.parse(c.data || '{}'); return { ...charView(c), titles: earnedTitles({ fameLv: fameLevel(cd.fame ?? 0).lv, bossKills: cd.bossKills, towerBest: tb.floor, rebirth: cd.rebirth, job3: cd.job3 }), tower: { ...tb, points: towerPoints(tb.floor), open: towerOpen(charView(c), STAGES) }, unreadMail: db.prepare('SELECT COUNT(*) n FROM mails WHERE char_id=? AND (read=0 OR (claimed=0 AND (gold>0 OR items IS NOT NULL OR mats IS NOT NULL)))').get(c.id).n + (JSON.parse(c.data || '{}').welcomed ? 0 : 1), need: needExp(c.base_lv), jobNeed: jobNeedOf(c), fishing: JSON.parse(c.data || '{}').fishing ?? { rod: 0, bait: 0, fish: {} }, items, bonus: totalBonus(items.filter(i => i.equipped)) }; }
+// ===== 衣櫥（照 PC：造型師＝衣櫥，FAVORITE／4 PIECE／ALL IN ONE）=====
+// 衣櫥收藏＝曾經擁有過、有原版外觀的頭部／上衣／下衣／鞋子（PC 編號）；拿到就自動收進衣櫥（賣掉也保留）
+// 時裝（costume）＝只改外觀不改數值：{ head, top, bottom, shoes: PC 編號 }；最愛（favs）＝存 4 套分離式搭配
+const WARD_SLOTS = ['head', 'top', 'bottom', 'shoes'];
+function syncWardrobe(c, items) {
+  const d = JSON.parse(c.data || '{}'), W = d.wardrobe ??= {}; let changed = false;
+  const all = [...items, ...db.prepare('SELECT slot, pc FROM items WHERE acct=(SELECT account_id FROM characters WHERE id=?) AND char_id=0').all(c.id)];
+  for (const it of all) if (WARD_SLOTS.includes(it.slot) && it.pc && PC_WEAR[it.pc]) { const L = W[it.slot] ??= []; if (!L.includes(it.pc)) { L.push(it.pc); changed = true; } }
+  if (changed) { const fresh = JSON.parse(db.prepare('SELECT data FROM characters WHERE id=?').get(c.id).data || '{}'); fresh.wardrobe = W; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(fresh), c.id); }
+  return { wardrobe: W, costume: d.costume || {}, favs: d.favs || [] };
+}
+function fullChar(c) { const items = itemsOf(c.id), tb = towerBest(c.id), cd = JSON.parse(c.data || '{}'); return { ...charView(c), ...syncWardrobe(c, items), titles: earnedTitles({ fameLv: fameLevel(cd.fame ?? 0).lv, bossKills: cd.bossKills, towerBest: tb.floor, rebirth: cd.rebirth, job3: cd.job3 }), tower: { ...tb, points: towerPoints(tb.floor), open: towerOpen(charView(c), STAGES) }, unreadMail: db.prepare('SELECT COUNT(*) n FROM mails WHERE char_id=? AND (read=0 OR (claimed=0 AND (gold>0 OR items IS NOT NULL OR mats IS NOT NULL)))').get(c.id).n + (JSON.parse(c.data || '{}').welcomed ? 0 : 1), need: needExp(c.base_lv), jobNeed: jobNeedOf(c), fishing: JSON.parse(c.data || '{}').fishing ?? { rod: 0, bait: 0, fish: {} }, items, bonus: totalBonus(items.filter(i => i.equipped)) }; }
 
 const api = {
   'POST /api/register': async (req, res) => {
@@ -421,6 +433,21 @@ const api = {
     send(res, 200, { char: fullChar(ownChar(uid, c.id)) });
   },
   // 指令 4-3 衣櫥外觀複製：把同部位另一件裝備的外觀複製到這件（來源消失），1000 希幣
+  // 衣櫥：穿／脫時裝。slot＝head/top/bottom/shoes，pc＝衣櫥裡有的 PC 編號（null＝脫掉）
+  'POST /api/costume': async (req, res, _, uid) => {
+    const { charId, slot, pc } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    if (!WARD_SLOTS.includes(slot)) return send(res, 400, { error: '沒有這個部位' });
+    const d = JSON.parse(c.data || '{}'); d.costume ??= {};
+    if (pc == null) delete d.costume[slot]; else { if (!(d.wardrobe?.[slot] || []).includes(+pc)) return send(res, 400, { error: '衣櫥裡沒有這件' }); d.costume[slot] = +pc; }
+    db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
+  // 衣櫥：我的最愛（4 套）。act＝save（存目前時裝到第 i 套）／use（套用第 i 套）／clear
+  'POST /api/costumefav': async (req, res, _, uid) => {
+    const { charId, i, act } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    if (!(i >= 0 && i < 4)) return send(res, 400, { error: '沒有這一套' }); const d = JSON.parse(c.data || '{}'); d.favs ??= [];
+    if (act === 'save') d.favs[i] = { ...(d.costume || {}) }; else if (act === 'use') d.costume = { ...(d.favs[i] || {}) }; else if (act === 'clear') d.favs[i] = null; else return send(res, 400, { error: '不支援' });
+    db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
   'POST /api/lookcopy': async (req, res, _, uid) => {
     const { fromId, toId } = await body(req); const a = ownItem(uid, fromId), b = ownItem(uid, toId);
     if (!a || !b || a.id === b.id) return send(res, 404, { error: '找不到裝備' }); if (a.char_id !== b.char_id || a.slot !== b.slot) return send(res, 400, { error: '只能複製同部位的外觀' });

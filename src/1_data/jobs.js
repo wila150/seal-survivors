@@ -70,7 +70,7 @@ export const validLook = (hair, hairColor, outfit) => Number.isInteger(hair) && 
 // items：角色的裝備清單（有給就照穿著的 PC 原版道具換外觀，tools/build-wear.mjs；11/19 使用者：「穿什麼就改變角色穿著」照 PC）
 // 頭部／上衣／下衣／鞋子換身上部位（opts.swap），武器、盾換手上的模型；沒有原版外觀的維持職業初始服裝
 const WEAR_PIECE = { head: 'head', top: 'body', bottom: 'leg', shoes: 'foot' };
-export function playerLook(job, gender, hair = 0, hairColor = 0, outfit = 0, items = null) {
+export function playerLook(job, gender, hair = 0, hairColor = 0, outfit = 0, items = null, costume = null) {
   const g = gender === '女' ? 'w' : 'm', s = 'abcdef'[hair] || 'a', gi = g === 'w' ? 1 : 0;
   let gear = [...playerGear(job)]; const swap = {};
   for (const it of items || []) {
@@ -80,6 +80,8 @@ export function playerLook(job, gender, hair = 0, hairColor = 0, outfit = 0, ite
     else if (it.slot === 'weapon') gear = [m, ...gear.filter(x => !/^wpn_R_/i.test(x))];
     else if (it.slot === 'shield') gear = [...gear.filter(x => !/^wpn_L_/i.test(x)), m];
   }
+  // 衣櫥時裝（只改外觀）：蓋過裝備外觀
+  for (const [k, pid] of Object.entries(costume || {})) { const m = PC_WEAR[pid]?.[gi] || PC_WEAR[pid]?.[0]; if (m && WEAR_PIECE[k]) swap[WEAR_PIECE[k]] = m; }
   return { gear: [...gear, { id: `hair_${g}_${s}`, tex: `../hair/${g}_${s}_${hairColor | 0}.png`, native: true }],
            opts: { tint: OUTFITS[outfit] ?? null, swap } };
 }
