@@ -93,6 +93,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS friends (owner_char INTEGER NOT NULL, friend
 CREATE TABLE IF NOT EXISTS invites (id INTEGER PRIMARY KEY, to_char INTEGER NOT NULL, from_char INTEGER NOT NULL, from_name TEXT NOT NULL, code TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS invites_to ON invites(to_char);`);
 try { db.exec('ALTER TABLE characters ADD COLUMN seen INTEGER NOT NULL DEFAULT 0'); } catch {}
+// 公開隊伍列表（PC 組隊搜尋 PARTY SEARCH）：隊伍房間（cloud/party.js）有變動就回報，90 秒沒回報就不列
+db.exec('CREATE TABLE IF NOT EXISTS parties (code TEXT PRIMARY KEY, name TEXT NOT NULL, leader TEXT NOT NULL, lim INTEGER NOT NULL, exp TEXT NOT NULL, count INTEGER NOT NULL, place TEXT NOT NULL, phase TEXT NOT NULL, updated INTEGER NOT NULL)');
 const NPC_SELLERS = ['旅行商人 卡爾', '收藏家 莉莉', '老商人 巴頓'], NPC_MAX = 6, NPC_EVERY = 2 * 3600e3;
 const metaGet = k => db.prepare('SELECT v FROM meta WHERE k=?').get(k)?.v, metaSet = (k, v) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k, String(v));
 // 11/20 使用者：「初心者剛建立角色沒有配點進去遊戲時點數會不見」→ 建角沒分完的點數存進 d.points；舊角色補回（應有＝20＋轉生×75＋(Base Lv−1)×3 − 已分配，只補不扣，一次）
@@ -1205,6 +1207,19 @@ const api = {
     db.prepare('INSERT INTO invites (to_char, from_char, from_name, code, created) VALUES (?,?,?,?,?)').run(+friendId, c.id, c.name, code, Date.now());
     send(res, 200, { ok: true });
   },
+  // 隊伍房間回報（只接受 Party Durable Object 直接呼叫：header x-internal，外面進來的請求 worker 會拿掉這個 header）
+  'POST /api/partyreg': async (req, res) => {
+    if (req.headers['x-internal'] !== '1') return send(res, 403, { error: 'forbidden' });
+    const r = await body(req); if (!/^[A-Z0-9]{6}$/.test(String(r.code))) return send(res, 400, { error: 'bad' });
+    if (!r.count) { db.prepare('DELETE FROM parties WHERE code=?').run(r.code); return send(res, 200, { ok: true }); }
+    db.prepare('INSERT INTO parties VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET name=excluded.name, leader=excluded.leader, lim=excluded.lim, exp=excluded.exp, count=excluded.count, place=excluded.place, phase=excluded.phase, updated=excluded.updated')
+      .run(r.code, String(r.name || '').slice(0, 20), String(r.leader || '').slice(0, 20), +r.lim || 4, r.exp === 'even' ? 'even' : 'own', +r.count, String(r.place || '主城').slice(0, 20), r.phase === 'game' ? 'game' : 'lobby', Date.now());
+    send(res, 200, { ok: true });
+  },
+  'GET /api/parties': async (req, res) => {
+    const now = Date.now(); db.prepare('DELETE FROM parties WHERE updated<?').run(now - 90e3);
+    send(res, 200, { parties: db.prepare('SELECT code, name, leader, lim, exp, count, place, phase FROM parties ORDER BY (phase=\'lobby\') DESC, updated DESC LIMIT 80').all() });
+  },
   // 主城每 20 秒問一次（順便記錄上線時間）
   'GET /api/invites': async (req, res, _, uid) => {
     const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
@@ -1217,7 +1232,7 @@ const api = {
     db.prepare('DELETE FROM invites WHERE id=? AND to_char=?').run(+id, c.id); send(res, 200, { ok: true });
   },
 };
-const PUBLIC = new Set(['POST /api/register', 'POST /api/login']);
+const PUBLIC = new Set(['POST /api/register', 'POST /api/login', 'POST /api/partyreg']); // partyreg 自己檢查 x-internal
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.json': 'application/json', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm' };
 const BLOCK = /^\/(data|docs|tools|server\.mjs)/; // 不對外提供的檔案

@@ -14,8 +14,8 @@ export const inviteLink = code => location.href.replace(/\/[^/]*([?#].*)?$/, '/'
 
 // 一條連線：on(type, fn)；type＝room／start／g／h／err／kicked／idle／hello／close／open
 export class PartyConn {
-  constructor(code, { token, charId, create = false } = {}) {
-    this.code = code; this.token = token; this.charId = charId; this.create = create;
+  constructor(code, { token, charId, create = false, name = '', lim = PARTY_MAX, exp = 'own' } = {}) {
+    this.code = code; this.token = token; this.charId = charId; this.create = create; this.opt = { name, lim, exp };
     this.fns = {}; this.ws = null; this.closed = false; this.fatal = false; this.tries = 0; this.room = null;
     this.connect();
   }
@@ -23,7 +23,7 @@ export class PartyConn {
   emit(t, o) { for (const f of this.fns[t] || []) try { f(o); } catch (e) { console.error(e); } }
   connect() {
     const base = window.SS_CLOUD.replace(/^http/, 'ws');
-    const ws = this.ws = new WebSocket(`${base}/party/${this.code}?token=${encodeURIComponent(this.token)}&charId=${this.charId}${this.create ? '&create=1' : ''}`);
+    const ws = this.ws = new WebSocket(`${base}/party/${this.code}?token=${encodeURIComponent(this.token)}&charId=${this.charId}${this.create ? `&create=1&name=${encodeURIComponent(this.opt.name)}&lim=${this.opt.lim}&exp=${this.opt.exp}` : ''}`);
     ws.onopen = () => { this.tries = 0; this.create = false; this.emit('open'); clearInterval(this.pingT); this.pingT = setInterval(() => this.send({ t: 'ping', at: Date.now() }), 25e3); };
     ws.onmessage = e => { let o; try { o = JSON.parse(e.data); } catch { return; }
       if (o.t === 'room') this.room = o; if (o.t === 'pong') this.rtt = Date.now() - o.at;

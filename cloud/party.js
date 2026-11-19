@@ -11,18 +11,25 @@ const LOBBY_GRACE = 25e3;            // 大廳斷線（換頁）25 秒內回來�
 
 export class Party extends DurableObject {
   constructor(ctx, env) { super(ctx, env); this.meta = null; }
-  async load() { this.meta ??= (await this.ctx.storage.get('meta')) || { leader: null, phase: 'lobby', setup: null, seed: 0, roster: [], left: {} }; return this.meta; }
+  async load() { this.meta ??= (await this.ctx.storage.get('meta')) || { leader: null, phase: 'lobby', setup: null, seed: 0, roster: [], left: {}, name: '', lim: PARTY_MAX, exp: 'own', code: '' }; return this.meta; }
   async save() { await this.ctx.storage.put('meta', this.meta); }
   socks() { return this.ctx.getWebSockets().filter(w => { try { return w.readyState === 1 && w.deserializeAttachment()?.m; } catch { return false; } }); }
   members() { return this.socks().map(w => { const a = w.deserializeAttachment(); return { ...a.m, ready: !!a.ready }; }); }
   send(ws, o) { try { ws.send(JSON.stringify(o)); } catch {} }
   bcast(o, except = null) { const s = JSON.stringify(o); for (const w of this.socks()) if (w !== except) try { w.send(s); } catch {} }
-  async room() { const M = await this.load(); this.bcast({ t: 'room', members: this.members(), away: Object.keys(M.left || {}).map(Number), leader: M.leader, setup: M.setup, phase: M.phase, max: PARTY_MAX }); }
+  async room() { const M = await this.load(), ms = this.members(); this.bcast({ t: 'room', members: ms, away: Object.keys(M.left || {}).map(Number), leader: M.leader, setup: M.setup, phase: M.phase, max: Math.min(PARTY_MAX, M.lim || PARTY_MAX), name: M.name, exp: M.exp }); await this.reg(); }
+  // 回報公開隊伍列表（server.mjs /api/partyreg，直接打 Game Durable Object，帶 x-internal）
+  async reg() {
+    const M = this.meta, ms = this.members(); if (!M?.code || !this.env.GAME) return;
+    const lead = ms.find(x => x.charId === M.leader);
+    const body = JSON.stringify({ code: M.code, name: M.name, leader: lead?.name || '', lim: M.lim, exp: M.exp, count: ms.length + Object.keys(M.left || {}).length, place: M.phase === 'game' ? (M.setup?.name || '野外') : '主城', phase: M.phase });
+    try { await this.env.GAME.get(this.env.GAME.idFromName('main')).fetch(new Request('https://x/api/partyreg', { method: 'POST', headers: { 'content-type': 'application/json', 'x-internal': '1' }, body })); } catch {}
+  }
 
   async fetch(request) {
     if (request.headers.get('upgrade') !== 'websocket') return new Response('websocket only', { status: 426 });
     const M = await this.load(); const m = JSON.parse(decodeURIComponent(request.headers.get('x-member') || 'null')); if (!m) return new Response('no member', { status: 400 });
-    const create = new URL(request.url).searchParams.get('create') === '1';
+    const U = new URL(request.url), create = U.searchParams.get('create') === '1';
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
     const fail = msg => { this.send(server, { t: 'err', msg, fatal: true }); server.close(4001, 'refused'); return new Response(null, { status: 101, webSocket: client }); };
@@ -31,10 +38,12 @@ export class Party extends DurableObject {
     const count = others.filter(w => w !== dup).length + Object.keys(M.left || {}).filter(k => +k !== m.charId).length; // 換頁中（寬限時間內）的人也佔位子
     if (create && count > 0) return fail('這個隊伍代碼有人在用了，請再按一次「建立隊伍」');
     if (!create && count === 0 && !M.roster.includes(m.charId)) return fail('找不到這支隊伍（代碼打錯，或隊伍已經解散）');
-    if (count >= PARTY_MAX) return fail(`隊伍滿了（最多 ${PARTY_MAX} 人）`);
+    if (count >= Math.min(PARTY_MAX, M.lim || PARTY_MAX)) return fail(`隊伍滿了（最多 ${Math.min(PARTY_MAX, M.lim || PARTY_MAX)} 人）`);
     if (M.phase === 'game' && !M.roster.includes(m.charId)) return fail('這支隊伍正在打，等他們回主城再加入');
-    if (count === 0 && !M.roster.includes(m.charId)) { this.meta = { leader: m.charId, phase: 'lobby', setup: null, seed: 0, roster: [], left: {} }; }
+    if (count === 0 && !M.roster.includes(m.charId)) { this.meta = { leader: m.charId, phase: 'lobby', setup: null, seed: 0, roster: [], left: {}, name: '', lim: PARTY_MAX, exp: 'own', code: '' }; }
     const R = this.meta; if (!R.roster.includes(m.charId)) R.roster.push(m.charId); delete R.left[m.charId];
+    R.code = U.pathname.split('/').pop();
+    if (create) { R.name = (U.searchParams.get('name') || '').slice(0, 20) || `${m.name}的隊伍`; R.lim = Math.max(2, Math.min(PARTY_MAX, +U.searchParams.get('lim') || PARTY_MAX)); R.exp = U.searchParams.get('exp') === 'even' ? 'even' : 'own'; }
     const live = others.filter(w => w !== dup).map(w => w.deserializeAttachment().m.charId);
     if (!R.leader || (!live.includes(R.leader) && !R.left[R.leader] && R.leader !== m.charId)) R.leader = m.charId; // 隊長不在線也不在寬限時間內 → 新進來的當隊長
     server.serializeAttachment({ m, ready: false, act: Date.now() });
@@ -100,8 +109,8 @@ export class Party extends DurableObject {
       delete M.left[k]; M.roster = M.roster.filter(x => x !== id); changed = true;
       if (M.leader === id) { if (M.phase === 'game') { M.phase = 'lobby'; this.bcast({ t: 'g', k: 'end', from: id, d: { reason: 'leader' } }); } M.leader = liveIds[0] ?? null; } // v1.1 決定 3：隊長離開＝這局結束
     }
-    if (!liveIds.length && !Object.keys(M.left).length) { this.meta = { leader: null, phase: 'lobby', setup: null, seed: 0, roster: [], left: {} }; changed = true; }
-    if (changed) { await this.save(); await this.room(); }
+    if (!liveIds.length && !Object.keys(M.left).length) { this.meta = { leader: null, phase: 'lobby', setup: null, seed: 0, roster: [], left: {}, name: '', lim: PARTY_MAX, exp: 'own', code: '' }; changed = true; }
+    if (changed) { await this.save(); await this.room(); } else await this.reg(); // 每分鐘回報一次，列表才不會過期
     if (liveIds.length || Object.keys(this.meta.left).length) await this.ctx.storage.setAlarm(now + (Object.keys(this.meta.left).length ? 5e3 : 60e3));
   }
 }

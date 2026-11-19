@@ -340,3 +340,40 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .pty-row .dot.on { background: #34c759; }
 #dlg .pty-code { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; }
 #dlg .pty-code b { font-size: 26px; letter-spacing: 4px; color: #2b6fd6; font-family: ui-monospace, monospace; }
+/* 組隊搜尋（PARTY SEARCH）／創立隊伍／好友：照 PC 原版版面（米色條紋表格、分頁圖） */
+#dlg .ps-tabs, #dlg .fr-tabs { display: flex; gap: 0; align-items: flex-end; margin: 0 0 -2px 4px; }
+#dlg .ps-tabs img, #dlg .fr-tabs img { height: 34px; image-rendering: auto; }
+#dlg .ps-tabs img.off, #dlg .fr-tabs img.off { filter: grayscale(.4); opacity: .75; cursor: not-allowed; }
+#dlg .fr-tabs { margin: 6px 0 4px 4px; }
+#dlg .ps-table { width: 100%; border-collapse: separate; border-spacing: 0; border: 2px solid #6b5a48; border-radius: 8px; overflow: hidden; font-size: 14px; background: #fff3e2; }
+#dlg .ps-table th { background: linear-gradient(#fff6e8, #f3e2c8); color: #7a5a2c; font-weight: 900; padding: 5px 6px; text-shadow: 0 1px 0 #fff; border-bottom: 1px solid #d9c2a0; }
+#dlg .ps-table td { padding: 6px; height: 22px; border-left: 1px solid #e7d3b6; }
+#dlg .ps-table td:first-child { border-left: 0; width: 42px; text-align: center; color: #6b5a48; }
+#dlg .ps-table tbody tr:nth-child(odd) td { background: #ecdcc6; }
+#dlg .ps-table tbody tr:nth-child(even) td { background: #fff1df; }
+#dlg .ps-table tbody tr[data-ps] { cursor: pointer; }
+#dlg .ps-table tbody tr.on td { background: #cfe0ff !important; }
+#dlg .ps-table tbody tr.full td { color: #9a8f86; }
+#dlg .ps-table td small { margin-left: 6px; color: #8a7a66; font-size: 11px; }
+#dlg .ps-table td .btn { padding: 2px 8px; font-size: 12px; }
+#dlg .ps-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+#dlg .ps-bar input, #dlg .pty-add input, #dlg .pc-form input[type=text], #dlg .pc-form input:not([type]) { padding: 6px 10px; border-radius: 6px; border: 1px solid #b9a78f; background: #e9ddcb; font-size: 14px; min-width: 0; }
+#dlg .ps-bar input { width: 110px; text-transform: uppercase; }
+#dlg .ps-pg { padding: 2px 10px; }
+#dlg .ps-inv > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 10px; margin: 4px 0 8px; border-radius: 8px; background: #fff8d6; border: 1px solid #e6cf6b; }
+#dlg .pc-form { display: flex; flex-direction: column; gap: 10px; color: #6b5a48; font-weight: 700; }
+#dlg .pc-form label:first-child { display: flex; align-items: center; gap: 10px; }
+#dlg .pc-form label:first-child input { flex: 1; }
+#dlg .pc-form > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#dlg .pc-form > div > span { width: 84px; }
+#dlg .ck { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+#dlg .pc-form small { font-weight: 400; color: #7a6c5c; }
+#dlg .fr-list { min-height: 220px; max-height: 320px; overflow: auto; border: 2px solid #b8a48a; border-radius: 12px; background: repeating-linear-gradient(#ecdcc6 0 30px, #fff1df 30px 60px); padding: 4px 0; }
+#dlg .fr-list > small { display: block; padding: 10px; }
+#dlg .fr-row { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; cursor: pointer; }
+#dlg .fr-row.on { background: #cfe0ff; }
+#dlg .fr-row small { color: #7a6c5c; }
+#dlg .fr-row .dot, #dlg .pty-row .dot { width: 10px; height: 10px; border-radius: 50%; background: #b8c0cc; flex: none; }
+#dlg .fr-row .dot.on { background: #34c759; }
+#dlg .fr-on { margin-bottom: 6px; color: #6b5a48; font-weight: 700; }
+@media (max-width: 640px) { #dlg .ps-table { font-size: 12px; } #dlg .ps-table td { padding: 5px 3px; } #dlg .ps-table td small { display: none; } }

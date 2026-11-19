@@ -33,7 +33,7 @@ export default {
       return env.PARTY.get(env.PARTY.idFromName(pm[1])).fetch(new Request(request.url, { headers: h }));
     }
     if (!u.pathname.startsWith('/api/')) return Response.redirect('https://wila150.github.io/seal-survivors/', 302); // 直接開伺服器網址 → 跳到遊戲
-    else { try { r = await env.GAME.get(env.GAME.idFromName('main')).fetch(request); } catch (e) { console.error(e); r = new Response(JSON.stringify({ error: '伺服器忙碌，請再試一次' }), { status: 503, headers: { 'content-type': 'application/json; charset=utf-8' } }); } }
+    else { try { const h = new Headers(request.headers); h.delete('x-internal'); request = new Request(request, { headers: h }); r = await env.GAME.get(env.GAME.idFromName('main')).fetch(request); } catch (e) { console.error(e); r = new Response(JSON.stringify({ error: '伺服器忙碌，請再試一次' }), { status: 503, headers: { 'content-type': 'application/json; charset=utf-8' } }); } }
     r = new Response(r.body, r);
     for (const [k, v] of Object.entries(cors(origin))) r.headers.set(k, v);
     return r;
