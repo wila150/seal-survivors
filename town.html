@@ -145,7 +145,7 @@
 <div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Lv 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">EXP<div class="bar"><i id="meExp"></i></div><span id="xpPct">0%</span></div></div></div>
 <div id="place" class="chip">希望之城<small>中央廣場</small></div>
 <!-- PC 原版主選單按鈕列（assets/ui/btn_*：tools/build-ui.mjs 從客戶端 mainbutton_all.tex 切）；原版沒有的功能用同色系文字鈕 -->
-<div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
+<div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pct" id="fishBtn" title="釣魚（要在水池邊）">釣魚</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
 <button class="btn primary chip" id="talk"></button>
 <div id="tmmBox" title="主城地圖（點 MAP 放大，放大後點地圖可以直接走過去）"><canvas id="tmm" width="196" height="196"></canvas><button id="tmmMap">MAP</button></div>
 <button id="gmBtn" title="GM 指令（只限本機）" style="display:none;position:fixed;right:12px;top:calc(220px + env(safe-area-inset-top));z-index:5;border:2px solid #fff;border-radius:10px;background:linear-gradient(#ffb55a,#e07a1c);color:#fff;font-weight:900;padding:6px 12px;box-shadow:0 2px 8px #0005;cursor:pointer">GM</button>
@@ -971,13 +971,43 @@ function openFishing() {
     <div style="display:flex;flex-wrap:wrap;gap:6px">${RODS.map((r, i) => r && i > F.rod ? `<button class="btn" data-rod="${i}">買${r.name}（${r.price}）</button>` : '').join('')}
       <button class="btn" data-bait="10">魚餌 ×10（${BAIT.price * 10}）</button><button class="btn" data-bait="50">魚餌 ×50（${BAIT.price * 50}）</button></div>
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><img src="assets/items/1351.png" style="width:28px;height:28px" alt=""><small>「拿 <b>2 條稀有魚</b>（白金金魚、鯉魚、綢緞鯉魚）來，我就送你<b>艾彼斯的祝福</b>：精煉失敗不會碎掉。」持有 ${CHAR.mats?.abis || 0}</small>
-      <button class="btn primary" id="fishTrade" ${CATCH.filter(c => c.rare && !c.mat).reduce((t, c) => t + (F.fish?.[c.key] || 0), 0) >= 2 ? '' : 'disabled'}>兌換</button></div>`;
-  openDlg('釣魚老人', html, [['🎣 拋竿', castLine, true], ['全部賣掉', async () => { try { const r = await call('POST', '/api/fishsell', { charId: CHAR.id }); showChar(r.char); toast(`賣了 ${r.gold} 金幣`); openFishing(); } catch (e) { toast(e.message); } }]]);
+      <button class="btn primary" id="fishTrade" ${CATCH.filter(c => c.rare && !c.mat).reduce((t, c) => t + (F.fish?.[c.key] || 0), 0) >= 2 ? '' : 'disabled'}>兌換</button></div>
+    <p><small>釣魚方法（照 PC）：買釣竿和魚餌，走到水池邊，按下方選單的「釣魚」打開 FISHING 視窗，放魚餌按「開始」就會自動釣。</small></p>`;
+  openDlg('釣魚老人', html, [['全部賣掉', async () => { try { const r = await call('POST', '/api/fishsell', { charId: CHAR.id }); showChar(r.char); toast(`賣了 ${r.gold} 金幣`); openFishing(); } catch (e) { toast(e.message); } }]]);
   $('#dlgBody').querySelectorAll('[data-rod]').forEach(b => b.onclick = () => fishBuy('rod' + b.dataset.rod, 1));
   $('#dlgBody').querySelectorAll('[data-bait]').forEach(b => b.onclick = () => fishBuy('bait', +b.dataset.bait));
   $('#fishTrade')?.addEventListener('click', async () => { try { const r = await call('POST', '/api/fishtrade', { charId: CHAR.id }); showChar(r.char); toast(`換到艾彼斯的祝福！（持有 ${r.abis}）`); openFishing(); } catch (e) { toast(e.message); } }); // 項目 55
 }
 async function fishBuy(what, n) { try { showChar(await call('POST', '/api/fishbuy', { charId: CHAR.id, what, n })); openFishing(); } catch (e) { toast(e.message); } }
+// ===== 釣魚（照 PC：sponline wiki「手持釣竿來到溪邊，按下釣魚技能圖示，放魚餌按開始就會自動釣魚；背包滿了會停」）=====
+// 下方選單「釣魚」→ 原版 FISHING 視窗（interface/mainblue_fishingonskill.tex）：魚餌格、開始／停止、釣魚中進度條；離開水池邊自動停止
+const fishWin = document.createElement('div'); fishWin.id = 'fishWin'; fishWin.style.display = 'none'; document.body.appendChild(fishWin);
+let fishAuto = null;
+const nearPond = () => Math.hypot(player.position.x - TC.x, player.position.z - TC.z) < 15;
+function drawFishWin(msg = '') {
+  const F = CHAR.fishing || { rod: 0, bait: 0, fish: {} }, on = !!fishAuto;
+  fishWin.innerHTML = `<div class="fw"><button class="fwx" title="關閉">✕</button><div class="slot" title="魚餌">${F.bait > 0 ? `<img src="assets/items/${BAIT.icon}.png" alt=""><i>${F.bait}</i>` : ''}</div>
+    <div class="bar ${on ? 'on' : ''}"><span style="width:${on ? 100 : 0}%"></span></div><div class="msg">${msg || (on ? '釣魚中…' : F.rod ? '放好魚餌按「開始」' : '還沒有釣竿（找釣魚老人買）')}</div>
+    <button class="go" ${on ? 'disabled' : ''}></button><button class="st" ${on ? '' : 'disabled'}></button></div>`;
+  fishWin.querySelector('.fwx').onclick = () => { stopFish(); fishWin.style.display = 'none'; };
+  fishWin.querySelector('.go').onclick = startFish; fishWin.querySelector('.st').onclick = () => { stopFish(); drawFishWin('停止釣魚'); };
+}
+function stopFish() { clearTimeout(fishAuto); fishAuto = null; }
+function startFish() {
+  const F = CHAR.fishing || {}; if (!F.rod) return drawFishWin('還沒有釣竿（找釣魚老人買）'); if (!(F.bait > 0)) return drawFishWin('沒有魚餌了');
+  if (!nearPond()) return drawFishWin('要在水池邊才能釣魚');
+  const cast = () => { fishAuto = setTimeout(async () => {
+    if (!nearPond()) { stopFish(); return drawFishWin('離開水邊，停止釣魚'); }
+    try { const r = await call('POST', '/api/fish', { charId: CHAR.id, hit: true }); showChar(r.char);
+      if (r.got) toast(`${r.got.rare ? '✨ ' : ''}釣到了 ${r.got.name}！`);
+      if (!(CHAR.fishing?.bait > 0)) { stopFish(); return drawFishWin('魚餌用完了'); }
+      drawFishWin(r.got ? `釣到 ${r.got.name}` : ''); cast();
+    } catch (e) { stopFish(); drawFishWin(e.message); } }, 3500 + Math.random() * 3000); };
+  fishAuto = 1; drawFishWin(); cast();
+}
+$('#fishBtn').onclick = () => { if (fishWin.style.display !== 'none') { stopFish(); fishWin.style.display = 'none'; return; }
+  if (CHAR.baseLv < (LIFE_LV.釣魚 || 0)) return toast(`還不會釣魚（Base Lv ${LIFE_LV.釣魚} 學會）`);
+  fishWin.style.display = 'block'; drawFishWin(nearPond() ? '' : '要走到水池邊才能釣魚'); };
 function castLine() {
   const F = CHAR.fishing || {}; if (!F.rod) return toast('先買一支釣竿'); if (!(F.bait > 0)) return toast('沒有魚餌了');
   const spot = $('#fishSpot'); if (!spot) return; spot.textContent = '🎣 等待中…'; clearTimeout(fishT);
@@ -1213,7 +1243,10 @@ function renderBag() {
       return `<div class="eq" data-id="${it?.id || ''}" title="${it ? esc(itemName(it)) : v + '：沒有裝備'}"><span class="sl">${v}</span><div class="ico" ${it ? `style="border-color:${RARITY[it.rarity].color}!important"` : ''}>${it ? `<img src="${itemIcon(it)}" alt="">` : ''}</div>${it ? `<b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small>` : `<b>${v}</b><small>沒有裝備</small>`}</div>`; }).join('')}</div>`;
     const shown = items.filter(it => bagMode !== 'smith' || smithOk(it)), BAG_CAP = 40; // 伺服器 BAG_MAX＝40；PC 背包空格也畫出來
     // PC：材料、卷軸也在 ITEM 格子裡，數量用紅字標在右下（強化金屬、寶石、券…）
-    const matCells = bagMode === 'bag' ? Object.entries(c.mats || {}).filter(([k, n]) => n > 0 && ORES[k]).map(([k, n]) => `<div class="cell mat ${selItem === 'm:' + k ? 'sel' : ''}" data-mat="${k}" title="${ORES[k].name}"><img src="assets/items/${ORES[k].icon}.png" alt=""><i class="cnt">${n}</i></div>`) : [];
+    const matCells = bagMode === 'bag' ? Object.entries(c.mats || {}).filter(([k, n]) => n > 0 && ORES[k]).map(([k, n]) => `<div class="cell mat ${selItem === 'm:' + k ? 'sel' : ''}" data-mat="${k}" title="${ORES[k].name}"><img src="assets/items/${ORES[k].icon}.png" alt=""><i class="cnt">${n}</i></div>`) : []
+    // 釣到的魚、魚餌也在 ITEM 格子（PC 一樣）
+    if (bagMode === 'bag') { const F = c.fishing || {}; if (F.bait > 0) matCells.push(`<div class="cell mat" title="${BAIT.name}"><img src="assets/items/${BAIT.icon}.png" alt=""><i class="cnt">${F.bait}</i></div>`);
+      for (const f of CATCH) if (!f.mat && F.fish?.[f.key]) matCells.push(`<div class="cell mat" title="${f.name}（找釣魚老人賣）"><img src="assets/items/${f.icon}.png" alt=""><i class="cnt">${F.fish[f.key]}</i></div>`); }
     if (bagMode === 'bag') html += `<div class="pcgold top">希幣<span>${(c.gold || 0).toLocaleString()}</span></div>`;
     html += `<div class="bag pc${bagMode === 'bag' ? ' itemwin' : ''}">${bagMode === 'bag' ? '' : '<b class="pct"><img src="assets/ui/pc/t_item.png" alt="ITEM" style="height:20px;display:block"></b>'}${matCells.join('')}${shown.map(it => `<div class="cell ${it.equipped ? 'eqd' : ''} ${selItem === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY[it.rarity].color}"><img src="${itemIcon(it)}" alt="">${it.refine ? `<b>+${it.refine}</b>` : ''}</div>`).join('')}${bagMode === 'smith' ? '' : '<div class="cell empty"></div>'.repeat(Math.max(0, BAG_CAP - shown.length - matCells.length))}${shown.length ? '' : '<small style="color:#8a7a6a">背包是空的，出征打首領和精英怪會掉寶箱。</small>'}</div>`;
     if (bagMode !== 'bag') html += `<div class="pcgold">希幣<span>${(c.gold || 0).toLocaleString()}</span></div>`;
