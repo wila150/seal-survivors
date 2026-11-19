@@ -127,6 +127,8 @@ export const sellPrice = it => Math.round(20 * RARITY[it.rarity].mult * RARITY[i
 // 隨機產生裝備（伺服器用）：bonus 越高越容易出好品質
 // PC 每個職業只能拿自己的武器（11/19 使用者：「小丑不是丟匕首嗎？為甚麼見面禮是長槍」）；盾只有騎士
 export const JOB_WEAPON = { 劍士: 'blade', 騎士: 'sword', 小丑: 'spear', 法師: 'staff', 祭司: 'mace', 鐵匠: 'hammer', 獵人: 'sling' };
+// 11/20 使用者：鑑定要給「這件裝備的職業」的技能（劍士拿騎士武器去鑑定 → 出騎士技能）→ 武器＝武器的職業、盾＝騎士；其他防具沒有職業（null：自己的職業，或花錢選）
+export const itemJob = it => it?.slot === 'weapon' ? (Object.entries(JOB_WEAPON).find(([, b]) => b === it.base)?.[0] ?? null) : it?.base === 'shield' ? '騎士' : null;
 // 項目 50：非本職業的裝備（別職業的武器、非騎士的盾）→ 一鍵餵寵物／分解的候選
 export const offJob = (it, job) => !!JOB_WEAPON[job] && ((it.slot === 'weapon' && it.base !== JOB_WEAPON[job]) || (it.base === 'shield' && job !== '騎士'));
 // 項目 50：分解（強化金屬・一＝1＋品質、+4 以上多 1 個強化金屬・二；希幣＝賣價 60%）

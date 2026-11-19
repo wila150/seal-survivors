@@ -22,7 +22,7 @@ import { PETS, PET_MAX, EGG_PRICE, MVP_EGG_RATE, FEED_EXP, addPetExp, petNeed, p
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from './src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from './src/1_data/talents.js';
 import { RODS, BAIT, CATCH, rollCatch } from './src/1_data/fishing.js';
-import { rollClock, CLK_KINDS, JOB_WEAPON, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
+import { rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 
 const PORT = +process.env.PORT || 8765;
 let _skills = null; const SKILLS = () => (_skills ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'data', 'skills.json'), 'utf8')));
@@ -679,10 +679,11 @@ const api = {
     if (!IDENT_SLOTS.includes(it.slot)) return send(res, 400, { error: '只有武器和防具可以鑑定' });
     if (it.ident) return send(res, 400, { error: '這件已經鑑定過了，要先用「技能屬性初始化卷軸」重置' });
     const c = ownChar(uid, it.char_id), T = TALENTS();
-    const pick = job && job !== c.job; if (pick && !T.jobs[job]) return send(res, 400, { error: '沒有這個職業' });
+    const fixed = itemJob(it); // 武器／盾：固定出這件裝備職業的技能，不能選
+    const pick = !fixed && job && job !== c.job; if (pick && !T.jobs[job]) return send(res, 400, { error: '沒有這個職業' });
     const cost = IDENT_COST[it.slot] + (pick ? IDENT_PICK_COST : 0);
     if ((c.gold ?? 0) < cost) return send(res, 400, { error: `金幣不夠（要 ${cost}）` });
-    const ident = rollIdent(T, pick ? job : c.job);
+    const ident = rollIdent(T, fixed || (pick ? job : c.job));
     db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(cost, c.id);
     db.prepare('UPDATE items SET ident=? WHERE id=?').run(JSON.stringify(ident), it.id);
     send(res, 200, { ident, cost, char: fullChar(ownChar(uid, c.id)) });

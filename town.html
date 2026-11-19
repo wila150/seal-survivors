@@ -174,7 +174,7 @@ import { RODS, BAIT, CATCH } from './src/1_data/fishing.js';
 import { loadSealMap, buildSealMap, liftScene, walkMove, addWalkSurfaces } from './src/2_core/seal-map.js';
 import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
-import { CLK_KINDS, CLK_COLOR, clkText, offJob, dismantleYield } from './src/1_data/items.js';
+import { CLK_KINDS, CLK_COLOR, clkText, offJob, dismantleYield, itemJob } from './src/1_data/items.js';
 import { PC_ITEMS } from './src/1_data/pc-items.js';
 import { JOB_WEAPON, traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 import { STATS, HAIR_COLORS } from './src/1_data/jobs.js';
@@ -818,15 +818,17 @@ let idTab = 'weapon', idSel = null, idJob = null;
 async function openIdent() {
   const [T, D] = await DATA; const c = CHAR; idJob ??= c.job;
   const items = (c.items || []).filter(i => i.slot === idTab), it = items.find(i => i.id === idSel);
-  const cost = IDENT_COST[idTab] + (idJob !== c.job ? IDENT_PICK_COST : 0), scrolls = c.mats?.reset || 0;
-  let html = `<p>「把武器或防具交給我，我能看出它藏著哪一招的力量。每次一定會出現 <b>1 種技能屬性</b>（某技能 Lv+1～+5），不會超過技能上限；沒學過的技能不會提升。」</p>
+  const fixJob = itemJob(it), cost = IDENT_COST[idTab] + (!fixJob && idJob !== c.job ? IDENT_PICK_COST : 0), scrolls = c.mats?.reset || 0;
+  let html = `<p>「把武器或防具交給我，我能看出它藏著哪一招的力量。武器會出那把武器職業的技能（騎士的劍就是騎士技能）。每次一定會出現 <b>1 種技能屬性</b>（某技能 Lv+1～+5），不會超過技能上限；沒學過的技能不會提升。」</p>
     <div class="tabs2">${IDENT_SLOTS.map(k => `<button class="btn ${idTab === k ? 'primary' : ''}" data-it="${k}">${SLOTS[k]}</button>`).join('')}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>
     <div class="bag">${items.map(i => `<div class="cell ${i.equipped ? 'eqd' : ''} ${idSel === i.id ? 'sel' : ''}" data-ids="${i.id}" style="border-color:${RARITY[i.rarity].color}"><img src="${itemIcon(i)}" alt="">${i.ident ? '<b>✦</b>' : ''}</div>`).join('') || `<small>背包裡沒有${SLOTS[idTab]}</small>`}</div>
     <div class="detail">`;
   if (!it) html += '<small>點一件裝備。✦＝已鑑定。</small>';
   else {
     html += `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b><br>${identLine(it)}<div class="acts">`;
-    if (!it.ident) html += `範圍：<select id="idJob">${Object.keys(T.jobs).map(j => `<option value="${j}" ${j === idJob ? 'selected' : ''}>${j === c.job ? `${j}（自己的職業）` : `${j}（選擇職業 +${IDENT_PICK_COST}）`}</option>`).join('')}</select>
+    if (!it.ident && fixJob) html += `範圍：<b>${fixJob}</b>的技能（${fixJob}的裝備）
+      <button class="btn primary" id="idGo" ${c.gold < cost ? 'disabled' : ''}>鑑定（${cost} 金幣）</button>`;
+    else if (!it.ident) html += `範圍：<select id="idJob">${Object.keys(T.jobs).map(j => `<option value="${j}" ${j === idJob ? 'selected' : ''}>${j === c.job ? `${j}（自己的職業）` : `${j}（選擇職業 +${IDENT_PICK_COST}）`}</option>`).join('')}</select>
       <button class="btn primary" id="idGo" ${c.gold < cost ? 'disabled' : ''}>鑑定（${cost} 金幣）</button>`;
     else html += `<button class="btn" id="idReset" ${scrolls ? '' : 'disabled'}>重置鑑定（用 1 張技能屬性初始化卷軸，持有 ${scrolls}）</button>`;
     html += '</div>';
