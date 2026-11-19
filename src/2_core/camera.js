@@ -21,16 +21,21 @@ export function enableOrbit(dom) {
     view.yaw -= (e.clientX - lx) * 0.008; view.pitch = Math.min(1.7, Math.max(0.35, view.pitch - (e.clientY - ly) * 0.004)); lx = e.clientX; ly = e.clientY; });
   addEventListener('mouseup', e => { if (e.button === 2 || e.button === 1) on = false; });
   const keys = {}; addEventListener('keydown', e => { if (e.target.closest?.('input,textarea')) return; keys[e.code] = true; }); addEventListener('keyup', e => keys[e.code] = false);
+  const rel = () => { on = false; for (const k in keys) keys[k] = false; }; addEventListener('blur', rel); document.addEventListener('visibilitychange', () => document.hidden && rel()); // 切出視窗不會一直轉
   let last = performance.now();
   (function spin(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; if (keys.KeyQ) view.yaw += dt * 2; if (keys.KeyE) view.yaw -= dt * 2; requestAnimationFrame(spin); })(last);
   return () => on; // 是否正在轉視角
 }
 
 // fx.shake：震動強度，每幀遞減；groundY＝玩家腳下地面高度（原版地圖有起伏）
+const cam = { h: null, back: null, look: 0 }; // 11/20 切換視角改成平滑過渡（約 0.4 秒），不再瞬間跳
 export function followCamera(camera, pp, fx, groundY = 0) {
   const portrait = innerHeight > innerWidth, V = VIEWS[view.i], z = view.zoom;
-  const h = (portrait && view.i === 0 ? 30 : V.h) * z, back = (portrait && view.i === 0 ? 12 : V.back) * z;
+  const th = (portrait && view.i === 0 ? 30 : V.h) * z, tb = (portrait && view.i === 0 ? 12 : V.back) * z, tl = view.i === 2 ? 1.2 : 0;
+  const now = performance.now(), dt = Math.min(0.1, (now - (cam.t || now)) / 1000); cam.t = now; const k = cam.h == null ? 1 : 1 - Math.exp(-dt * 8);
+  cam.h = cam.h == null ? th : cam.h + (th - cam.h) * k; cam.back = cam.back == null ? tb : cam.back + (tb - cam.back) * k; cam.look += (tl - cam.look) * k;
+  const h = cam.h, back = cam.back;
   const sy = Math.sin(view.yaw), cy = Math.cos(view.yaw), hp = h * view.pitch;
-  camera.position.set(pp.x + sy * back, groundY + hp, pp.z + cy * back); camera.lookAt(pp.x - sy * (portrait ? 1 : 0), groundY + (view.i === 2 ? 1.2 : 0), pp.z - cy * (portrait ? 1 : 0));
+  camera.position.set(pp.x + sy * back, groundY + hp, pp.z + cy * back); camera.lookAt(pp.x - sy * (portrait ? 1 : 0), groundY + cam.look, pp.z - cy * (portrait ? 1 : 0));
   if (fx.shake > 0) { const k = fx.shake * 0.6; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; fx.shake = Math.max(0, fx.shake - 0.03); }
 }

@@ -24,7 +24,14 @@ export async function loadSealMap(id) {
     const gx = x + OFF, gz = z + OFF, i = Math.floor(gx), j = Math.floor(gz), fx = gx - i, fz = gz - j;
     return (hAt(i, j) * (1 - fx) + hAt(i + 1, j) * fx) * (1 - fz) + (hAt(i, j + 1) * (1 - fx) + hAt(i + 1, j + 1) * fx) * fz;
   };
+  // 11/20 使用者「地圖死角太多」：①邊緣 1 格凸起／缺口抹平（不可走格四邊有 3 邊以上可走 → 改成可走，做 2 次），走路比較不會卡在鋸齒邊
+  for (let pass = 0; pass < 2; pass++) { const fix = []; for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) { const q = j * W + i; if (walk[q] === 1) continue; if ((walk[q - 1] === 1) + (walk[q + 1] === 1) + (walk[q - W] === 1) + (walk[q + W] === 1) >= 3) fix.push(q); } for (const q of fix) walk[q] = 1; }
   const canWalk = (x, z) => { const i = Math.floor(x + OFF), j = Math.floor(z + OFF); return i >= 1 && j >= 1 && i < W - 1 && j < H - 1 && walk[j * W + i] === 1; };
+  // ②連通區編號：怪物、事件、寶箱只生在跟玩家同一塊走得到的地方（地下墓地被牆隔成好幾塊，以前會生在隔壁走不過來的區域）
+  const comp = new Int32Array(W * H).fill(-1); { let L = 0; const st = []; for (let s0 = 0; s0 < W * H; s0++) { if (walk[s0] !== 1 || comp[s0] >= 0) continue; comp[s0] = L; st.push(s0);
+    while (st.length) { const c = st.pop(), x = c % W; for (const q of [c - 1, c + 1, c - W, c + W]) { if (q < 0 || q >= W * H || (q === c - 1 && x === 0) || (q === c + 1 && x === W - 1)) continue; if (walk[q] === 1 && comp[q] < 0) { comp[q] = L; st.push(q); } } } L++; } }
+  const compAt = (x, z) => { const i = Math.floor(x + OFF), j = Math.floor(z + OFF); return i >= 0 && j >= 0 && i < W && j < H ? comp[j * W + i] : -1; };
+  const reach = (x, z, fx, fz) => canWalk(x, z) && compAt(x, z) === compAt(fx, fz); // (x,z) 跟 (fx,fz) 走得到
   // 出生點：可走區的重心附近最近的可走格（找周圍也都能走的位置）
   let sx = 0, sz = 0, n = 0;
   for (let j = 0; j < H; j += 2) for (let i = 0; i < W; i += 2) if (walk[j * W + i]) { sx += i; sz += j; n++; }
@@ -35,7 +42,7 @@ export async function loadSealMap(id) {
     return canWalk(x, z) && big.every(([bx, bz]) => Math.hypot(bx - x, bz - z) > 14); };
   let spawn = { x: cx, z: cz };
   search: for (let r = 0; r < 200; r += 2) for (let a = 0; a < 24; a++) { const x = cx + Math.cos(a / 24 * 6.283) * r, z = cz + Math.sin(a / 24 * 6.283) * r; if (open(x, z, 6)) { spawn = { x, z }; break search; } }
-  return { id, meta, W, H, heightAt, canWalk, spawn, center: { x: cx, z: cz }, base };
+  return { id, meta, W, H, heightAt, canWalk, reach, compAt, spawn, center: { x: cx, z: cz }, base };
 }
 
 // 地形 mesh＋物件；回傳 propsReady
@@ -135,6 +142,9 @@ export function walkMove(M, p, nx, nz) {
   if (M.canWalk(nx, nz)) { p.x = nx; p.z = nz; return true; }
   if (M.canWalk(nx, p.z)) { p.x = nx; return true; }
   if (M.canWalk(p.x, nz)) { p.z = nz; return true; }
+  // 11/20「地圖死角」：卡在斜的牆角時，把方向左右轉 30／60 度試試，沿著牆滑過去（速度打 7 折）
+  const dx = nx - p.x, dz = nz - p.z;
+  for (const a of [0.52, -0.52, 1.05, -1.05]) { const c = Math.cos(a) * 0.7, s = Math.sin(a) * 0.7, tx = p.x + dx * c - dz * s, tz = p.z + dx * s + dz * c; if (M.canWalk(tx, tz)) { p.x = tx; p.z = tz; return true; } }
   return false;
 }
 

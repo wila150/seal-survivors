@@ -18,7 +18,7 @@ export function createInput(dom, joyEl, opts = {}) {
   function aim(e) { // 螢幕座標 → 地面座標
     const r = dom.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     plane.constant = -(opts.groundY?.() || 0); // 點擊平面放在玩家腳下的地面高度
-    ray.setFromCamera(ndc, opts.camera); if (ray.ray.intersectPlane(plane, hit)) { click.x = hit.x; click.z = hit.z; click.on = true; showMarker(); }
+    ray.setFromCamera(ndc, opts.camera); if (ray.ray.intersectPlane(plane, hit)) { click.x = hit.x; click.z = hit.z; click.on = true; click.chk = 0; showMarker(); }
   }
   // 點擊位置的小光圈
   let marker = null;
@@ -29,15 +29,19 @@ export function createInput(dom, joyEl, opts = {}) {
     joy.on = true; joy.ox = e.clientX; joy.oy = e.clientY; joy.dx = joy.dy = 0; joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px'; joyEl.style.display = 'block';
   });
   addEventListener('pointermove', e => {
-    if (click.held && e.pointerType === 'mouse') { aim(e); return; }
+    if (click.held && e.pointerType === 'mouse') { if (!(e.buttons & 1)) { click.held = false; return; } aim(e); return; } // 左鍵已經放開（放開事件被右鍵選單吃掉）→ 不再跟著滑鼠
     if (!joy.on) return; let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy; const d = Math.hypot(dx, dy), m = 45; if (d > m) { dx *= m / d; dy *= m / d; } joy.dx = dx / m; joy.dy = dy / m; joyEl.firstChild.style.transform = `translate(${dx}px,${dy}px)`;
   });
   const joyEnd = () => { click.held = false; joy.on = false; joy.dx = joy.dy = 0; joyEl.style.display = 'none'; joyEl.firstChild.style.transform = ''; };
   addEventListener('pointerup', joyEnd); addEventListener('pointercancel', joyEnd);
+  // 11/20 使用者：「不小心按到右鍵，人物會卡死一直走」→ 右鍵選單／切出視窗時放開事件收不到，按鍵會一直當成按住；這些時候全部放開、停下點擊移動
+  const releaseAll = () => { for (const k in keys) keys[k] = false; joyEnd(); click.on = false; if (marker) marker.visible = false; };
+  addEventListener('blur', releaseAll); addEventListener('contextmenu', releaseAll); document.addEventListener('visibilitychange', () => document.hidden && releaseAll());
+  addEventListener('mousedown', e => { if (e.button === 2) { click.held = false; click.on = false; if (marker) marker.visible = false; } }); // 右鍵＝轉視角／連續技，不移動
   const out = { mx: 0, mz: 0, ml: 0 };
   return {
     keys, joy, click,
-    cancelClick() { click.on = false; if (marker) marker.visible = false; },
+    cancelClick() { click.on = false; click.chk = 0; if (marker) marker.visible = false; },
     read() {
       let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.dx;
       let mz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + joy.dy;
@@ -46,6 +50,8 @@ export function createInput(dom, joyEl, opts = {}) {
       // 有按鍵盤或搖桿就取消點擊移動；否則朝點擊位置走，到了就停
       if (Math.hypot(mx, mz) > 0.05) this.cancelClick();
       else if (click.on && opts.target) { const p = opts.target(), dx = click.x - p.x, dz = click.z - p.z, d = Math.hypot(dx, dz);
+        // 點到牆後面走不到：1 秒內沒有靠近 0.3 公尺就放棄（以前會一直對著牆走）
+        const now = performance.now(); if (!click.chk || d < click.best - 0.3) { click.best = d; click.chk = now; } else if (!click.held && now - click.chk > 1000) { this.cancelClick(); click.chk = 0; return out.mx = out.mz = out.ml = 0, out; }
         if (d < 0.35) this.cancelClick(); else { mx = dx / d; mz = dz / d; } }
       const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
       out.mx = mx; out.mz = mz; out.ml = Math.min(1, ml); return out;

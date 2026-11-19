@@ -151,7 +151,7 @@ function noviceWave(dt) {
   if (enemies.filter(e => !e.dead).length >= 12) return;
   const types = STAGE.monsters || []; const e = spawnEnemy(types[Math.random() * types.length | 0] || Object.keys(ENEMY_TYPES)[0]);
   const a = Math.random() * 6.283, r = 12 + Math.random() * 4, x = player.position.x + Math.cos(a) * r, z = player.position.z + Math.sin(a) * r;
-  if (MAP.canWalk(x, z)) e.mesh.position.set(x, 0, z); e.hp = e.maxHp = 6; e.speed = 2.2; e.dmg = Math.min(e.dmg, 3); e.xp = 1;
+  if (MAP.reach(x, z, player.position.x, player.position.z)) e.mesh.position.set(x, 0, z); e.hp = e.maxHp = 6; e.speed = 2.2; e.dmg = Math.min(e.dmg, 3); e.xp = 1;
 }
 function triggerMountDash() {
   if (state !== 'play') return; const on = !rig.mounted; setMounted(on);
@@ -331,7 +331,7 @@ const evHud = document.createElement('div'); evHud.id = 'evHud'; document.body.a
 #evHud b{color:#ffd36b}#evHud .bar{height:6px;border-radius:4px;background:#0006;margin-top:4px;overflow:hidden}#evHud .bar i{display:block;height:100%;background:linear-gradient(90deg,#7dff9a,#ffd36b)}`; document.head.appendChild(st); }
 const EV_TYPES = ['altar', 'thief', 'escort'];
 const evEvery = () => Math.max(35, 100 / (1 + 0.2 * (DIFF.event - 1))); // 事件數量越高越頻繁
-function evPoint(min = 12, max = 20) { for (let k = 0; k < 30; k++) { const a = Math.random() * 6.283, r = min + Math.random() * (max - min), x = player.position.x + Math.cos(a) * r, z = player.position.z + Math.sin(a) * r; if (MAP.canWalk(x, z)) return { x, z }; } return { x: player.position.x, z: player.position.z }; }
+function evPoint(min = 12, max = 20) { for (let k = 0; k < 30; k++) { const a = Math.random() * 6.283, r = min + Math.random() * (max - min), x = player.position.x + Math.cos(a) * r, z = player.position.z + Math.sin(a) * r; if (MAP.reach(x, z, player.position.x, player.position.z)) return { x, z }; } return { x: player.position.x, z: player.position.z }; }
 function evMark(pos, color, r) { const g = new THREE.Group(); const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.18, r, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.07; g.add(ring);
   const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 14, 12, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); pillar.position.y = 7; g.add(pillar);
   g.position.set(pos.x, 0, pos.z); scene.add(g); return g; }
@@ -541,7 +541,8 @@ function spawnEnemy(type, elite = false, asBoss = false) {
   const T = ENEMY_TYPES[type], r = 22 + Math.random() * 6, isBoss = !!T.boss || asBoss;
   // 生在玩家周圍一圈，但要在地圖裡（靠邊時換個方向）
   let a = Math.random() * Math.PI * 2;
-  for (let k = 0; k < 12 && !MAP.canWalk(player.position.x + Math.cos(a) * r, player.position.z + Math.sin(a) * r); k++) a = Math.random() * Math.PI * 2;
+  // 11/20「地圖死角」：要生在跟玩家同一塊走得到的地方（隔著牆的區域不算）
+  for (let k = 0; k < 24 && !MAP.reach(player.position.x + Math.cos(a) * r, player.position.z + Math.sin(a) * r, player.position.x, player.position.z); k++) a = Math.random() * Math.PI * 2;
   const sc = (T.scale || 1) * (elite ? 1.7 : 1);
   const s = TEMPLATES[type] ? sc / (T.scale || 1) * (isBoss ? (T.boss ? 2.3 : 2.6) : 1) : sc;
   // 同「種類＋精英＋首領」的模型共用一個池子
