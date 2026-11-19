@@ -17,7 +17,7 @@ const GUNNER_EXTRA = ['multishot', 'doubleshot', 'powershot', 'pointshot', 'rapi
 const made = {};
 for (const g of ['Ma', 'Wa']) for (const [job, w] of Object.entries(WEAPON)) for (const a of (w === 'gunner' ? [...ACTS, ...GUNNER_EXTRA] : ACTS)) {
   // 女角少數動作沒有 → 用男角同一個，再沒有就用空手
-  const RIDE = { rpi: 'GRHMpi', rrn: 'GRHMrn' }; // 原版騎馬坐姿（跨坐、手拉韁繩；G2_ 開頭的是機車／轎車的後仰坐姿，騎動物像在大笑，11/20 使用者截圖）；只有男版 → 女角共用
+  const RIDE = { rpi: 'GRHMpi', rrn: 'GRHMpi' }; // 移動也用坐姿：GRHMrn 兩腿往下擺、穿過坐騎肚子踩到地（11/20 使用者：人物移動還是怪）→ 改成坐穩不動、跟著坐騎步伐起伏（sealMount 的 bob） // 原版騎馬坐姿（跨坐、手拉韁繩；G2_ 開頭的是機車／轎車的後仰坐姿，騎動物像在大笑，11/20 使用者截圖）；只有男版 → 女角共用
   const cands = RIDE[a] ? [RIDE[a]] : w === 'gunner' ? (SRC[a] || [a]).flatMap(x => [(g === 'Ma' ? 'hm_' : 'hw_') + x, 'hm_' + x]) : (SRC[a] || [a]).flatMap(x => [g + w + x, 'Ma' + w + x, g + 'hd' + x, 'Mahd' + x]);
   const f = cands.map(c => lower.get(c.toLowerCase() + '.an1')).find(Boolean); if (!f) { console.log('缺', g + w + a); continue; }
   const id = f.slice(0, -4);

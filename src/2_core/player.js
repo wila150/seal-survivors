@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { sealModel, sealActor, sealMount, glowGear } from './seal-model.js';
 import { GUP } from '../1_data/items.js';
-import { OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, seatOf } from '../1_data/jobs.js';
+import { OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, seatOf, MOUNT_H } from '../1_data/jobs.js';
 import { view } from './camera.js';
 
 // ===== 輸入 =====
@@ -74,7 +74,7 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
 
   const rig = { group, actor: null, mounted: false, mountCd: 0, mountObj: null };
   // 坐騎：上坐騎時人坐到坐騎背上
-  const mountReady = MOUNT_ON ? sealMount(JOB.mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; group.add(m); rig.mountObj = m; }).catch(() => {}) : Promise.resolve();
+  const mountReady = MOUNT_ON ? sealMount(JOB.mount, MOUNT_H).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; group.add(m); rig.mountObj = m; }).catch(() => {}) : Promise.resolve();
   const LOOK = playerLook(CHAR.job, CHAR.gender, CHAR.hair ?? 0, CHAR.hairColor ?? 0, CHAR.outfit ?? 0, CHAR.items, CHAR.costume);
   const actorReady = sealActor(playerModelId(CHAR.job, CHAR.gender), playerAnimSet(CHAR.job, CHAR.gender), 1.7, LOOK.gear, LOOK.opts).then(async m => {
     await Promise.race([m.userData.texReady, new Promise(r => setTimeout(r, 4000))]); // 等貼圖載好再拍頭像

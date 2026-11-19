@@ -162,7 +162,7 @@
 <div id="tload0" style="position:fixed;inset:0;background:#000;z-index:998"></div>
 <script type="module">
 import * as THREE from 'three';
-import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES, seatOf, NOVICE, JOB1_AT, FIRST_JOBS, LIFE_LV } from './src/1_data/jobs.js';
+import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES, seatOf, MOUNT_H, NOVICE, JOB1_AT, FIRST_JOBS, LIFE_LV } from './src/1_data/jobs.js';
 import { renderLook } from './src/2_core/look-ui.js';
 import { sealModel, sealProp, sealActor, sealMob, sealMount, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
@@ -1242,7 +1242,7 @@ let townMount = null, townRiding = false, townRider = null;
 function seatTownRider() { const [y, z] = townRiding ? seatOf(JOBS[CHAR.job].mount) : [0, 0]; for (const ch of player.children) if (ch !== townMount) { ch.position.y = y; ch.position.z = z; ch.userData.actor?.setRiding?.(townRiding); } }
 function loadTownMount() {
   if (townMount || !((CHAR.mountUntil || 0) > Date.now())) return;
-  sealMount(JOBS[CHAR.job].mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; player.add(m); townMount = m; }).catch(() => {});
+  sealMount(JOBS[CHAR.job].mount, MOUNT_H).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; player.add(m); townMount = m; }).catch(() => {});
 }
 addEventListener('keydown', e => {
   if (e.code !== 'KeyR' || dlgOpen || !townMount) return;

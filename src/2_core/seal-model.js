@@ -171,6 +171,7 @@ export async function sealActor(modelName, setKey, height = 1.7, gear = [], opts
     const clip = clips[key]; if (!clip) return;
     const a = mixer.clipAction(clip); a.reset(); a.setLoop(key === 'dd' ? THREE.LoopOnce : THREE.LoopRepeat); a.clampWhenFinished = key === 'dd';
     a.timeScale = key === 'rn' ? runScale : 1;
+    if (key === 'rpi' || key === 'rrn') { a.time = 0.3; a.timeScale = 0; } // 騎乘坐姿定格（原版騎馬動作手腳一直揮，坐在坐騎上像在打拳），起伏交給坐騎
     a.play(); if (cur && cur !== a) cur.crossFadeTo(a, fade, false); cur = a; curKey = key;
   }
   // 攻擊：f1→f2→f3 輪流，播完回到原本動作。移動中不播全身攻擊（不然腳會停住、看起來在原地卡頓）
@@ -280,7 +281,11 @@ export async function sealMount(name, height = 1.5) {
   if (!f) return sealModel(name, height);
   const g = f.create(), a = g.userData.actor, hop = MOUNT_HOP[name];
   a.bob = 0;
-  if (hop) {
+  if (!hop) { // 會走路的坐騎：人物跟著步伐小幅起伏（坐騎本身的走路動作已經有起伏，這裡只給人物）
+    const om = a.move, ou = a.update; let mv = false, t = 0;
+    a.move = on => { mv = on; om(on); };
+    a.update = dt => { ou(dt); t = mv ? t + dt : 0; a.bob = mv ? Math.abs(Math.sin(t * 9)) * 0.05 : 0; };
+  } else {
     const inner = g.children[0], y0 = inner.position.y, om = a.move, ou = a.update; let mv = false, t = 0;
     a.move = on => { mv = on; om(false); };
     a.update = dt => { ou(dt); t = mv ? t + dt : 0; const s = Math.sin(t * hop[1]); a.bob = mv ? (hop[2] ? Math.abs(s) : (s + 1) / 2) * hop[0] : 0; inner.position.y = y0 + a.bob; };
