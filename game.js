@@ -228,11 +228,11 @@ function cbTrigger() {
   const judge = (x, y, txt) => { const d = document.createElement('div'); d.className = 'judge'; d.textContent = txt; d.style.left = x + 'px'; d.style.top = y + 'px'; osuEl.appendChild(d); setTimeout(() => d.remove(), 500); };
   const ok = (x, y, txt = '300') => { lv++; tone(lv - 1); judge(x, y, txt); bossFx.shake = Math.max(bossFx.shake, 0.05 + lv * 0.05); camZoom = 1 - lv * 0.03; next(); };
   const miss = (x, y) => { judge(x ?? W() / 2, y ?? H() / 2, 'MISS'); release(); };
-  function release() { if (over) return; over = true; cleanup?.(); osuEl.style.display = 'none'; osuEl.innerHTML = ''; removeEventListener('keydown', kd); removeEventListener('keyup', ku); camZoom = 1;
+  function release() { if (over) return; over = true; cleanup?.(); osuEl.style.display = 'none'; osuEl.innerHTML = ''; removeEventListener('keydown', kd); removeEventListener('keyup', ku); camZoom = 1; CB.release = null; ultBtn.style.zIndex = '';
     state = 'play'; last = performance.now(); cbUnleash(lv, N, e); }
   const kd = ev => { if (ev.code === 'Space') { ev.preventDefault(); release(); return; } if (ev.code === 'KeyZ' || ev.code === 'KeyX') { ev.preventDefault(); if (!keyDown) onKey(ev.code); keyDown = true; } };
   const ku = ev => { if (ev.code === 'KeyZ' || ev.code === 'KeyX') keyDown = false; };
-  addEventListener('keydown', kd); addEventListener('keyup', ku);
+  addEventListener('keydown', kd); addEventListener('keyup', ku); CB.release = release; ultBtn.style.zIndex = 31;
   let onKey = () => {};
   function next() {
     cleanup?.(); cleanup = null; if (over) return; if (node >= N) return release(); const kind = kinds[node++];
@@ -300,7 +300,7 @@ function cbUnleash(L, N, e) {
 }
 function cbEnd() { CB.st = 'charge'; CB.g = 0; marq.style.display = 'none'; ultBtn.classList.remove('full'); comboUpdate(); }
 function cbReset() { cbEnd(); CB.done = 0; }
-ultBtn.addEventListener('click', e => { e.stopPropagation(); cbTrigger(); });
+ultBtn.addEventListener('click', e => { e.stopPropagation(); if (CB.st === 'osu') return CB.release?.(); cbTrigger(); }); // 蓄力中再點一次＝提早釋放
 addEventListener('keydown', e => { if (e.code === 'Space' && state === 'play' && CB.st === 'ready') { e.preventDefault(); cbTrigger(); } });
 function comboUpdate() { const pips = CB.st === 'charge' ? Math.floor(CB.g / 33.34) : 3; ultBtn.style.setProperty('--p', CB.st === 'charge' ? CB.g : 100); ultBtn.querySelectorAll('.pips b').forEach((b, i) => b.classList.toggle('on', i < pips)); }
 // ===== 項目 53：地圖動態事件 × MVP 護盾（第八批藍圖）=====
