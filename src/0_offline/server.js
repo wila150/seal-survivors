@@ -90,6 +90,8 @@ function expireAuctions() {
 db.exec('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)');
 const NPC_SELLERS = ['旅行商人 卡爾', '收藏家 莉莉', '老商人 巴頓'], NPC_MAX = 6, NPC_EVERY = 2 * 3600e3;
 const metaGet = k => db.prepare('SELECT v FROM meta WHERE k=?').get(k)?.v, metaSet = (k, v) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k, String(v));
+// 11/20 使用者：「初心者剛建立角色沒有配點進去遊戲時點數會不見」→ 建角沒分完的點數存進 d.points；舊角色補回（應有＝20＋轉生×75＋(Base Lv−1)×3 − 已分配，只補不扣，一次）
+const statsUsed = st => Object.keys(STATS).reduce((a, k) => a + Math.max(0, (st?.[k] || 1) - 1), 0);
 const marketValue = it => sellPrice(it) * 6 * (1 + 0.5 * (it.gup || 0)) * (it.ident ? 1.5 : 1);
 function npcMarket() {
   const now = Date.now(), last = +(metaGet('npcTick') || 0); if (now - last < 60e3) return; metaSet('npcTick', now);
@@ -123,6 +125,13 @@ const stashInfo = uid => { const a = db.prepare('SELECT stash FROM accounts WHER
   return { unlocked: Math.max(STASH_FREE, s.unlocked || 0), names: Array.from({ length: STASH_PAGES }, (_, i) => s.names?.[i] || `倉庫 ${i + 1}`) }; };
 // 項目 21：轉生師
 const REBIRTH_LV = 70, REBIRTH_MAX = 10, REBIRTH_BONUS = 75;
+if (!metaGet('fixPoints1')) {
+  for (const c of db.prepare('SELECT id, base_lv, data FROM characters').all()) {
+    const d = JSON.parse(c.data || '{}'), should = FREE_POINTS + REBIRTH_BONUS * (d.rebirth || 0) + 3 * (c.base_lv - 1) - statsUsed(d.stats);
+    if (should > (d.points || 0)) { d.points = should; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); }
+  }
+  metaSet('fixPoints1', 1);
+}
 const MAIL_MAX = 100;
 const isTowerKey = k => k === 'tower';
 const RARITY_N = ['普通', '精良', '稀有', '史詩', '傳說'];
@@ -254,7 +263,7 @@ const api = {
     const job0 = NOVICE;
     if (!validateStats(stats)) return send(res, 400, { error: '素質點數不對' });
     if (!validLook(hair, hairColor, outfit)) return send(res, 400, { error: '髮型或顏色不對' });
-    try { const r = db.prepare('INSERT INTO characters (account_id, slot, name, gender, job, data, created) VALUES (?,?,?,?,?,?,?)').run(uid, slot, n, gender, job0, JSON.stringify({ stats, outfit, hair, hairColor, novice: true }), Date.now());
+    try { const r = db.prepare('INSERT INTO characters (account_id, slot, name, gender, job, data, created) VALUES (?,?,?,?,?,?,?)').run(uid, slot, n, gender, job0, JSON.stringify({ stats, points: FREE_POINTS - statsUsed(stats), outfit, hair, hairColor, novice: true }), Date.now());
       send(res, 200, charView(db.prepare('SELECT * FROM characters WHERE id=?').get(r.lastInsertRowid))); }
     catch (e) { send(res, 409, { error: String(e.message).includes('name') ? '這個角色名稱已經有人用了' : '這個欄位已經有角色了' }); }
   },
