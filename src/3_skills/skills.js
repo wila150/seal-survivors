@@ -107,6 +107,7 @@ export class SkillManager {
   stat(k, lv) {
     const d = this.def(k), o = {};
     for (const s in d.base) o[s] = typeof d.base[s] === 'number' ? d.base[s] + (d.per?.[s] || 0) * (lv - 1) : d.base[s]; // at 是文字（self／nearest／random）：以前被加成 'self0' → 自身範圍技一直當隨機打
+    if (Array.isArray(d.pcCd) && o.cd != null) o.cd = d.pcCd[Math.min(lv, d.pcCd.length) - 1]; // 11/20 使用者：冷卻照 PC 原始數值（2u 資料站，pcCd＝各等級冷卻；單一數字＝每級一樣，已寫在 base.cd）
     if (o.count) o.count = Math.floor(o.count + 1e-6); if (o.bounce) o.bounce = Math.floor(o.bounce + 1e-6); if (o.pierce) o.pierce = Math.floor(o.pierce + 1e-6);
     // 項目 26：局外天賦改造（該招傷害／冷卻＋屬性標籤傷害）
     const T = this.P?.talent;
