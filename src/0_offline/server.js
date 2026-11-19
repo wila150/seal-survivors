@@ -4,6 +4,7 @@ export { handle };
 // 希望OL 倖存者 本機伺服器：靜態檔案＋帳號／角色 API
 // 啟動：node server.mjs   → http://localhost:8765
 import * as PS from '../1_data/persona.js';
+import * as TW from '../1_data/tower.js';
 import { JOBS, OUTFITS, validateStats, STATS, MOUNT, validLook, defaultStats, FREE_POINTS, NOVICE, JOB1_AT, FIRST_JOBS } from '../1_data/jobs.js';
 import { PC_WEAR } from '../1_data/pc-wear.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime } from '../1_data/stages.js';
@@ -51,7 +52,8 @@ try { for (const [job, base] of Object.entries(JOB_WEAPON)) db.prepare("UPDATE i
 try { db.exec('ALTER TABLE items ADD COLUMN pc INTEGER'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN locked INTEGER NOT NULL DEFAULT 0'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN elem INTEGER NOT NULL DEFAULT 0'); } catch {} // 指令 4-3 武器七大屬性合成（1 火…7 暗）
-try { db.exec('ALTER TABLE items ADD COLUMN look INTEGER'); } catch {} // 指令 4-3 衣櫥外觀複製（顯示成這個 PC 道具的外觀） // 項目 50：鎖定（不會被一鍵餵食／分解／賣掉） // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
+try { db.exec('ALTER TABLE items ADD COLUMN look INTEGER'); } catch {}
+try { db.exec('ALTER TABLE items ADD COLUMN setk TEXT'); } catch {} // 賢者之塔艾希頓套裝 // 指令 4-3 衣櫥外觀複製（顯示成這個 PC 道具的外觀） // 項目 50：鎖定（不會被一鍵餵食／分解／賣掉） // 11/19 道具照 PC：PC 原版道具編號（名稱、圖示、數值倍率） // 項目 46：G 化階段 0 一般／1 G／2 DG／3 XG
 // 項目 18：倉庫（整個帳號共用）。存進倉庫的裝備 char_id＝0、acct＝帳號、stash＝分頁 0～5
 try { db.exec('ALTER TABLE items ADD COLUMN acct INTEGER'); } catch {}
 try { db.exec('ALTER TABLE items ADD COLUMN stash INTEGER'); } catch {}
@@ -165,9 +167,9 @@ function auth(req) {
   if (!s || s.expires < Date.now()) return null;
   return s.account_id;
 }
-const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])) }; };
+const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: d.pets ?? [], pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])) }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
-const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
+const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, setk: r.setk || null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
 const ownChar = (uid, cid) => db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+cid, uid);
 const ownItem = (uid, iid) => db.prepare('SELECT i.* FROM items i JOIN characters c ON c.id=i.char_id WHERE i.id=? AND c.account_id=?').get(+iid, uid);
@@ -264,6 +266,7 @@ const api = {
       return send(res, 400, { error: '紀錄不對' });
     const d0 = JSON.parse(c.data || '{}');
     // 賢者之塔：獎勵倍率＝目前樓層那一段遠征地圖 ×1.2；沒有通關獎勵
+    if (isTower) { const dd = JSON.parse(c.data || '{}'); if (!(dd.towerPass > Date.now() - 6 * 3600e3)) return send(res, 400, { error: '要先找越過次元的修道士入場' }); }
     const floor = isTower ? towerFloor(secs) : 0, si = isTower ? towerSeg(floor) : STAGES.findIndex(x => x.key === stage);
     const S = isTower ? { ...STAGES[si], key: 'tower', reward: STAGES[si].reward * 1.2 } : STAGES[si];
     if (isTower) { if (!towerOpen(charView(c), STAGES)) return send(res, 400, { error: `${TOWER_NAME}要完成二轉並通關四張遠征地圖才開放` }); if (!CURSES[curse]) return send(res, 400, { error: '沒有這個詛咒' }); }
@@ -326,6 +329,7 @@ const api = {
     // 11/19 使用者企劃 指令 3：每打完一套 A→S→D 連續技，身上鑲著的技能寶石各 +20 融合經驗，滿 100 升一級（N → G → DG → XG）
     const gemUps = []; { const n = Math.max(0, Math.min(30, combos | 0)); if (n) for (const sl of d.gemSlots || []) { const g = sl && (d.gems || []).find(x => x.id === sl.gem); if (!g) continue;
       g.fx = (g.fx || 0) + 20 * n; while (g.fx >= 100 && g.grade < 3) { g.fx -= 100; g.grade++; gemUps.push(g.grade); } if (g.grade >= 3) g.fx = Math.min(g.fx, 100); } }
+    let souls = 0; if (isTower) { delete d.towerPass; souls = Math.floor(floor / 3); if (souls) { d.mats ??= {}; d.mats.ashton = (d.mats.ashton || 0) + souls; } } // 賢者之塔：入場證用掉、每 3 層 1 個艾希頓之魂
     const spentGold = Math.max(0, Math.min(Math.floor(+req.__spent || 0), (c.gold ?? 0) + gold)); // 項目 37：菁英寶箱花的金幣，結算時扣（不會扣到負的）
     db.prepare('UPDATE characters SET base_lv=?, job_lv=?, exp=?, gold=gold+?, data=? WHERE id=?').run(base, job, exp, gold - spentGold, JSON.stringify(d), c.id);
     db.prepare('INSERT INTO runs (char_id, secs, kills, lv, exp, created) VALUES (?,?,?,?,?,?)').run(c.id, secs, kills, lv, gain, Date.now());
@@ -334,7 +338,7 @@ const api = {
     if (isTower) { const before = towerBest(c.id), score = towerScore(floor, kills, curse);
       db.prepare('INSERT INTO towers (char_id, month, floor, score, curse, kills, created) VALUES (?,?,?,?,?,?,?)').run(c.id, monthKey(), floor, score, curse, kills, Date.now());
       tower = { floor, score, newBest: score > before.score, newFloor: floor > before.floor, points: towerPoints(Math.max(floor, before.floor)) }; }
-    send(res, 200, { gain, bonus, baseLv: base, exp, need: needExp(base), levelUps: ups, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, petStarve, petDied, pet: ap && !petDied ? { name: ap.name || PETS[ap.kind].name, hunger: Math.round(ap.hunger), lv: ap.lv, up: petUp } : null, petEgg: petEgg && PETS[petEgg.kind].name, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
+    send(res, 200, { gain, bonus, baseLv: base, exp, need: needExp(base), levelUps: ups, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, petStarve, petDied, pet: ap && !petDied ? { name: ap.name || PETS[ap.kind].name, hunger: Math.round(ap.hunger), lv: ap.lv, up: petUp } : null, petEgg: petEgg && PETS[petEgg.kind].name, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, souls, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
   },
   // ===== 背包、商店、強化、素質 =====
   'POST /api/equip': async (req, res, _, uid) => {
@@ -460,6 +464,34 @@ const api = {
     const c = ownChar(uid, a.char_id); if ((c.gold ?? 0) < 1000) return send(res, 400, { error: '希幣不夠（要 1000）' });
     db.prepare('UPDATE items SET look=? WHERE id=?').run(a.look || a.pc, b.id); db.prepare('DELETE FROM items WHERE id=?').run(a.id); db.prepare('UPDATE characters SET gold=gold-1000 WHERE id=?').run(c.id);
     send(res, 200, { char: fullChar(ownChar(uid, c.id)) });
+  },
+  // ===== 賢者之塔 Another（官方 wiki 83；src/1_data/tower.js）=====
+  'POST /api/towerenter': async (req, res, _, uid) => {
+    const { charId, ticket = false } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'); if (!towerOpen(charView(c), STAGES)) return send(res, 400, { error: `${TOWER_NAME}要完成二轉並通關四張遠征地圖才開放` });
+    const day = TW.towerDay(); if (d.towerDay?.day !== day) d.towerDay = { day, n: 0, t: 0 };
+    if (d.towerDay.n >= TW.ENTRY_FREE) { if (!ticket) return send(res, 400, { error: '今天的免費入場次數用完了（可以用賢者之塔入場券）' }); if (d.towerDay.t >= TW.TICKET_MAX) return send(res, 400, { error: '今天入場券已經用了 2 張' });
+      d.mats ??= {}; if (!(d.mats.towerTicket > 0)) return send(res, 400, { error: '沒有賢者之塔入場券（裝備商人「購買」）' }); d.mats.towerTicket--; d.towerDay.t++; }
+    d.towerDay.n++; d.towerPass = Date.now(); const gs = gearScore(itemsOf(c.id));
+    db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    send(res, 200, { penalty: gs < TW.REC_GS[0], gs, rec: TW.REC_GS, char: fullChar(ownChar(uid, c.id)) });
+  },
+  'POST /api/ashcraft': async (req, res, _, uid) => {
+    const { charId, set, slot } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    if (!TW.ASHTON_SETS[set] || !TW.ASHTON_SLOTS.includes(slot)) return send(res, 400, { error: '沒有這種艾希頓裝備' }); if (bagCount(c.id) >= BAG_MAX) return send(res, 400, { error: '背包滿了' });
+    const d = JSON.parse(c.data || '{}'); d.mats ??= {}; if ((d.mats.ashton || 0) < TW.ASH_CRAFT.souls) return send(res, 400, { error: `艾希頓之魂不夠（要 ${TW.ASH_CRAFT.souls}）` }); if ((c.gold ?? 0) < TW.ASH_CRAFT.gold) return send(res, 400, { error: `希幣不夠（要 ${TW.ASH_CRAFT.gold}）` });
+    d.mats.ashton -= TW.ASH_CRAFT.souls; const it = rollItem(Math.random, 0, slot, Math.max(60, c.base_lv), c.job); it.rarity = 3; it.setk = set;
+    const got = giveItem(c.id, it); db.prepare('UPDATE items SET setk=? WHERE id=?').run(set, got.id);
+    db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(TW.ASH_CRAFT.gold, JSON.stringify(d), c.id);
+    send(res, 200, { item: { ...got, setk: set }, char: fullChar(ownChar(uid, c.id)) });
+  },
+  'POST /api/ashbreak': async (req, res, _, uid) => {
+    const { itemId } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
+    if (!it.setk) return send(res, 400, { error: '只能分解艾希頓裝備' }); if (it.equipped || it.locked) return send(res, 400, { error: '先卸下、解鎖' });
+    const c = ownChar(uid, it.char_id), cost = TW.ashBreakCost(it); if ((c.gold ?? 0) < cost) return send(res, 400, { error: `希幣不夠（要 ${cost}）` });
+    const n = TW.ashBreakSouls(it), d = JSON.parse(c.data || '{}'); d.mats ??= {}; d.mats.ashton = (d.mats.ashton || 0) + n;
+    db.prepare('DELETE FROM items WHERE id=?').run(it.id); db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(cost, JSON.stringify(d), c.id);
+    send(res, 200, { souls: n, char: fullChar(ownChar(uid, c.id)) });
   },
   'POST /api/inherit': async (req, res, _, uid) => {
     const { fromId, toId } = await body(req); const a = ownItem(uid, fromId), b = ownItem(uid, toId);

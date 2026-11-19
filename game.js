@@ -2,6 +2,7 @@
 //   玩家 src/2_core/player.js、攝影機 camera.js、流程／首領／結算 game-manager.js、物件池 pool.js、技能 src/3_skills/skills.js
 import { pcLoading } from './src/2_core/pc-loading.js';
 import { personaBonus } from './src/1_data/persona.js';
+import { setBonus } from './src/1_data/tower.js';
 import { askConfirm } from './src/2_core/ask.js';
 import * as THREE from 'three';
 import { JOBS, defaultStats, MOUNT } from './src/1_data/jobs.js';
@@ -497,6 +498,9 @@ function reset() {
   // 個性化 v2 主要個性能力值（src/1_data/persona.js；次要個性已經加在素質裡）
   { const pb = personaBonus(CHAR.persona); P.might *= 1 + (pb.atk || 0); P.crit += pb.crit || 0; P.armor += pb.armor || 0; P.hasteV += (pb.haste || 0) * 100; P.speed *= 1 + (pb.speed || 0);
     P.magnet *= 1 + (pb.magnet || 0); P.dr = Math.min(0.5, (P.dr || 0) + (pb.dmgDown || 0)); P.magic += pb.magic || 0; P.expMul = (P.expMul || 1) + (pb.exp || 0); if (pb.hp) { P.maxHp = Math.round(P.maxHp * (1 + pb.hp)); P.hp = P.maxHp; } }
+  // 賢者之塔艾希頓套裝加成（2／4 件）
+  { const sb = setBonus(CHAR.items); P.might *= 1 + (sb.atk || 0); P.crit += sb.crit || 0; P.dr = Math.min(0.5, (P.dr || 0) + (sb.dmgDown || 0)); if (sb.hp) { P.maxHp = Math.round(P.maxHp * (1 + sb.hp)); P.hp = P.maxHp; } }
+  if (TOWER && TSET?.penalty) P.might *= 0.85; // 戰鬥力未達建議值：懲罰
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
   chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
@@ -530,7 +534,7 @@ function spawnEnemy(type, elite = false, asBoss = false) {
   mesh.position.set(player.position.x + Math.cos(a) * r, 0, player.position.z + Math.sin(a) * r);
   const early = TOWER ? 1 : earlyMul(STAGE, t, isBoss || asBoss); // 項目 31：T2／T3 開局 180 秒怪物先削弱，首領全力
   const hpMul = (TOWER ? towerHpMul(floor) * (CURSE.hp || 1) : (1 + t / 100) * DM.hp) * (elite ? 12 : 1) * (TOWER ? STAGES[towerSeg(floor)].hp : STAGE.hp) * (asBoss ? 45 : 1) * early;
-  const e = { mesh, type, hp: T.hp * hpMul, maxHp: T.hp * hpMul, speed: T.speed * (0.9 + Math.random() * 0.2) * (CURSE.speed || 1) * DM.speed, dmg: T.dmg * (elite ? 1.5 : 1) * (TOWER ? STAGES[towerSeg(floor)].dmg * towerDmgMul(floor) : STAGE.dmg * DM.dmg) * (asBoss ? 1.6 : 1) * early,
+  const e = { mesh, type, hp: T.hp * hpMul, maxHp: T.hp * hpMul, speed: T.speed * (0.9 + Math.random() * 0.2) * (CURSE.speed || 1) * DM.speed, dmg: T.dmg * (elite ? 1.5 : 1) * (TOWER ? (TSET?.penalty ? 1.3 : 1) * STAGES[towerSeg(floor)].dmg * towerDmgMul(floor) : STAGE.dmg * DM.dmg) * (asBoss ? 1.6 : 1) * early,
     xp: T.xp * (elite ? 10 : 1) * (asBoss ? 25 : 1) * (CURSE.xp || 1), flash: 0, r: 0.5 * sc, kb: new THREE.Vector3(), elite, boss: isBoss, fly: !!T.fly, baseY: 0, s0: mesh.scale.x, ph: Math.random() * 6 };
   enemies.push(e); return e;
 }

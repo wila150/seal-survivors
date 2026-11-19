@@ -118,7 +118,8 @@ export function itemStats(it) {
   for (const [k, v] of it.aff?.a || []) o[k] = (o[k] || 0) + v;
   return o;
 }
-export const itemName = it => `${it.refine ? '+' + it.refine + ' ' : ''}${pcOf(it)?.[1] || BASES[it.slot]?.find(b => b.key === it.base)?.name || '?'}${it.gup ? '.' + GUP[it.gup].tag : ''}`; // 原版寫法：長劍.G
+const SET_NAME = { chaos: '渾沌的炙卡爾', white: '純白的坦柏特' }; // 賢者之塔艾希頓套裝（tower.js ASHTON_SETS）
+export const itemName = it => `${it.refine ? '+' + it.refine + ' ' : ''}${it.setk ? '【' + SET_NAME[it.setk] + '】' : ''}${pcOf(it)?.[1] || BASES[it.slot]?.find(b => b.key === it.base)?.name || '?'}${it.gup ? '.' + GUP[it.gup].tag : ''}`; // 原版寫法：長劍.G
 export const itemIcon = it => `assets/items/${pcOf(it)?.[4] ?? BASES[it.slot]?.find(b => b.key === it.base)?.icon ?? 0}.png`;
 export const sellPrice = it => Math.round(20 * RARITY[it.rarity].mult * RARITY[it.rarity].mult * (1 + (it.refine || 0) * 0.5) * Math.sqrt(pcTier(it)));
 
@@ -159,6 +160,8 @@ export const ORES = {
   abis: { name: '艾彼斯的祝福', icon: 1351, price: 0, desc: '精煉失敗時裝備不會碎掉，只降 1 級（+6 以上才用得到）；跟釣魚老人用稀有魚換', scroll: true, noshop: true },
   reset: { name: '技能屬性初始化卷軸', icon: 2313, price: 2000, desc: '把裝備的技能屬性重置成「尚未鑑定」，可以再鑑定一次', scroll: true },
   // 項目 28 鑲嵌石用的券（PC 是商城道具，售價暫定；圖示＝item.scr：固定券 4256、充值券 4257）
+  towerTicket: { name: '賢者之塔入場券', icon: 2313, price: 1500, desc: '每天免費 2 次用完後，可以再入場 1 次（每天最多用 2 張）', scroll: true },
+  ashton: { name: '艾希頓之魂', icon: 1352, price: 0, desc: '賢者之塔掉落，找越過次元的修道士製作艾希頓裝備', scroll: true, noshop: true },
   personaTicket: { name: '個性化固定券', icon: 4256, price: 800, desc: '個性化「展現」時鎖定 1 條能力種類（數值等級還是會重擲）', scroll: true },
   fixTicket:    { name: '石頭屬性固定券',       icon: 4256, price: 1000, desc: '變更鑲嵌石屬性時只重抽數值、不換屬性', scroll: true },
   chargeTicket: { name: '石頭屬性變更次數充值券', icon: 4257, price: 3000, desc: '鑲嵌石屬性變更次數 +50（上限 300）', scroll: true },

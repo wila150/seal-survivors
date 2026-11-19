@@ -37,3 +37,23 @@ export function checkTowerSetup(setup, allowed, points) {
   if (used > points) return '塔點數不夠';
   return null;
 }
+
+// ===== 賢者之塔 Another（照台服官方 wiki id=83）=====
+// 入場：找主城「越過次元的修道士」；每天免費 2 次（早上 06:00 換日），入場券每天最多再用 2 張（一天最多 4 次）
+// 建議戰鬥力（本作用裝備分數 GS）：1～10 層 60、11～20 層 80、21 層以上 100；開場低於第 1 段建議值 → 懲罰（怪物攻擊 ×1.3、自己傷害 ×0.85）
+// 艾希頓裝備：用「艾希頓之魂」（塔裡每 3 層 1 個）找修道士製作兩套：渾沌的炙卡爾（攻擊）／純白的坦柏特（防禦）；只有艾希頓裝備能分解回艾希頓之魂（花希幣）
+export const ENTRY_FREE = 2, TICKET_MAX = 2, REC_GS = [60, 80, 100];
+export const towerDay = (now = Date.now()) => { const d = new Date(now - 6 * 3600e3); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+export const ASHTON_SLOTS = ['weapon', 'head', 'top', 'bottom', 'shoes'];
+export const ASHTON_SETS = {
+  chaos: { name: '渾沌的炙卡爾', b2: { atk: 0.08 }, b4: { atk: 0.12, crit: 0.05 }, desc: '2 件：傷害 +8%｜4 件：再傷害 +12%、爆擊 +5%' },
+  white: { name: '純白的坦柏特', b2: { hp: 0.1 }, b4: { hp: 0.15, dmgDown: 0.08 }, desc: '2 件：最大 HP +10%｜4 件：再 HP +15%、受到傷害 −8%' },
+};
+export const ASH_CRAFT = { souls: 20, gold: 5000 };
+export const ashBreakCost = it => 500 + 200 * (it.refine || 0);
+export const ashBreakSouls = (it, r = Math.random) => 3 + Math.floor(r() * 4) + (it.refine || 0) + (it.rarity || 0);
+export function setBonus(items) {
+  const n = {}; for (const i of items || []) if (i.equipped && i.setk) n[i.setk] = (n[i.setk] || 0) + 1;
+  const o = {}; for (const [k, c] of Object.entries(n)) { const S = ASHTON_SETS[k]; if (!S) continue; for (const b of [c >= 2 && S.b2, c >= 4 && S.b4]) if (b) for (const [x, v] of Object.entries(b)) o[x] = (o[x] || 0) + v; }
+  return o;
+}

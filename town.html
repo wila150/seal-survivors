@@ -196,6 +196,7 @@ import { DIFF_KEYS, DIFF_MAX, LV_MAX, cleanDiff, diffMods, diffLoot, lootBonus, 
 import { DECOMPOSE, DUST_PER_CRYSTAL } from './src/1_data/stones.js';
 import { GUIDE_CATS, buildGuide, guideImg } from './src/1_data/guide.js';
 import { TOWER_NAME, CURSES, PICK, checkTowerSetup } from './src/1_data/tower.js';
+import * as TWA from './src/1_data/tower.js';
 import { IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, IDENT_PROB, identNode, identMax } from './src/1_data/talents.js';
 // 天賦／技能資料（項目 26～28 共用）
 const DATA = Promise.all([fetch('assets/data/talents.json').then(r => r.json()), fetch('assets/data/skills.json').then(r => r.json())]);
@@ -316,6 +317,7 @@ const NPCS = [
   { id: 'rebirth', name: '轉生師', color: 0x9b59b6, x: -6, z: -11, model: 'N_Ingzela_fw' }, // 項目 21
   { id: 'mail', name: '郵差', color: 0xd9a030, x: 6, z: -11, model: 'N_Hk' }, // 項目 20
   { id: 'zaro', name: '寶石收藏家 扎羅', color: 0xe0483c, x: 4, z: 3, model: 'N_Lseung' }, // 項目 28 鑲嵌石（PC：獅子城中央水池）
+  { id: 'monk', name: '越過次元的修道士', color: 0x6a5acd, x: 8, z: 3, model: 'N_hoodman' }, // 官方 wiki 83：賢者之塔 Another 入場、艾希頓裝備製作／分解
   { id: 'fish', name: '釣魚老人', color: 0x3f86b8, x: 0, z: 5.5, model: 'N_boatman' }, // 項目 48 釣魚（原版船夫 NPC，頭上掛原版釣魚標記）
   { id: 'ident', name: '技能鑑定師 魯魯', color: 0x4fa3ff, x: -4, z: 3, model: 'N_Eventgirl02_1' }, // 項目 28（PC：獅子城中央水池）
 ];
@@ -434,6 +436,7 @@ async function talk(n) {
   // 11/19 PC 初心者生活技能：釣魚、倉庫、擺地攤（拍賣）要 Base Lv 8 才會（2u 資料站 初心者技能樹的需求等級）
   { const need = { fish: ['釣魚', LIFE_LV.釣魚], storage: ['倉庫', LIFE_LV.倉庫], auction: ['擺地攤', LIFE_LV.擺地攤] }[n.id];
     if (need && CHAR.baseLv < need[1]) return openDlg(n.name, `<p>「你還不會<b>${need[0]}</b>喔。等 <b>Base Lv ${need[1]}</b> 學會了再來找我吧！」</p><p><small>原版初心者技能：${need[0]}（需求 Lv ${need[1]}）。目前 Base Lv ${CHAR.baseLv}。</small></p>`, []); }
+  if (n.id === 'monk') return openMonk();
   if (n.id === 'captain') return openExpedition();
   if (n.id === 'rank') return openRank();
   if (n.id === 'shop') return openMerchant('sell');
@@ -549,7 +552,7 @@ function openGm() {
 const TMM = { R: 40, img: new Image(), icons: new Image(), last: 0 };
 TMM.img.src = TMAP.base + 'color.png'; TMM.icons.src = 'assets/ui/minimapicon.png';
 // 原版小地圖 NPC 圖示（interface/minimapicon.tex，32px 格子 [欄, 列]）
-const NPC_ICON = { captain: [4, 0], job: [5, 1], shop: [7, 0], smith: [7, 1], storage: [3, 2], rank: [4, 2], library: [3, 0], mount: [7, 2], auction: [3, 1],
+const NPC_ICON = { monk: [5, 0], captain: [4, 0], job: [5, 1], shop: [7, 0], smith: [7, 1], storage: [3, 2], rank: [4, 2], library: [3, 0], mount: [7, 2], auction: [3, 1],
   stylist: [1, 0], ident: [5, 0], zaro: [0, 1], mail: [1, 2], rebirth: [6, 2], fish: [1, 3], pet: [0, 2] };
 function drawTownMap(cv, big = false) {
   const g = cv.getContext('2d'), S = cv.width, M = big ? 22 : 14, A = S - M, R = TMM.R, cell = A / 8;
@@ -827,7 +830,7 @@ function openExpedition() {
   const diffHtml = `<div class="sec"><h4>難度（同一張地圖，怪物強度照 PC 等級）</h4>${[['monLv', '怪物等級'], ...DIFF_KEYS].map(([k, n]) => `<div style="display:flex;align-items:center;gap:8px;margin:2px 0"><small style="width:64px">${n}</small><input type="range" data-df="${k}" min="${k === 'monLv' ? BASE : 1}" max="${k === 'monLv' ? LV_MAX : DIFF_MAX}" value="${DF[k]}" style="flex:1"><b data-dfv="${k}" style="width:52px;text-align:right">${k === 'monLv' ? 'Lv' : '×'}${DF[k]}</b></div>`).join('')}
     <div id="dfTxt" style="font-size:12px;line-height:1.6;margin-top:4px">${diffTxt()}</div><button class="btn" id="dfReset" style="margin-top:4px;padding:4px 10px">恢復預設</button></div>`;
   openDlg('遠征', `<div class="exp"><div class="list">${list}</div><div class="info">${info}${diffHtml}</div></div>`,
-    [...(unlocked ? [['出發', () => { try { sessionStorage.setItem('ss_stage', String(expSel)); sessionStorage.setItem('ss_diff', JSON.stringify(DF)); } catch {} location.href = 'game.html'; }, true]] : []), [`🗼 ${TOWER_NAME}`, () => openTower()]], true);
+    [...(unlocked ? [['出發', () => { try { sessionStorage.setItem('ss_stage', String(expSel)); sessionStorage.setItem('ss_diff', JSON.stringify(DF)); } catch {} location.href = 'game.html'; }, true]] : [])], true); // 賢者之塔改成找主城的「越過次元的修道士」（官方 wiki 83；不在遠征視窗跳轉）
   $('#dlgBody').querySelectorAll('[data-st]').forEach(el => el.onclick = () => { const i = +el.dataset.st; if (!stageUnlocked(i, cl)) return toast('先通關前一張地圖才會解鎖'); expSel = i; openExpedition(); });
   const saveDF = () => { try { localStorage.setItem('ss_diff_saved', JSON.stringify(DF)); } catch {} $('#dfTxt').innerHTML = diffTxt(); };
   $('#dlgBody').querySelectorAll('[data-df]').forEach(el => el.oninput = () => { const k = el.dataset.df; DF[k] = +el.value; $(`[data-dfv="${k}"]`).textContent = (k === 'monLv' ? 'Lv' : '×') + DF[k]; saveDF(); });
@@ -837,11 +840,38 @@ function openExpedition() {
 
 // ===== 項目 22：賢者之塔（開打前：選 4 招＋塔點數強化＋塔之詛咒）=====
 let twSet = null;
+// ===== 賢者之塔 Another（官方 wiki 83；src/1_data/tower.js）：越過次元的修道士＝入場、製作、分解 =====
+let monkTab = 'talk';
+async function enterTower(twSet) {
+  const c = CHAR, td = c.towerToday || { n: 0, t: 0 }; let ticket = false;
+  if (td.n >= TWA.ENTRY_FREE) { if (!(await askConfirm(`今天 ${TWA.ENTRY_FREE} 次免費入場用完了。\n要用 1 張賢者之塔入場券嗎？（持有 ${c.mats?.towerTicket || 0}，今天已用 ${td.t}／${TWA.TICKET_MAX}）`, { ok: '用入場券' }))) return; ticket = true; }
+  try { const r = await call('POST', '/api/towerenter', { charId: c.id, ticket }); showChar(r.char);
+    if (r.penalty && !(await askConfirm(`你的裝備分數 GS ${r.gs} 低於建議值 ${r.rec[0]}。\n會在「受到懲罰」的狀態下入場（怪物攻擊 ×1.3、你的傷害 ×0.85），還是要進去嗎？`, { ok: '進塔', danger: true }))) return;
+    try { sessionStorage.setItem('ss_tower', JSON.stringify({ ...twSet, penalty: !!r.penalty })); } catch {} location.href = 'game.html?tower=1';
+  } catch (e) { toast(e.message); }
+}
+function openMonk() {
+  const c = CHAR, td = c.towerToday || { n: 0, t: 0 }, souls = c.mats?.ashton || 0, gs = (c.items || []).filter(i => i.equipped).reduce((t, i) => t + ((i.rarity || 0) + 1) * 4 + (i.refine || 0) * 2 + (i.gup || 0) * 4, 0);
+  const tab = (k, n) => `<button class="btn ${monkTab === k ? 'primary' : ''}" data-mk2="${k}">${n}</button>`; let body = '';
+  if (monkTab === 'talk') body = `<p>「越過次元的旅人啊……塔的另一側正在等你。」</p><p>今天入場 <b>${td.n}</b> 次（免費 ${TWA.ENTRY_FREE} 次，入場券每天最多 ${TWA.TICKET_MAX} 張，已用 ${td.t}）　入場券 ${c.mats?.towerTicket || 0}<br>
+    建議戰鬥力（裝備分數 GS）：1～10 層 <b>${TWA.REC_GS[0]}</b>、11～20 層 <b>${TWA.REC_GS[1]}</b>、21 層以上 <b>${TWA.REC_GS[2]}</b>　你的 GS <b style="color:${gs >= TWA.REC_GS[0] ? '#2e8b57' : '#c0392b'}">${gs}</b>${gs < TWA.REC_GS[0] ? '（會在受到懲罰的狀態下入場）' : ''}<br>
+    <small>每天早上 06:00 換日。塔裡每 3 層掉 1 個艾希頓之魂（持有 ${souls}）。</small></p><button class="btn primary" id="monkGo">前往賢者之塔</button>`;
+  else if (monkTab === 'craft') body = `<p><small>用 ${TWA.ASH_CRAFT.souls} 個艾希頓之魂＋${TWA.ASH_CRAFT.gold} 希幣製作 1 件艾希頓裝備（史詩）。持有艾希頓之魂 <b>${souls}</b>、希幣 ${c.gold}</small></p>`
+    + Object.entries(TWA.ASHTON_SETS).map(([k, S]) => `<div style="background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:6px"><b>【${S.name}】</b> <small>${S.desc}</small><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${TWA.ASHTON_SLOTS.map(sl => `<button class="btn" data-ashc="${k}|${sl}">${SLOTS[sl]}</button>`).join('')}</div></div>`).join('');
+  else { const ash = (c.items || []).filter(i => i.setk && !i.equipped && !i.locked);
+    body = `<p><small>只能分解艾希頓裝備，換回艾希頓之魂（精煉越高越多），要花希幣。</small></p>` + (ash.map(i => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><img src="${itemIcon(i)}" style="width:28px;height:28px" alt=""><span style="flex:1;color:${RARITY[i.rarity].color}">${esc(itemName(i))}</span><button class="btn" data-ashb="${i.id}">分解（${TWA.ashBreakCost(i)} 希幣）</button></div>`).join('') || '<p><small>背包沒有艾希頓裝備（穿著、鎖定的不會列出）</small></p>'); }
+  openDlg('越過次元的修道士', `<div class="tabs2">${tab('talk', '對話')}${tab('craft', '製作')}${tab('break', '分解')}</div>${body}`, []);
+  const B = $('#dlgBody');
+  B.querySelectorAll('[data-mk2]').forEach(b => b.onclick = () => { monkTab = b.dataset.mk2; openMonk(); });
+  $('#monkGo')?.addEventListener('click', () => openTower());
+  B.querySelectorAll('[data-ashc]').forEach(b => b.onclick = async () => { const [set, slot] = b.dataset.ashc.split('|'); try { const r = await call('POST', '/api/ashcraft', { charId: c.id, set, slot }); showChar(r.char); toast(`製作完成：${itemName(r.item)}`); openMonk(); } catch (e) { toast(e.message); } });
+  B.querySelectorAll('[data-ashb]').forEach(b => b.onclick = async () => { if (!(await askConfirm('分解這件艾希頓裝備？分解後會消失。', { ok: '分解', danger: true }))) return; try { const r = await call('POST', '/api/ashbreak', { itemId: +b.dataset.ashb }); showChar(r.char); toast(`得到艾希頓之魂 ×${r.souls}`); openMonk(); } catch (e) { toast(e.message); } });
+}
 async function openTower() {
   const [T, D] = await DATA, c = CHAR, tw = c.tower || { floor: 0, score: 0, month: 0, points: 0, open: false };
   if (!tw.open) {
     const row = (ok, txt) => `<div>${ok ? '<b style="color:#2e8b57">✔</b>' : '<b style="color:#c0392b">✘</b>'} ${txt}</div>`;
-    return openDlg(TOWER_NAME, `<p>「無止境的塔，每一分鐘往上一層，越上面越強。」</p><p><b>開放條件</b></p>${row(!!c.job2, '完成二轉（百業宗師）')}${STAGES.map(st => row((c.cleared || []).includes(st.key), `通關 ${st.name}`)).join('')}`, [['← 遠征', () => openExpedition()]]);
+    return openDlg(TOWER_NAME, `<p>「無止境的塔，每一分鐘往上一層，越上面越強。」</p><p><b>開放條件</b></p>${row(!!c.job2, '完成二轉（百業宗師）')}${STAGES.map(st => row((c.cleared || []).includes(st.key), `通關 ${st.name}`)).join('')}`, [['← 修道士', () => openMonk()]]);
   }
   const J = D.jobs[c.job], B = c.job2 && T.jobs[c.job].branches.find(b => b.key === c.job2), allowed = [...J.pool, ...(B?.skills || [])];
   twSet ??= (() => { try { return JSON.parse(sessionStorage.getItem('ss_tower')); } catch { return null; } })() || { skills: allowed.slice(0, PICK), boost: {}, curse: 'none' };
@@ -857,7 +887,7 @@ async function openTower() {
       <small>② 塔點數：每 1 點讓一招起始等級 +1（最高 Lv5）。已用 ${used} / ${tw.points}</small></div>
     <div class="sec"><b>③ 塔之詛咒（可不選）</b><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${Object.entries(CURSES).map(([k, cu]) => `<button class="btn ${twSet.curse === k ? 'primary' : ''}" data-tc="${k}">${cu.name}<br><small>${cu.desc}・分數 ×${cu.mult}</small></button>`).join('')}</div></div>
     ${err ? `<p style="color:#c0392b">${err}</p>` : ''}`;
-  openDlg(`🗼 ${TOWER_NAME}`, html, [...(err ? [] : [['進塔', () => { try { sessionStorage.setItem('ss_tower', JSON.stringify(twSet)); } catch {} location.href = 'game.html?tower=1'; }, true]]), ['← 遠征', () => openExpedition()]], true);
+  openDlg(`🗼 ${TOWER_NAME}`, html, [...(err ? [] : [['進塔', () => enterTower(twSet), true]]), ['← 修道士', () => openMonk()]], true);
   const b = $('#dlgBody');
   b.querySelectorAll('[data-tk]').forEach(x => x.onclick = e => { if (e.target.closest('[data-tb]')) return; const k = x.dataset.tk;
     if (twSet.skills.includes(k)) { twSet.skills = twSet.skills.filter(y => y !== k); delete twSet.boost[k]; } else if (twSet.skills.length < PICK) twSet.skills.push(k); else return toast(`最多選 ${PICK} 招`);
