@@ -177,7 +177,7 @@ const hash = pw => { const salt = crypto.randomBytes(16).toString('hex'); return
 const verify = (pw, stored) => { const [salt, h] = stored.split(':'); return crypto.timingSafeEqual(Buffer.from(h, 'hex'), crypto.scryptSync(pw, salt, 32)); };
 
 const send = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
-const body = (req, max = 1e5) => new Promise((ok, bad) => { let s = ''; req.on('data', c => { s += c; if (s.length > max) req.destroy(); }); req.on('end', () => { try { ok(s ? JSON.parse(s) : {}); } catch { bad(new Error('bad json')); } }); });
+const body = (req, max = 1e5) => new Promise((ok, bad) => { let s = ''; req.on('data', c => { s += c; if (s.length > max) req.destroy(); }); req.on('end', () => { try { const v = s ? JSON.parse(s) : {}; ok(v && typeof v === 'object' && !Array.isArray(v) ? v : {}); } catch { bad(Object.assign(new Error('bad json'), { code: 400 })); } }); }); // 不是物件（null、陣列、字串）一律當空的；壞掉的 JSON 回 400（11/20 自測：以前會 500）
 function isGm(req, uid) {
   if (['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress || '')) return true;
   const list = String(process.env.GM_USERS || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -1181,7 +1181,7 @@ http.createServer(async (req, res) => {
     const fn = api[key]; if (!fn) return send(res, 404, { error: 'not found' });
     let uid = null;
     if (!PUBLIC.has(key) && !(uid = auth(req))) return send(res, 401, { error: '請重新登入' });
-    try { await fn(req, res, null, uid, id); } catch (e) { console.error(e); send(res, 500, { error: '伺服器錯誤' }); }
+    try { await fn(req, res, null, uid, id); } catch (e) { if (e?.code === 400) return send(res, 400, { error: '資料格式不對' }); console.error(e); send(res, 500, { error: '伺服器錯誤' }); }
     return;
   }
   let p; try { p = decodeURIComponent(url.pathname); } catch { res.writeHead(400); return res.end(); }
