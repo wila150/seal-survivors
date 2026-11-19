@@ -176,7 +176,7 @@ rig.walk = (p, nx, nz) => walkMove(MAP, p, nx, nz); // 原版可走區（水、�
 //   最後一擊跳職業台詞大字；1000 點的完全體加屬性追加效果；放完能量歸零
 // 局內卡片：能量球掉落 +10%、能量球吸取 +30%、撿球回 1% HP；寵物進化過＝掉落 +10%、吸取 ×1.5
 const CB = { g: 0, st: 'charge', done: 0 };
-const CB_MAX = 1000, CB_TIER = [300, 600, 1000];
+const CB_MAX = 100, CB_TIER = [30, 60, 100]; // 11/19 使用者：「連續技改一百，集滿一千太久了」
 const W_ELEM = (CHAR.items || []).find(i => i.equipped && i.slot === 'weapon')?.elem || 0; // 指令 4-3 武器七大屬性合成
 const JOB_LINE = { 劍士: '一刀兩斷！', 騎士: '以盾為誓，斬！', 法師: '元素聽我號令！', 祭司: '我要代替聖光懲罰你！', 小丑: '表演開始～', 鐵匠: '人蔘攻擊！', 獵人: '百步穿楊！', 初心者: '別小看初心者！' };
 const cbStyle = document.createElement('style'); cbStyle.textContent = `#ultBtn{position:fixed;right:calc(50% - 215px);bottom:calc(max(10px,env(safe-area-inset-bottom)) + 18px);z-index:7;width:66px;height:66px;border-radius:50%;padding:0;border:0;pointer-events:auto;--p:0;--ec:#ffd36b;
@@ -203,13 +203,13 @@ function cbDropOrb(pos, pts, scale = 1) {
 }
 function cbOnKill(e) { // 怪物倒下：機率掉能量球
   const drop = (P.orbDrop || 0) + (PET?.evo ? 0.1 : 0);
-  if (e.ai || e.boss) { for (let i = 0; i < 20; i++) cbDropOrb(e.mesh.position, 1); cbDropOrb(e.mesh.position, 25, 2); return; }
-  if (e.elite) { if (Math.random() < 0.75 + drop) cbDropOrb(e.mesh.position, 10 + Math.floor(Math.random() * 16), 1.8); return; }
+  if (e.ai || e.boss) { for (let i = 0; i < 20; i++) cbDropOrb(e.mesh.position, 1); cbDropOrb(e.mesh.position, 5, 2); return; }
+  if (e.elite) { if (Math.random() < 0.75 + drop) cbDropOrb(e.mesh.position, 3 + Math.floor(Math.random() * 4), 1.8); return; }
   if (Math.random() < 0.2 + drop) cbDropOrb(e.mesh.position, 1);
 }
 let auraRing = null;
 function comboUpdate(dt = 0) {
-  const pp = player.position, over = CB.g >= 800, R = P.magnet * (1 + (P.orbMag || 0)) * (PET?.evo ? 1.5 : 1) * (over ? 2 : 1);
+  const pp = player.position, over = CB.g >= CB_MAX * 0.8, R = P.magnet * (1 + (P.orbMag || 0)) * (PET?.evo ? 1.5 : 1) * (over ? 2 : 1);
   for (let i = CBO.length - 1; i >= 0; i--) { const o = CBO[i], p = o.m.position; o.ph += dt * 4; p.y = 0.6 + Math.sin(o.ph) * 0.15;
     const dx = pp.x - p.x, dz = pp.z - p.z, d = Math.hypot(dx, dz);
     if (d < 0.8) { scene.remove(o.m); CBO.splice(i, 1); if (CB.st === 'charge') CB.g = Math.min(CB_MAX, CB.g + o.pts); if (P.orbHeal) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.01 * P.orbHeal); play('gem', 0.25, 40); continue; }
@@ -430,6 +430,7 @@ const numsEl = document.getElementById('dmgnums'), nums = [], numPool = new DomP
 function reset() {
   if (enemies) for (const e of enemies) enemyPool.release(e.mesh); for (const c of corpses) enemyPool.release(c.m); corpses.length = 0;
   if (gems) for (const g of gems) gemPool.release(g.mesh);
+  for (const c of coins) scene.remove(c.mesh); coins = [];
   const B = CHAR.bonus || {};
   const hp = Math.round(JOB.hp + ST.vit * 6 + (B.hp || 0));
   // 項目 35：PC 6 項素質（敏捷＝爆擊＋迴避、精神＝冷卻、體力＝HP＋減傷、感覺＝爆擊微幅；移速不再吃素質）
@@ -465,7 +466,7 @@ function reset() {
   if (TOWER && TSET?.penalty) P.might *= 0.85; // 戰鬥力未達建議值：懲罰
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
-  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
+  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; winAt = null; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
   enemies = []; gems = []; t = 0; kills = 0; spawner.reset();
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
@@ -501,6 +502,13 @@ function spawnEnemy(type, elite = false, asBoss = false) {
   enemies.push(e); return e;
 }
 const gemGeo = new THREE.OctahedronGeometry(0.22);
+// ===== 局內金幣（11/19 使用者：「遊戲內不會掉金幣，新手沒辦法開寶箱」）=====
+// 怪物倒下有機會掉金幣，走過去自動吸；本局賺的金幣（跟結算同一條公式：擊殺/3＋秒數/2 × 地圖倍率）當場就能拿來開菁英寶箱
+const coinGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.05, 14).rotateX(Math.PI / 2), coinMat = new THREE.MeshBasicMaterial({ color: 0xffcf3a });
+let coins = [];
+const runGold = () => Math.floor(((kills || 0) / 3 + (t || 0) / 2) * (STAGE?.reward || 1));
+const goldHave = () => (CHAR.gold || 0) + runGold() - goldSpent;
+function dropCoin(pos) { if (Math.random() > 0.35) return; const mesh = new THREE.Mesh(coinGeo, coinMat); mesh.position.set(pos.x + (Math.random() - 0.5) * 0.6, 0.45, pos.z + (Math.random() - 0.5) * 0.6); scene.add(mesh); coins.push({ mesh, pull: false }); }
 const gemMat = [new THREE.MeshBasicMaterial({ color: 0x4fc3ff }), new THREE.MeshBasicMaterial({ color: 0x7dff9a }), new THREE.MeshBasicMaterial({ color: 0xffd36b })];
 const chestTex = loader.load('assets/items/351.png'); chestTex.colorSpace = THREE.SRGBColorSpace; chestTex.magFilter = THREE.NearestFilter;
 // PC 原版掉落物模型（客戶端 item/item_xx.ms1）：寶箱＝禮物盒 item_07、經驗寶石＝淡藍水晶 item_10／粉紅寶石 item_16／紫寶石 item_23
@@ -579,7 +587,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   if (from) { e.kb.subVectors(e.mesh.position, from).setY(0).normalize().multiplyScalar(e.boss ? 0.3 : e.elite ? 2 : 6); }
   play('hit', 0.25, 60);
   if (e.hp <= 0 && !e.dead) {
-    e.dead = true; kills++; dropGem(e.mesh.position, e.xp); cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
+    e.dead = true; kills++; dropGem(e.mesh.position, e.xp); dropCoin(e.mesh.position); cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
     if (e.mvp) finalDown = true;
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
     else if (e.elite) { if (Math.random() < 0.4) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
@@ -630,10 +638,10 @@ const RUN_ITEMS = [
 let goldSpent = 0;
 const eliteCost = () => 30 * ((TOWER ? 2 : STAGE_IDX) + 1); // 暫定：第 1 張圖 30 金幣、每張 +30
 async function openEliteChest(c, i) {
-  state = 'chest'; const cost = eliteCost(), have = (CHAR.gold || 0) - goldSpent;
+  state = 'chest'; const cost = eliteCost(), have = goldHave();
   scene.remove(c.mesh); chestsArr.splice(i, 1);
   if (have < cost) { showBanner(`<small>菁英寶箱</small><b>金幣不夠</b><span>要 ${cost} 金幣（剩 ${have}）</span>`, 1400); state = 'play'; last = performance.now(); return; }
-  const yes = await askConfirm(`菁英寶箱：花 ${cost} 金幣打開？\n（會開出藥水、藥劑、祝福或料理，結算時扣金幣；目前可用 ${have}）`, { title: '菁英寶箱', ok: '打開', cancel: '不要' });
+  const yes = await askConfirm(`菁英寶箱：花 ${cost} 金幣打開？\n（會開出藥水、藥劑、祝福或料理；目前可用 ${have}，含這局賺的）`, { title: '菁英寶箱', ok: '打開', cancel: '不要' });
   if (yes) { goldSpent += cost; const it = RUN_ITEMS[Math.random() * RUN_ITEMS.length | 0]; it.use(); play('level', 0.5, 0);
     showBanner(`<small>菁英寶箱（−${cost} 金幣）</small><b><img src="assets/items/${it.icon}.png" style="width:36px;height:36px;vertical-align:middle;image-rendering:pixelated"> ${it.name}</b><span>${it.desc}</span>`, 1800); }
   if (state === 'chest') { state = 'play'; last = performance.now(); }
@@ -871,6 +879,7 @@ function update(dt) {
     gemPool.release(g.mesh); P.xp += g.xp * (P.expMul || 1); play('gem', 0.2, 50); // 初心者鼓舞：經驗 +10%
     if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = needFor(P.lv); levelBonus(); if (!finalDown) levelUp(); } // 項目 37：打倒最後的首領後不再跳升級卡（以前 MVP 倒下後 3 秒內升級會卡在選卡、通關不觸發）
   });
+  magnetGems(coins, pp, P, dt, c => { scene.remove(c.mesh); play('gem', 0.25, 400); });
   P.magnet = mg0;
 
   // 寶箱：走過去撿
@@ -884,6 +893,8 @@ function update(dt) {
   }
 
   if (P.hp <= 0) gameOver();
+  // 打倒 MVP 後 3 秒通關：以前只靠 setTimeout，剛好在升級卡／寶箱確認／連續技頓幀時就不會通關 → 每格都檢查，回到 play 就結算
+  if (finalDown && !TOWER && state === 'play') { winAt ??= t + 3; if (t >= winAt) gameOver(true); }
 }
 
 // ===== PC 原版左上 HUD（GageBar）：EXP＝局內經驗、HP、AP 槽＝到下一隻首領（塔＝下一層）的時間、XP 槽＝寶箱上限進度 =====
@@ -954,7 +965,7 @@ function render() {
   drawSkillCd(); // 技能冷卻遮罩
   hud.xp.style.width = (P.xp / P.need * 100) + '%';
   hud.hp.style.width = Math.max(0, P.hp / P.maxHp * 100) + '%';
-  hud.lv.textContent = 'Lv ' + P.lv; hud.kills.textContent = '💀 ' + kills; hud.gold.textContent = `📦 ${chests}/${LOOT_CAP}${bossChests ? `　👑${bossChests}` : ''}`; hud.gold.classList.toggle('full', chests >= LOOT_CAP);
+  hud.lv.textContent = 'Lv ' + P.lv; hud.kills.textContent = '💀 ' + kills; hud.gold.textContent = `💰 ${goldHave()}　📦 ${chests}/${LOOT_CAP}${bossChests ? `　👑${bossChests}` : ''}`; hud.gold.classList.toggle('full', chests >= LOOT_CAP);
   hud.hpTxt.textContent = `${Math.max(0, Math.ceil(P.hp))} / ${Math.round(P.maxHp)}`; hud.xpPct.textContent = (P.xp / P.need * 100).toFixed(1) + '%';
   hud.time.textContent = `${String(t / 60 | 0).padStart(2, '0')}:${String(t % 60 | 0).padStart(2, '0')}`;
   if (boss) bossEl.querySelector('i').style.width = Math.max(0, boss.hp / boss.maxHp * 100) + '%';
@@ -1002,7 +1013,7 @@ function gameOver(win = false) {
   if (win) play('level', 0.7, 0);
   saveRun();
 }
-let cleared = false, finalDown = false; // finalDown：最後的首領（MVP）已倒
+let winAt = null; let cleared = false, finalDown = false; // finalDown：最後的首領（MVP）已倒
 // 結算：把這局的紀錄送回伺服器換經驗（game-manager.js submitRun）
 async function saveRun() {
   const out = document.getElementById('reward'); out.textContent = '';
@@ -1067,5 +1078,5 @@ if (location.search.includes('auto')) start().then(() => {
   if (location.search.includes('ride')) setMounted(true);
   const bq = location.search.match(/boss=(\d)/); if (bq) { spawner.bossIdx = +bq[1]; t = BOSSES[spawner.bossIdx][0] - 0.1; }
   const m = location.search.match(/sim=([\d.]+)/); if (m) { for (let i = 0; i < +m[1] * 30 && state !== 'over'; i++) { if (state === 'level') document.querySelector('.card')?.click(); P.hp = P.maxHp; update(1 / 30); } }
-  window.__ss = { pet: () => pet.g ? { x: +pet.g.position.x.toFixed(1), z: +pet.g.position.z.toFixed(1), cd: +pet.cd.toFixed(2), kind: PET?.kind, lv: PET?.lv } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, tmp: () => P.tmp, cb: () => CB, ev: () => EV, evStart: k => { EV_TYPES.length; evStart(); }, perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
+  window.__ss = { pet: () => pet.g ? { x: +pet.g.position.x.toFixed(1), z: +pet.g.position.z.toFixed(1), cd: +pet.cd.toFixed(2), kind: PET?.kind, lv: PET?.lv } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, setT: v => { t = v; }, coins: () => coins.length, goldHave: () => goldHave(), tmp: () => P.tmp, cb: () => CB, ev: () => EV, evStart: k => { EV_TYPES.length; evStart(); }, perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
 });
