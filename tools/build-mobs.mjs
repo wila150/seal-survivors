@@ -59,7 +59,8 @@ for (const model of (want.length ? want : usedModels())) {
   const names = new Set();
   // .act：動作名後面的 [xxx] 是這個動作的音效（sound/xxx.wav），例：Tabyf1 [monster7001]
   const sndOf = {};
-  for (const a of [model, base, base.replace(/^T_/i, 't_')]) { const f = find(a + '.act'); if (!f) continue; let curAn = null;
+  for (const a of [model, base, base.replace(/^T_/i, 't_'), model.replace(/_?fw$/i, '')]) // T_wgscorfw（魔蠍大帝）：模型檔名帶 fw、動作清單在 T_wgscor.act
+    { const f = find(a + '.act'); if (!f) continue; let curAn = null;
     for (const m of fs.readFileSync(f, 'latin1').matchAll(/(\[)?([A-Za-z0-9_]{3,})/g)) {
       if (m[1]) { if (curAn && !sndOf[curAn] && sndIndex.has(m[2].toLowerCase() + '.wav')) sndOf[curAn] = m[2].toLowerCase(); continue; }
       const an = find(m[2] + '.an1'); if (an) { names.add(an); curAn = path.basename(an, path.extname(an)).toLowerCase(); } } }

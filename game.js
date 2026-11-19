@@ -409,7 +409,7 @@ const ENEMY_TYPES = {
   菜頭王:   { model: 'T_mumuver2', h: 1.3, geo: G.cap,  color: 0x2e9e55, hp: 900,  speed: 2.0, dmg: 25, xp: 40, scale: 3, boss: true },
   熊爸爸:   { model: 'T_bear_fighter_attack', h: 1.5, geo: G.dode, color: 0x6b4423, hp: 2200, speed: 2.1, dmg: 32, xp: 60, scale: 3, boss: true },
   骷髏王:   { model: 'T_skull_oldman_stand', h: 1.7, geo: G.cap,  color: 0xd8d0b8, hp: 4500, speed: 2.3, dmg: 40, xp: 80, scale: 3.2, boss: true },
-  魔蠍大帝: { model: 'boss_scorpion', h: 2.0, yaw: 0, geo: G.oct,  color: 0x8b1a1a, hp: 9000, speed: 2.5, dmg: 50, xp: 120, scale: 3.4, boss: true },
+  魔蠍大帝: { model: 'T_wgscorfw', h: 1.4, geo: G.oct,  color: 0x8b1a1a, hp: 9000, speed: 2.5, dmg: 50, xp: 120, scale: 3.4, boss: true },
 };
 // 載入希望OL 模型當樣板（載入失敗就用幾何形狀）
 const TEMPLATES = {};
