@@ -99,10 +99,28 @@ const REF = {}; for (const t in PC_ITEMS) { const v = PC_ITEMS[t].slice(0, 5).ma
 export function pcOf(it) { const t = PC_TYPE_OF[it?.base]; return it?.pc && t ? PC_ITEMS[t]?.find(x => x[0] === it.pc) || null : null; }
 export const pcTier = it => { const p = pcOf(it); return p ? Math.max(0.5, p[3] / REF[PC_TYPE_OF[it.base]]) : 1; };
 export const pcReqLv = it => pcOf(it)?.[2] || 0;
-// 依怪物等級挑一件：需求等級 ≤ lv 的最高幾件裡隨機（越接近 lv 越常出）
-export function pickPc(base, lv, rand = Math.random) {
-  const L = PC_ITEMS[PC_TYPE_OF[base]]; if (!L) return null;
-  const ok = L.filter(x => x[2] <= Math.max(lv, L[0][2])); const top = ok.slice(-4);
+// ===== 11/20 職業與等級限制照 PC（服務端 item.scr 第 71 欄職業位元、第 3 欄需求等級）=====
+// 使用者：「PC 那邊沒有裝備的限制嗎？什麼角色穿什麼職業的裝備？」
+export const JOB_BIT = { 初心者: 1, 劍士: 2, 騎士: 4, 小丑: 8, 法師: 16, 祭司: 32, 鐵匠: 64, 獵人: 2097152 };
+const FIRST_BITS = 1 | 2 | 4 | 8 | 16 | 32 | 64 | 2097152;
+export const pcMask = it => pcOf(it)?.[6] || 0;
+// 職業位元能不能穿：0＝全職業；有一轉職業位元＝看自己的職業；只有二轉以上位元的（幻魔、龍皇…套裝）＝二轉以後才能穿
+export const maskWearable = (mask, job, job2 = false) => !mask || !!(mask & (JOB_BIT[job] || 0)) || (!(mask & FIRST_BITS) && job2);
+export const maskJobs = mask => !mask ? '全職業' : (mask & FIRST_BITS) ? Object.entries(JOB_BIT).filter(([, b]) => mask & b).map(([j]) => j).join('・') : '二轉以上';
+// 能不能裝備（回傳不能的原因，可以就回傳空字串）；c＝角色 { job, job2, baseLv }
+export function wearBlock(it, c) {
+  if (!it || !c) return '';
+  if (it.slot === 'shield' && c.job !== '騎士') return '盾牌只有騎士能裝備';
+  if (it.slot === 'weapon' && JOB_WEAPON[c.job] && it.base !== JOB_WEAPON[c.job]) return `${c.job}不能裝備這種武器`;
+  const m = pcMask(it); if (!maskWearable(m, c.job, !!c.job2)) return `這是${maskJobs(m)}的裝備`;
+  const lv = pcReqLv(it); if (lv > (c.baseLv || 1)) return `要 Base Lv ${lv}`;
+  return '';
+}
+// 依怪物等級挑一件：需求等級 ≤ lv 的最高幾件裡隨機（越接近 lv 越常出）；有給職業＝只挑這職業能穿的，沒給＝一轉職業能穿的（不出二轉套裝）
+export function pickPc(base, lv, rand = Math.random, job = null) {
+  let L = PC_ITEMS[PC_TYPE_OF[base]]; if (!L) return null;
+  L = L.filter(x => job ? maskWearable(x[6], job) : (!x[6] || (x[6] & FIRST_BITS))); if (!L.length) return null;
+  const ok = L.filter(x => x[2] <= Math.max(lv, 10)); if (!ok.length) return null; const top = ok.slice(-4); // 沒有這個等級以下的就不挑（不會掉一件穿不了的高等裝）
   const w = top.map((_, i) => i + 1); let r = rand() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < top.length; i++) { r -= w[i]; if (r <= 0) return top[i][0]; }
   return top.at(-1)[0];
@@ -130,7 +148,7 @@ export const JOB_WEAPON = { 劍士: 'blade', 騎士: 'sword', 小丑: 'spear', �
 // 11/20 使用者：鑑定要給「這件裝備的職業」的技能（劍士拿騎士武器去鑑定 → 出騎士技能）→ 武器＝武器的職業、盾＝騎士；其他防具沒有職業（null：自己的職業，或花錢選）
 export const itemJob = it => it?.slot === 'weapon' ? (Object.entries(JOB_WEAPON).find(([, b]) => b === it.base)?.[0] ?? null) : it?.base === 'shield' ? '騎士' : null;
 // 項目 50：非本職業的裝備（別職業的武器、非騎士的盾）→ 一鍵餵寵物／分解的候選
-export const offJob = (it, job) => !!JOB_WEAPON[job] && ((it.slot === 'weapon' && it.base !== JOB_WEAPON[job]) || (it.base === 'shield' && job !== '騎士'));
+export const offJob = (it, job) => (!!JOB_WEAPON[job] && ((it.slot === 'weapon' && it.base !== JOB_WEAPON[job]) || (it.base === 'shield' && job !== '騎士'))) || !maskWearable(pcMask(it), job, true); // 11/20：防具照 PC 職業位元（二轉套裝不算非本職業）
 // 項目 50：分解（強化金屬・一＝1＋品質、+4 以上多 1 個強化金屬・二；希幣＝賣價 60%）
 export const dismantleYield = it => ({ ore1: 1 + it.rarity, ore2: (it.refine || 0) >= 4 ? 1 : 0, gold: Math.round(sellPrice(it) * 0.6) });
 export function rollItem(rand = Math.random, bonus = 0, slot, lv = 0, job = null) { // lv：這局怪物等級（有給才挑 PC 原版道具）；job：只出這職業能用的武器
@@ -139,11 +157,12 @@ export function rollItem(rand = Math.random, bonus = 0, slot, lv = 0, job = null
   let s = slot; if (!s) { let r = rand() * pool.reduce((a, k) => a + SW[k], 0); s = pool.find(k => (r -= SW[k]) < 0) || pool.at(-1); }
   let bases = BASES[s];
   if (job && JOB_WEAPON[job] && s === 'weapon') bases = bases.filter(b => b.key === JOB_WEAPON[job]);
+  else if (job && lv > 0) { const ok = bases.filter(b => PC_ITEMS[PC_TYPE_OF[b.key]]?.some(x => maskWearable(x[6], job) && x[2] <= Math.max(lv, 10))); if (ok.length) bases = ok; } // 防具：只挑這職業有得穿的底材（劍士＝皮製、騎士＝盔甲…）
   const b = bases[Math.floor(rand() * bases.length)];
   const ws = RARITY.map((r, i) => r.w * (1 + bonus * i)); let x = rand() * ws.reduce((a, c) => a + c, 0), rarity = 0;
   for (let i = 0; i < ws.length; i++) { x -= ws[i]; if (x <= 0) { rarity = i; break; } }
   const it = { slot: s, base: b.key, rarity, roll: +(0.9 + rand() * 0.2).toFixed(3), refine: 0, aff: rollAffix(rarity, rand) };
-  if (lv > 0) { const pc = pickPc(b.key, lv, rand); if (pc) it.pc = pc; }
+  if (lv > 0) { const pc = pickPc(b.key, lv, rand, job); if (pc) it.pc = pc; }
   return it;
 }
 

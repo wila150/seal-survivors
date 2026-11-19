@@ -174,7 +174,7 @@ import { RODS, BAIT, CATCH } from './src/1_data/fishing.js';
 import { loadSealMap, buildSealMap, liftScene, walkMove, addWalkSurfaces } from './src/2_core/seal-map.js';
 import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
-import { CLK_KINDS, CLK_COLOR, clkText, offJob, dismantleYield, itemJob } from './src/1_data/items.js';
+import { wearBlock, pcMask, maskJobs, pcReqLv, CLK_KINDS, CLK_COLOR, clkText, offJob, dismantleYield, itemJob } from './src/1_data/items.js';
 import { PC_ITEMS } from './src/1_data/pc-items.js';
 import { JOB_WEAPON, traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 import { STATS, HAIR_COLORS } from './src/1_data/jobs.js';
@@ -1480,7 +1480,7 @@ const inheritCost = x => 300 * (x.refine || 0) + 1000 * (x.gup || 0) + 200; // �
 function itemDetail(it) {
   // 項目 32：★ 特性與詞綴另外列一行（數值已經算進上面的總數值）
   const T = traitOf(it), AF = it.aff?.a || [], affHtml = (T || AF.length) ? `<div class="affx">${T ? `<span class="trait">${T.name} ${STAT_NAMES[T.k]} ${fmtStat(T.k, T.v)}</span>` : ''}${AF.map(([k, v]) => `<span>${STAT_NAMES[k]} ${fmtStat(k, v)}</span>`).join('')}</div>` : '';
-  let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${statLine(it)}${affHtml}${clkHtml(it)}<div class="acts">`;
+  let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${pcMask(it) || pcReqLv(it) ? `<small style="color:${wearBlock(it, CHAR) && !it.equipped ? '#c0392b' : '#5a6478'}">職業：${maskJobs(pcMask(it))}${pcReqLv(it) ? `・需求等級 ${pcReqLv(it)}` : ''}</small><br>` : ''}${statLine(it)}${affHtml}${clkHtml(it)}<div class="acts">`;
   if (bagMode === 'smith') {
     if (it.refine >= REFINE_MAX) h += '<small>已經強化到最高了</small>';
     else h += `<button class="btn primary" data-act="refine" data-item="${it.id}">精煉 +${it.refine} → +${it.refine + 1}（${Math.round(REFINE_RATE[it.refine] * 100)}%，用 1 個${ORES[oreFor(it)].name}，持有 ${CHAR.mats?.[oreFor(it)] || 0}）</button>${refineBreaks(it.refine) ? '<small style="color:#c0392b">失敗會碎</small>' : it.refine >= 3 ? '<small>失敗會降一級</small>' : ''}`;
@@ -1499,8 +1499,8 @@ function itemDetail(it) {
     const src = (CHAR.items || []).filter(x => x.id !== it.id && x.slot === it.slot && !x.equipped && !x.locked && ((x.refine || 0) > (it.refine || 0) || (x.gup || 0) > (it.gup || 0)));
     if (src.length) h += `<div style="flex-basis:100%;margin-top:6px"><small><b>裝備繼承</b>：把下面那件的精煉＋G 化搬到這件（那件會消失）</small></div>` + src.map(x => `<button class="btn" data-act="inherit" data-from="${x.id}" data-item="${it.id}">⇦ ${esc(itemName(x))}（${inheritCost(x)} 希幣）</button>`).join('');
   } else {
-    const cant = !it.equipped && ((it.slot === 'weapon' && JOB_WEAPON[CHAR.job] && it.base !== JOB_WEAPON[CHAR.job]) || (it.slot === 'shield' && CHAR.job !== '騎士')); // PC：每個職業只能用自己的武器、盾只有騎士
-    h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : cant ? `<button class="btn" disabled title="${CHAR.job}不能裝備">${CHAR.job}不能裝備</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
+    const cant = !it.equipped && wearBlock(it, CHAR); // 照 PC：武器看職業、盾只有騎士、防具看職業位元、需求等級
+    h += it.equipped ? `<button class="btn" data-act="unequip" data-item="${it.id}">卸下</button>` : cant ? `<button class="btn" disabled title="${cant}">不能裝備（${cant}）</button>` : `<button class="btn primary" data-act="equip" data-item="${it.id}">裝備</button>`;
     if (!it.equipped && !it.locked) h += `<button class="btn" data-act="sell" data-item="${it.id}">賣出（${sellPrice(it)} 金幣）</button>`;
     // 11/20 使用者：「裝備賣出，沒辦法分解拿取道具」→ 每件都能單獨分解（得到強化金屬，強化師精煉用）
     if (!it.equipped && !it.locked) { const y = dismantleYield(it); h += `<button class="btn" data-act="dism" data-item="${it.id}">🔨 分解（強化金屬・一 ×${y.ore1}${y.ore2 ? `、二 ×${y.ore2}` : ''}、${y.gold} 希幣）</button>`; }

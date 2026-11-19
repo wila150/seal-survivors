@@ -19,7 +19,7 @@ import { PC_PETS, PET_MAX, EGGS, FEED_EXP, addPetExp, petNeed, petStage9, petNam
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from '../src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../src/1_data/talents.js';
 import { RODS, BAIT, CATCH, rollCatch } from '../src/1_data/fishing.js';
-import { rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
+import { wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
 
 const PORT = +process.env.PORT || 8765;
 let _skills = null; const SKILLS = () => (_skills ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'data', 'skills.json'), 'utf8')));
@@ -360,8 +360,8 @@ const api = {
   // ===== 背包、商店、強化、素質 =====
   'POST /api/equip': async (req, res, _, uid) => {
     const { itemId } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
-    if (it.slot === 'shield' && ownChar(uid, it.char_id)?.job !== '騎士') return send(res, 400, { error: '盾牌只有騎士能裝備' }); // 項目 32：PC 只有騎士拿盾
-    { const job = ownChar(uid, it.char_id)?.job, want = JOB_WEAPON[job]; if (it.slot === 'weapon' && want && it.base !== want) return send(res, 400, { error: `${job}不能裝備這種武器（PC 每個職業只能用自己的武器）` }); }
+    // 照 PC：武器看職業、盾只有騎士、防具看服務端 item.scr 職業位元（第 71 欄）、需求等級（第 3 欄）—— 11/20 使用者「PC 那邊沒有裝備的限制嗎？」
+    { const c = ownChar(uid, it.char_id), cd = JSON.parse(c?.data || '{}'), why = wearBlock(it, { job: c?.job, job2: cd.job2, baseLv: c?.base_lv }); if (why) return send(res, 400, { error: `不能裝備：${why}` }); }
     db.prepare('UPDATE items SET equipped=0 WHERE char_id=? AND slot=?').run(it.char_id, it.slot);
     db.prepare('UPDATE items SET equipped=1 WHERE id=?').run(it.id);
     send(res, 200, fullChar(ownChar(uid, it.char_id)));
