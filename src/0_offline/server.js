@@ -14,7 +14,7 @@ import { towerFloor, towerSeg, towerScore, towerPoints, towerOpen, CURSES, TOWER
 import { parseGm } from '../1_data/gm.js';
 import { fameLevel, runFame, earnedTitles, titleOf, FAME_GEAR } from '../1_data/fame.js';
 import { cleanDiff, diffLoot, lootBonus, stageBaseLv } from '../1_data/difficulty.js';
-import { PETS, PET_MAX, EGG_PRICE, MVP_EGG_RATE, FEED_EXP, addPetExp, petNeed } from '../1_data/pets.js';
+import { PETS, PET_MAX, EGG_PRICE, MVP_EGG_RATE, FEED_EXP, addPetExp, petNeed, petStage9, HUNGER_PER_SEC, FEED_HUNGER, PLAY_HUNGER, EVOLVE_SECS, WANT_SLOTS, EVO_CAT, evolveResult, TRAITS } from '../1_data/pets.js';
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from '../1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../1_data/talents.js';
 import { RODS, BAIT, CATCH, rollCatch } from '../1_data/fishing.js';
@@ -316,7 +316,12 @@ const api = {
     const fameGear = FAME_GEAR.filter(([l]) => fameBefore < l && fameAfter >= l);
     // 項目 30：出戰寵物拿經驗（＝本局經驗的 30%）；打倒 MVP 有機率掉寵物蛋
     let petUp = 0, petEgg = null; d.pets ??= [];
-    const ap = d.pets.find(p => p.id === d.pet); if (ap) petUp = addPetExp(ap, Math.floor(gain * 0.3));
+    const ap = d.pets.find(p => p.id === d.pet); let petStarve = false, petDied = null;
+    if (ap) { // 寵物 v2（官方 wiki 49）：出征會餓；餓到 100 不長經驗還會掉經驗，第 1 階段掉到 0 會死
+      ap.hunger = Math.min(100, (ap.hunger || 0) + secs * HUNGER_PER_SEC); ap.wants ??= WANT_SLOTS[Math.floor(Math.random() * WANT_SLOTS.length)];
+      if (ap.hunger >= 100) { petStarve = true; ap.exp = (ap.exp || 0) - Math.round(petNeed(ap.lv) * 0.2);
+        if (ap.exp < 0) { if (petStage9(ap.lv) === 1 && ap.lv === 1) { petDied = ap.name || PETS[ap.kind].name; d.pets = d.pets.filter(x => x !== ap); d.pet = null; } else if (ap.lv > 1) { ap.lv--; ap.exp = 0; } else ap.exp = 0; } }
+      else { petUp = addPetExp(ap, Math.floor(gain * 0.3)); if (petStage9(ap.lv) === 9) ap.s9 = (ap.s9 || 0) + secs; } }
     if (bl.some(n => mvpNames.has(n)) && Math.random() < MVP_EGG_RATE && d.pets.length < PET_MAX) { const k = Object.keys(PETS)[Math.random() * 4 | 0]; petEgg = { id: Date.now(), kind: k, lv: 1, exp: 0 }; d.pets.push(petEgg); }
     // 11/19 使用者企劃 指令 3：每打完一套 A→S→D 連續技，身上鑲著的技能寶石各 +20 融合經驗，滿 100 升一級（N → G → DG → XG）
     const gemUps = []; { const n = Math.max(0, Math.min(30, combos | 0)); if (n) for (const sl of d.gemSlots || []) { const g = sl && (d.gems || []).find(x => x.id === sl.gem); if (!g) continue;
@@ -329,7 +334,7 @@ const api = {
     if (isTower) { const before = towerBest(c.id), score = towerScore(floor, kills, curse);
       db.prepare('INSERT INTO towers (char_id, month, floor, score, curse, kills, created) VALUES (?,?,?,?,?,?,?)').run(c.id, monthKey(), floor, score, curse, kills, Date.now());
       tower = { floor, score, newBest: score > before.score, newFloor: floor > before.floor, points: towerPoints(Math.max(floor, before.floor)) }; }
-    send(res, 200, { gain, bonus, baseLv: base, exp, need: needExp(base), levelUps: ups, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, pet: ap ? { name: ap.name || PETS[ap.kind].name, lv: ap.lv, up: petUp } : null, petEgg: petEgg && PETS[petEgg.kind].name, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
+    send(res, 200, { gain, bonus, baseLv: base, exp, need: needExp(base), levelUps: ups, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, petStarve, petDied, pet: ap && !petDied ? { name: ap.name || PETS[ap.kind].name, hunger: Math.round(ap.hunger), lv: ap.lv, up: petUp } : null, petEgg: petEgg && PETS[petEgg.kind].name, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
   },
   // ===== 背包、商店、強化、素質 =====
   'POST /api/equip': async (req, res, _, uid) => {
@@ -900,7 +905,9 @@ const api = {
     if (!Array.isArray(itemIds) || !itemIds.length || itemIds.length > BAG_MAX) return send(res, 400, { error: '清單不對' });
     const its = itemIds.map(id => db.prepare('SELECT * FROM items WHERE id=? AND char_id=?').get(+id, c.id));
     if (its.some(i => !i)) return send(res, 404, { error: '找不到裝備' }); if (its.some(i => i.equipped)) return send(res, 400, { error: '穿著的裝備不能餵' }); if (its.some(i => i.locked)) return send(res, 400, { error: '有鎖定的裝備' });
-    const exp = its.reduce((t, i) => t + Math.round(FEED_EXP[i.rarity] * (1 + 0.1 * (i.refine || 0))), 0);
+    p.wants ??= WANT_SLOTS[Math.floor(Math.random() * WANT_SLOTS.length)]; const liked = its.some(i => i.slot === p.wants);
+    const exp = its.reduce((t, i) => t + Math.round(FEED_EXP[i.rarity] * (1 + 0.1 * (i.refine || 0)) * (i.slot === p.wants ? 2 : 1)), 0); // 想吃的部位 ×2
+    p.hunger = Math.max(0, (p.hunger || 0) - FEED_HUNGER * its.length); if (liked) p.wants = WANT_SLOTS[Math.floor(Math.random() * WANT_SLOTS.length)];
     for (const i of its) db.prepare('DELETE FROM items WHERE id=?').run(i.id);
     const ups = addPetExp(p, exp);
     db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
@@ -927,6 +934,25 @@ const api = {
     else return send(res, 400, { error: '沒有這個動作' });
     db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
     send(res, 200, { exp, ups, char: fullChar(ownChar(uid, c.id)) });
+  },
+  // 寵物 v2：陪牠玩（飢餓 −30，不長經驗）
+  'POST /api/petplay': async (req, res, _, uid) => {
+    const { charId, petId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'), p = (d.pets || []).find(x => x.id === petId); if (!p) return send(res, 404, { error: '找不到寵物' });
+    p.hunger = Math.max(0, (p.hunger || 0) - PLAY_HUNGER); db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
+  // 寵物 v2：進化（第 9 階段再出征 30 分鐘；最多 10 個材料，材料類別決定性格）
+  'POST /api/petevolve': async (req, res, _, uid) => {
+    const { charId, petId, mats = {} } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'), p = (d.pets || []).find(x => x.id === petId); if (!p) return send(res, 404, { error: '找不到寵物' });
+    if (petStage9(p.lv) < 9) return send(res, 400, { error: '要長到第 9 階段才能進化' }); if ((p.s9 || 0) < EVOLVE_SECS) return send(res, 400, { error: `第 9 階段還要再出征 ${Math.ceil((EVOLVE_SECS - (p.s9 || 0)) / 60)} 分鐘` });
+    d.mats ??= {}; let n = 0; for (const [k, v] of Object.entries(mats)) { if (!EVO_CAT[k] || !Number.isInteger(v) || v < 0) return send(res, 400, { error: '材料不對' }); if ((d.mats[k] || 0) < v) return send(res, 400, { error: '材料不夠' }); n += v; }
+    if (n < 1 || n > 10) return send(res, 400, { error: '材料要 1～10 個' }); const r = evolveResult(mats);
+    for (const [k, v] of Object.entries(mats)) d.mats[k] -= v;
+    p.evo = (p.evo || 0) + 1; p.trait = r.trait; p.perfect = r.perfect; p.lv = 1; p.exp = 0; p.hunger = 0; p.s9 = 0;
+    db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    send(res, 200, { trait: TRAITS[r.trait].name, perfect: r.perfect, char: fullChar(ownChar(uid, c.id)) });
   },
   'POST /api/petactive': async (req, res, _, uid) => {
     const { charId, petId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });

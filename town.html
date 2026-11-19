@@ -598,7 +598,7 @@ function openPets() {
       <div style="margin-top:8px"><small><b>餵食</b>：點背包裡不要的裝備（品質越高經驗越多，餵了就沒了）</small></div>
       <div class="bag">${bag.map(i => `<div class="cell ${petFeed.has(i.id) ? 'sel' : ''}" data-pf="${i.id}" style="border-color:${RARITY[i.rarity].color}"><img src="${itemIcon(i)}" alt="">${i.refine ? `<b>+${i.refine}</b>` : ''}</div>`).join('') || '<small style="grid-column:1/-1">背包沒有可以餵的裝備</small>'}</div>
       <button class="btn" id="petFeedAuto">一鍵挑選非本職業</button> <button class="btn primary" id="petFeedGo" ${petFeed.size ? '' : 'disabled'}>餵 ${petFeed.size} 件（+${fexp} 經驗）</button></div>`; })();
-  const html = `<p>「這些精靈會陪你出征，餵牠們不要的裝備就會長大，Lv10、Lv20 還會進化喔。」</p>
+  const html = `<p>「寵物陪你出征才會長大，也會肚子餓——記得餵牠或陪牠玩。長到第 9 階段，再出征一陣子，就可以拿材料來找我進化，材料不同、性格也不同喔。」</p>
     <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">${pets.map(card).join('')}</div>${det}
     <div class="sec" style="margin-top:10px"><b>買寵物蛋</b>　<small>每顆 ${EGG_PRICE} 金幣・最多 ${PET_MAX} 隻・打倒 MVP 也有機會撿到</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${Object.entries(PETS).map(([k, D]) => `<button class="btn" data-pb="${k}" ${c.gold < EGG_PRICE || pets.length >= PET_MAX ? 'disabled' : ''}><span style="color:${hex(D.color)}">●</span> ${D.name}</button>`).join('')}</div></div>`;
   openDlg('寵物飼育員', html, [], true);
