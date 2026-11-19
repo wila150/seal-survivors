@@ -268,3 +268,15 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .wcell img { width: 80%; height: 80%; image-rendering: pixelated; }
 #dlg .wcell[data-wp] { cursor: pointer; } #dlg .wcell.on { box-shadow: 0 0 0 3px var(--th-blue); }
 #dlg .wcell.lock { font-size: 12px; opacity: .6; }
+/* ===== WEAPON UP（強化師，照 PC interface/weaponupgrade.tex）===== */
+#dlg .wu { position: relative; width: 208px; height: 214px; margin: 6px auto 10px; background: url(../../assets/ui/pc/wu_win.png) no-repeat; }
+#dlg .wu > div[class^="wu-"]:not(.wu-info) { position: absolute; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+#dlg .wu-item { left: 34px; top: 46px; } #dlg .wu-gem { left: 122px; top: 46px; } #dlg .wu-cash { left: 79px; top: 106px; cursor: pointer; border-radius: 6px; }
+#dlg .wu-cash.on { box-shadow: 0 0 0 3px #e9c46a, 0 0 12px #e9c46a; }
+#dlg .wu img { width: 34px; height: 34px; image-rendering: pixelated; }
+#dlg .wu i { position: absolute; right: 1px; bottom: -1px; font: italic 900 12px system-ui; color: #c0392b; text-shadow: 0 0 2px #fff, 0 0 2px #fff; }
+#dlg .wu-info { position: absolute; left: 216px; top: 30px; width: 240px; font-size: 13px; line-height: 1.6; color: var(--th-ink); }
+#dlg .wu-ok { position: absolute; left: 76px; top: 178px; width: 56px; height: 28px; border: 0; padding: 0; cursor: pointer; background: url(../../assets/ui/pc/btn_ok.png) no-repeat center / 56px 28px; }
+#dlg .wu-ok:hover:not(:disabled) { background-image: url(../../assets/ui/pc/btn_ok_h.png); }
+#dlg .wu-ok:disabled { filter: grayscale(.8); cursor: default; }
+@media (min-width: 560px) { #dlg .wu { margin-left: 8px; } }

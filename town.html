@@ -186,6 +186,7 @@ import { openGems } from './src/2_core/gem-ui.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
 import { PETS, PET_MAX, PET_MAX_LV, EGG_PRICE, FEED_EXP, petStage, petName, petNeed, petAtk, petBonusText } from './src/1_data/pets.js';
+import * as PV2 from './src/1_data/pets.js';
 import { DIFF_KEYS, DIFF_MAX, LV_MAX, cleanDiff, diffMods, diffLoot, lootBonus, legendRate, stageBaseLv, pcRef } from './src/1_data/difficulty.js';
 import { DECOMPOSE, DUST_PER_CRYSTAL } from './src/1_data/stones.js';
 import { GUIDE_CATS, buildGuide, guideImg } from './src/1_data/guide.js';
@@ -579,7 +580,7 @@ function openTownMap() {
 $('#tmmMap').onclick = openTownMap; $('#tmm').onclick = openTownMap;
 
 // ===== 項目 30：寵物飼育員（買蛋、出戰、餵食、改名）=====
-let petSel = null, petFeed = new Set();
+let petSel = null, petFeed = new Set(), petEvo = {}; // petEvo：進化要放的材料 { key: 數量 }
 function openPets() {
   const c = CHAR, pets = c.pets || [], p = pets.find(x => x.id === petSel) || pets.find(x => x.id === c.pet) || pets[0]; petSel = p?.id ?? null;
   const hex = n => '#' + n.toString(16).padStart(6, '0');
@@ -588,7 +589,10 @@ function openPets() {
   const bag = (c.items || []).filter(i => !i.equipped), fexp = bag.filter(i => petFeed.has(i.id)).reduce((t, i) => t + Math.round(FEED_EXP[i.rarity] * (1 + 0.1 * (i.refine || 0))), 0);
   const det = !p ? '<p>還沒有寵物。在下面挑一顆蛋吧！</p>' : (() => { const D = PETS[p.kind], A = petAtk(p);
     return `<div style="background:#fff;border-radius:12px;padding:10px 12px;line-height:1.7"><b style="font-size:16px;color:${hex(D.color)}">${esc(petName(p))}</b>　<small>${D.name}・屬性 ${['無', '火', '水', '木', '金', '土', '光', '暗'][D.elem]}</small>
-      <div>Lv <b>${p.lv}</b> / ${PET_MAX_LV}　${p.lv < PET_MAX_LV ? `經驗 ${p.exp} / ${petNeed(p.lv)}` : '（滿級）'}　<small>${p.lv < 10 ? 'Lv10 進化' : p.lv < 20 ? 'Lv20 再進化' : '已完全進化'}</small></div>
+      <div>第 <b>${PV2.petStage9(p.lv)}</b> / 9 階段　Lv ${p.lv}　${p.lv < PET_MAX_LV ? `經驗 ${p.exp} / ${petNeed(p.lv)}` : '（滿級）'}${p.evo ? `　<small>已進化 ${p.evo} 次${p.trait ? `・性格「${PV2.TRAITS[p.trait]?.name}」${p.perfect ? '（完美）' : ''}` : ''}</small>` : ''}</div>
+      <div style="display:flex;align-items:center;gap:8px"><small>飢餓</small><div style="flex:1;height:8px;border-radius:5px;background:#e6dccb;overflow:hidden"><i style="display:block;height:100%;width:${Math.round(p.hunger || 0)}%;background:${(p.hunger || 0) >= 100 ? '#e74c3c' : (p.hunger || 0) >= 70 ? '#f0a030' : '#5cb85c'}"></i></div><small>${Math.round(p.hunger || 0)}${(p.hunger || 0) >= 100 ? '（餓壞了！）' : ''}</small><button class="btn" id="petPlay" ${(p.hunger || 0) > 0 ? '' : 'disabled'}>遊戲</button></div>
+      <div><small>💬「我想吃<b>${PV2.WANT_NAMES[p.wants] || '什麼都好'}</b>！」（餵想吃的部位經驗 ×2）出征才會餓；餓到 100 不會長大還會掉經驗，剛出生的寵物會餓死。</small></div>
+      ${PV2.petStage9(p.lv) >= 9 ? `<div style="margin-top:6px;padding:6px 8px;border-radius:8px;background:#fff6e0"><b>進化</b>　${(p.s9 || 0) >= PV2.EVOLVE_SECS ? `可以進化了！選最多 10 個材料（材料種類決定性格）：<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${Object.keys(PV2.EVO_CAT).filter(k => c.mats?.[k] > 0).map(k => `<button class="btn" data-pevo="${k}">${ORES[k]?.name || k} ${petEvo[k] || 0}/${c.mats[k]}</button>`).join('') || '<small>沒有可以用的材料（礦石、寶石、粉末、卷軸、券…）</small>'}</div>${Object.keys(petEvo).length ? `<small>預測性格：${(r => r ? PV2.TRAITS[r.trait].name + (r.perfect ? '（完美）' : '') : '')(PV2.evolveResult(petEvo))}</small> <button class="btn primary" id="petEvolve">進化（${Object.values(petEvo).reduce((a, b) => a + b, 0)} 個材料）</button>` : ''}` : `<small>第 9 階段再出征 ${Math.ceil((PV2.EVOLVE_SECS - (p.s9 || 0)) / 60)} 分鐘就能進化</small>`}</div>` : ''}
       <div><small>出征：每 ${A.cd.toFixed(1)} 秒攻擊最近的怪 ${Math.round(A.dmg)} 傷害（屬性相剋）・被動 ${petBonusText(p)}</small></div>
       <div class="acts" style="margin-top:6px">${p.id === c.pet ? '<button class="btn" data-pa="">收回</button>' : '<button class="btn primary" data-pa="1">出戰</button>'}<button class="btn" id="petRename">改名</button>${p.id !== c.pet ? (p.sit ? `<button class="btn" data-psit="claim">領回代養（已 ${Math.min(24, (Date.now() - p.sit) / 3600e3).toFixed(1)} 小時，+${Math.floor(Math.min(24, (Date.now() - p.sit) / 3600e3) * 80)} 經驗）</button>` : '<button class="btn" data-psit="start">交給飼育員代養（每小時 +80 經驗）</button>') : ''}${pets.filter(x => x.id !== p.id && x.id !== c.pet && !x.sit).map(x => `<button class="btn" data-psm="${x.id}">冶煉 ⇦ ${esc(petName(x))} Lv${x.lv}（500 希幣）</button>`).join('')}</div>
       <div style="margin-top:8px"><small><b>餵食</b>：點背包裡不要的裝備（品質越高經驗越多，餵了就沒了）</small></div>
@@ -606,6 +610,9 @@ function openPets() {
   b.querySelectorAll('[data-psit]').forEach(x => x.onclick = async () => { try { const r = await call('POST', '/api/petsit', { charId: c.id, petId: p.id, op: x.dataset.psit }); showChar(r.char); toast(x.dataset.psit === 'start' ? '交給飼育員代養了' : `代養結束：+${r.exp} 經驗${r.ups ? `，升了 ${r.ups} 級` : ''}`); openPets(); } catch (e) { toast(e.message); } }); // 指令 4-2 代養
   b.querySelectorAll('[data-psm]').forEach(x => x.onclick = async () => { const f = pets.find(q => q.id === +x.dataset.psm); if (!(await askConfirm(`把「${petName(f)}」冶煉進「${petName(p)}」？\n${petName(f)} 會消失，${petName(p)} 得到牠 60% 的經驗。`, { ok: '冶煉', danger: true }))) return;
     try { const r = await call('POST', '/api/petsmelt', { charId: c.id, petId: p.id, fromId: f.id }); showChar(r.char); toast(`冶煉成功：+${r.exp} 經驗${r.ups ? `，升了 ${r.ups} 級` : ''}`); openPets(); } catch (e) { toast(e.message); } }); // 指令 4-2 冶煉
+  $('#petPlay')?.addEventListener('click', async () => { try { showChar(await call('POST', '/api/petplay', { charId: c.id, petId: p.id })); toast('陪寵物玩了一下，牠比較不餓了'); openPets(); } catch (e) { toast(e.message); } }); // 寵物 v2
+  b.querySelectorAll('[data-pevo]').forEach(x => x.onclick = () => { const k = x.dataset.pevo, tot = Object.values(petEvo).reduce((a, b2) => a + b2, 0); if ((petEvo[k] || 0) >= (c.mats[k] || 0) || tot >= 10) { delete petEvo[k]; } else petEvo[k] = (petEvo[k] || 0) + 1; openPets(); });
+  $('#petEvolve')?.addEventListener('click', async () => { if (!(await askConfirm('進化後寵物回到 Lv1（加成變強），材料會用掉，確定？', { ok: '進化' }))) return; try { const r = await call('POST', '/api/petevolve', { charId: c.id, petId: p.id, mats: petEvo }); petEvo = {}; showChar(r.char); toast(`進化成功！性格「${r.trait}」${r.perfect ? '（完美）' : ''}`); openPets(); } catch (e) { toast(e.message); } });
   $('#petFeedAuto')?.addEventListener('click', () => { const pick = (c.items || []).filter(i => !i.equipped && !i.locked && offJob(i, c.job)); if (!pick.length) return toast('背包沒有非本職業的裝備（鎖定的不算）'); petFeed = new Set(pick.map(i => i.id)); openPets(); }); // 項目 50
   $('#petFeedGo')?.addEventListener('click', async () => { if (!(await askConfirm(`把 ${petFeed.size} 件裝備餵給${petName(p)}？餵了就沒了。`))) return;
     try { const r = await call('POST', '/api/petfeed', { charId: c.id, petId: p.id, itemIds: [...petFeed] }); petFeed.clear(); done(r.char, `+${r.exp} 經驗${r.ups ? `，升到 Lv ${r.pet.lv}！` : ''}`); } catch (e) { toast(e.message); } });
@@ -1177,6 +1184,7 @@ async function sellIds(ids) {
 }
 
 // ===== 背包／商店／強化／素質 =====
+let wuProtect = false; // WEAPON UP 的 CASH 格（艾彼斯的祝福）有沒有放上去
 let bagMode = 'bag', bagTab = 'items', selItem = null, smithTab = 'weapon'; // smithTab：強化師分頁（武器／防具，項目 29）
 const smithOk = it => smithTab === 'weapon' ? it.slot === 'weapon' : it.slot !== 'weapon';
 $('#bagBtn').onclick = () => openBag('bag');
@@ -1254,7 +1262,7 @@ function renderBag() {
   const intro = { bag: '', shop: '<p>「看看我的貨吧！每件 <b class="gold">150</b> 金幣，品質是普通到精良。不要的裝備也可以賣給我。」</p>',
     smith: `<p>「選一件裝備精煉，每次用掉 1 個礦石；也可以用寶石 <b>G 化</b>（一般 → G → DG → XG，紅寶石／鑽石／粉紅鑽）。+6 以上失敗可是會<b style="color:#c0392b">碎掉</b>的喔。」<br><small>持有：${Object.entries(ORES).filter(([, o]) => !o.scroll).map(([k, o]) => `${o.name} ${c.mats?.[k] || 0}`).join('　')}</small></p>` }[bagMode];
   // 背包＝PC 原版 ITEM 視窗：只有希幣列＋道具格，不放分頁、不放跳到別的視窗的按鈕（11/19 使用者：按鈕不要東串西串）
-  let html = bagMode === 'bag' ? '' : intro + `<div class="tabs2"><button class="btn ${bagTab === 'items' ? 'primary' : ''}" data-tab="items">裝備</button>${bagMode === 'smith' ? ['weapon', 'armor'].map(k => `<button class="btn ${smithTab === k ? 'primary' : ''}" data-smt="${k}">${k === 'weapon' ? '武器' : '防具'}</button>`).join('') : ''}${bagMode === 'bag' ? `<button class="btn ${bagTab === 'stats' ? 'primary' : ''}" data-tab="stats">素質${c.points ? `（${c.points}）` : ''}</button>` : ''}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
+  let html = bagMode === 'bag' ? '' : intro + `<div class="tabs2">${bagMode === 'smith' ? '' : `<button class="btn ${bagTab === 'items' ? 'primary' : ''}" data-tab="items">裝備</button>`}${bagMode === 'smith' ? ['weapon', 'armor'].map(k => `<button class="btn ${smithTab === k ? 'primary' : ''}" data-smt="${k}">${k === 'weapon' ? '武器' : '防具'}</button>`).join('') : ''}${bagMode === 'bag' ? `<button class="btn ${bagTab === 'stats' ? 'primary' : ''}" data-tab="stats">素質${c.points ? `（${c.points}）` : ''}</button>` : ''}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
   if (bagTab === 'stats') {
     const jp = c.jobNeed ? `${c.jobExp ?? 0} / ${c.jobNeed}` : 'MAX';
     html += `<div style="margin-bottom:6px">Base Lv <b>${c.baseLv}</b>（${c.exp} / ${c.need}）　Job Lv <b>${c.jobLv}</b> / ${c.jobMax ?? 50}（${jp}）<br><small>Job 等級是天賦點數的來源：每 1 Job Lv＝1 點天賦。Job 經驗跟 Base 經驗一起拿。</small></div>`;
@@ -1274,6 +1282,12 @@ function renderBag() {
     if (bagMode === 'shop') html += `<div class="pcshop"><img class="pct-img" src="assets/ui/pc/t_shop.png" alt="SHOP">${Object.entries(SLOTS).filter(([k]) => k !== 'shield' || CHAR.job === '騎士').map(([k, v]) => { const b0 = BASES[k]?.[0];
       return `<div class="pcshop-row"><span class="ic">${b0 ? `<img src="assets/items/${b0.icon}.png" alt="">` : ''}</span><b>${v}</b><small>普通～精良・照你的等級挑 PC 原版道具</small><span class="pr">150</span><button class="btn primary" data-buy="${k}">購買</button></div>`; }).join('')}</div>`;
     // 背包＝PC 原版 ITEM 視窗（只有道具格＋希幣）；穿著的裝備在「狀態」CHARACTER INFO
+    // 強化師＝PC 原版 WEAPON UP 視窗（interface/weaponupgrade.tex）：ITEM（選的裝備）＋GEM（這次要用的強化金屬）＋CASH（艾彼斯的祝福，點一下放上／拿下），按確認精煉
+    if (bagMode === 'smith') { const s1 = items.find(i => i.id === selItem), ore = s1 && s1.refine < REFINE_MAX ? oreFor(s1) : null, hasP = (c.mats?.abis || 0) > 0;
+      html += `<div class="wu"><div class="wu-item">${s1 ? `<img src="${itemIcon(s1)}" alt="">${s1.refine ? `<i>+${s1.refine}</i>` : ''}` : ''}</div><div class="wu-gem">${ore ? `<img src="assets/items/${ORES[ore].icon}.png" alt=""><i>${c.mats?.[ore] || 0}</i>` : ''}</div>
+        <div class="wu-cash ${wuProtect && hasP ? 'on' : ''}" id="wuCash" title="艾彼斯的祝福：+6 以上失敗不碎、只降 1 級（持有 ${c.mats?.abis || 0}）">${wuProtect && hasP ? '<img src="assets/items/1351.png" alt="">' : ''}</div>
+        <div class="wu-info">${s1 ? (s1.refine >= REFINE_MAX ? '已經強化到最高了' : `<b>${esc(itemName(s1))}</b><br>+${s1.refine} → +${s1.refine + 1}　成功率 ${Math.round(REFINE_RATE[s1.refine] * 100)}%<br>${refineBreaks(s1.refine) ? (wuProtect && hasP ? '<span style="color:#2e7d32">祝福保護中：失敗只降 1 級</span>' : '<span style="color:#c0392b">失敗會碎掉</span>') : s1.refine >= 3 ? '失敗會降一級' : ''}`) : '從下面挑一件裝備'}</div>
+        <button class="wu-ok" ${s1 && s1.refine < REFINE_MAX && (c.mats?.[ore] || 0) > 0 ? '' : 'disabled'} data-act="refine" data-item="${s1?.id || ''}" ${wuProtect && hasP && s1 && refineBreaks(s1.refine) ? 'data-protect="1"' : ''}></button></div>`; }
     if (bagMode !== 'bag') html += `<div class="slots pc">${Object.entries(SLOTS).filter(([k]) => (bagMode !== 'smith' || smithOk({ slot: k })) && (k !== 'shield' || CHAR.job === '騎士')).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
       return `<div class="eq" data-id="${it?.id || ''}" title="${it ? esc(itemName(it)) : v + '：沒有裝備'}"><span class="sl">${v}</span><div class="ico" ${it ? `style="border-color:${RARITY[it.rarity].color}!important"` : ''}>${it ? `<img src="${itemIcon(it)}" alt="">` : ''}</div>${it ? `<b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small>` : `<b>${v}</b><small>沒有裝備</small>`}</div>`; }).join('')}</div>`;
     const shown = items.filter(it => bagMode !== 'smith' || smithOk(it)), BAG_CAP = 40; // 伺服器 BAG_MAX＝40；PC 背包空格也畫出來
@@ -1294,6 +1308,7 @@ function renderBag() {
   }
   openDlg(title, html, [], bagMode !== 'bag'); // 背包＝小視窗（PC ITEM 大小）
   const body = $('#dlgBody');
+  body.querySelector('#wuCash')?.addEventListener('click', () => { if (!(c.mats?.abis > 0)) return toast('沒有艾彼斯的祝福（跟釣魚老人用稀有魚換）'); wuProtect = !wuProtect; renderBag(); });
   body.querySelectorAll('[data-mat]').forEach(el => el.onclick = () => { selItem = selItem === 'm:' + el.dataset.mat ? null : 'm:' + el.dataset.mat; renderBag(); });
   body.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bagTab = b.dataset.tab; renderBag(); });
   // 項目 50：一鍵分解：沒穿、沒鎖，而且（非本職業 或 普通／精良）
