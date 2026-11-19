@@ -153,7 +153,7 @@
 <div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pct" id="fishBtn" title="釣魚（要在水池邊）">釣魚</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
 <button class="btn primary chip" id="talk"></button>
 <div id="tmmBox" title="主城地圖（點 MAP 放大，放大後點地圖可以直接走過去）"><canvas id="tmm" width="196" height="196"></canvas><button id="tmmMap">MAP</button></div>
-<button id="gmBtn" title="GM 指令（只限本機）" style="display:none;position:fixed;right:12px;top:calc(220px + env(safe-area-inset-top));z-index:5;border:2px solid #fff;border-radius:10px;background:linear-gradient(#ffb55a,#e07a1c);color:#fff;font-weight:900;padding:6px 12px;box-shadow:0 2px 8px #0005;cursor:pointer">GM</button>
+<button id="gmBtn" title="GM 指令（本機或 GM 帳號）" style="display:none;position:fixed;right:12px;top:calc(220px + env(safe-area-inset-top));z-index:5;border:2px solid #fff;border-radius:10px;background:linear-gradient(#ffb55a,#e07a1c);color:#fff;font-weight:900;padding:6px 12px;box-shadow:0 2px 8px #0005;cursor:pointer">GM</button>
 <div id="joy"><i></i></div>
 <div id="dlg"><div class="box"><header id="dlgTitle"></header><button id="dlgX" title="關閉（Esc）">✕</button><div class="body" id="dlgBody"></div><div class="opts" id="dlgOpts"></div></div></div>
 
@@ -569,7 +569,7 @@ async function openJob2() {
 // ===== GM 面板（只限本機；照 PC 小助手的 GM 指令表：分類、搜尋、指令清單、發送）=====
 const IS_LOCAL = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
 let gmCat = '全部', gmQ = '', gmLog = [], gmLine = '';
-if (IS_LOCAL) { $('#gmBtn').style.display = 'block'; $('#gmBtn').onclick = () => openGm(); }
+(IS_LOCAL ? Promise.resolve(true) : fetch('/api/gm', { headers: { authorization: 'Bearer ' + token } }).then(r => r.json()).then(j => j.gm).catch(() => false)).then(ok => { if (ok) { $('#gmBtn').style.display = 'block'; $('#gmBtn').onclick = () => openGm(); } }); // 雲端：GM 帳號才有
 addEventListener('keydown', e => { if (IS_LOCAL && e.code === 'Backquote' && !e.target.closest('input,textarea')) { e.preventDefault(); openGm(); } });
 function openGm() {
   const list = GM_CMDS.filter(([c, cmd, d]) => (gmCat === '全部' || c === gmCat) && (!gmQ || (cmd + d).includes(gmQ)));
@@ -580,7 +580,7 @@ function openGm() {
     <div style="display:flex;gap:6px;margin-top:8px"><small style="align-self:center">發送</small><input id="gmIn" value="${esc(gmLine)}" style="flex:1;font-family:monospace" placeholder="/lv 70"><button class="btn primary" id="gmGo" style="background:#e07a1c;border-color:#e07a1c">發送</button></div>
     <small style="color:#7a6a58">點清單＝填進發送欄（可改參數），Enter 執行。快捷鍵 \` 開關。目前角色：${esc(CHAR.name)}</small>
     </div>`;
-  openDlg('GM 命令表（只限本機）', html, [], true);
+  openDlg('GM 命令表', html, [], true);
   const b = $('#dlgBody'), inp = $('#gmIn');
   b.querySelectorAll('[data-gc]').forEach(x => x.onclick = () => { gmCat = x.dataset.gc; openGm(); });
   b.querySelectorAll('[data-gcmd]').forEach(x => x.onclick = () => { gmLine = x.dataset.gcmd; openGm(); const i = $('#gmIn'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); });

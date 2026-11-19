@@ -10,6 +10,7 @@ export class Game extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     globalThis.__SS_STORAGE = ctx.storage;
+    globalThis.process ??= { env: {} }; globalThis.process.env ??= {}; globalThis.process.env.GM_USERS = env.GM_USERS || ''; // GM 帳號（wrangler.toml [vars]）
     ctx.blockConcurrencyWhile(async () => { this.srv = await import('./server.js'); });
   }
   async fetch(request) { return this.srv.handle(request); }

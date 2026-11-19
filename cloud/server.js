@@ -164,6 +164,11 @@ const verify = (pw, stored) => { const [salt, h] = stored.split(':'); return cry
 
 const send = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
 const body = (req, max = 1e5) => new Promise((ok, bad) => { let s = ''; req.on('data', c => { s += c; if (s.length > max) req.destroy(); }); req.on('end', () => { try { ok(s ? JSON.parse(s) : {}); } catch { bad(new Error('bad json')); } }); });
+function isGm(req, uid) {
+  if (['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress || '')) return true;
+  const list = String(process.env.GM_USERS || '').split(',').map(x => x.trim()).filter(Boolean);
+  return !!list.length && list.includes(db.prepare('SELECT username FROM accounts WHERE id=?').get(uid)?.username);
+}
 function auth(req) {
   const t = (req.headers.authorization || '').replace('Bearer ', '');
   const s = t && db.prepare('SELECT account_id, expires FROM sessions WHERE token=?').get(t);
@@ -886,10 +891,10 @@ const api = {
     db.prepare('UPDATE characters SET base_lv=1, exp=0, data=? WHERE id=?').run(JSON.stringify(d), c.id);
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
-  // ===== GM 指令（只限本機連線）=====
+  // ===== GM 指令（本機連線，或 GM 帳號：環境變數 GM_USERS＝逗號分隔的帳號；雲端在 cloud/wrangler.toml 的 [vars]）=====
+  'GET /api/gm': async (req, res, _, uid) => send(res, 200, { gm: isGm(req, uid) }),
   'POST /api/gm': async (req, res, _, uid) => {
-    const ip = req.socket.remoteAddress || '';
-    if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip)) return send(res, 403, { error: 'GM 指令只限本機' });
+    if (!isGm(req, uid)) return send(res, 403, { error: 'GM 指令只限本機或 GM 帳號' });
     const { charId, line } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const { cmd, args } = parseGm(line), d = JSON.parse(c.data || '{}'), n = i => Number(args[i]);
     const int = (i, lo, hi) => { const v = n(i); if (!Number.isInteger(v) || v < lo || v > hi) throw new Error(`第 ${i + 1} 個參數要 ${lo}～${hi} 的整數`); return v; };

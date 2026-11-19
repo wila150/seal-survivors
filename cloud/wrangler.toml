@@ -10,3 +10,7 @@ class_name = "Game"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Game"]
+
+# GM 帳號（逗號分隔）：這些帳號登入後大廳有 GM 按鈕，雲端也能下 GM 指令
+[vars]
+GM_USERS = "wila150"
