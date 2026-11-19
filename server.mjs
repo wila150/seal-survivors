@@ -30,6 +30,8 @@ let _talents = null; const TALENTS = () => (_talents ??= JSON.parse(fs.readFileS
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 fs.mkdirSync(path.join(ROOT, 'data'), { recursive: true });
 const db = new DatabaseSync(path.join(ROOT, 'data', 'game.db'));
+// 交易：雲端版（Cloudflare Durable Object）不能下 BEGIN，要用 db.tx（cloud/shims.js）
+const tx = fn => { if (db.tx) return db.tx(fn); db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
 db.exec(`
 CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, pass TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, account_id INTEGER NOT NULL, expires INTEGER NOT NULL);
@@ -164,7 +166,7 @@ const hash = pw => { const salt = crypto.randomBytes(16).toString('hex'); return
 const verify = (pw, stored) => { const [salt, h] = stored.split(':'); return crypto.timingSafeEqual(Buffer.from(h, 'hex'), crypto.scryptSync(pw, salt, 32)); };
 
 const send = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
-const body = req => new Promise((ok, bad) => { let s = ''; req.on('data', c => { s += c; if (s.length > 1e5) req.destroy(); }); req.on('end', () => { try { ok(s ? JSON.parse(s) : {}); } catch { bad(new Error('bad json')); } }); });
+const body = (req, max = 1e5) => new Promise((ok, bad) => { let s = ''; req.on('data', c => { s += c; if (s.length > max) req.destroy(); }); req.on('end', () => { try { ok(s ? JSON.parse(s) : {}); } catch { bad(new Error('bad json')); } }); });
 function auth(req) {
   const t = (req.headers.authorization || '').replace('Bearer ', '');
   const s = t && db.prepare('SELECT account_id, expires FROM sessions WHERE token=?').get(t);
@@ -1078,13 +1080,12 @@ const api = {
     if (a.seller_char === c.id) return send(res, 400, { error: '不能買自己上架的' });
     if ((c.gold ?? 0) < a.price) return send(res, 400, { error: `金幣不夠（要 ${a.price}）` });
     if (bagCount(c.id) >= BAG_MAX) return send(res, 400, { error: '背包滿了' });
-    db.exec('BEGIN');
-    try {
+    tx(() => {
       db.prepare('DELETE FROM auctions WHERE id=?').run(a.id);
       db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(a.price, c.id);
       db.prepare('UPDATE characters SET gold=gold+? WHERE id=?').run(Math.floor(a.price * (1 - AUC_FEE)), a.seller_char);
-      giveItem(c.id, a); db.exec('COMMIT');
-    } catch (e) { db.exec('ROLLBACK'); throw e; }
+      giveItem(c.id, a);
+    });
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
   'POST /api/statup': async (req, res, _, uid) => {
@@ -1119,6 +1120,31 @@ const api = {
     const r = db.prepare('DELETE FROM characters WHERE id=? AND account_id=?').run(+id, uid);
     if (r.changes) { db.prepare('DELETE FROM mails WHERE char_id=?').run(+id); db.prepare('DELETE FROM runs WHERE char_id=?').run(+id); db.prepare('DELETE FROM items WHERE char_id=?').run(+id); db.prepare('DELETE FROM auctions WHERE seller_char=?').run(+id); }
     send(res, r.changes ? 200 : 404, r.changes ? { ok: true } : { error: '找不到角色' });
+  },
+  // ===== 舊存檔搬上雲端（11/20：手機／電腦帳號互通）=====
+  // 離線版（這台裝置的瀏覽器）匯出整個帳號 → 雲端同名帳號匯入（cloud/ 的 boot.js 登入時自動做，只能匯進沒有角色的帳號）
+  'GET /api/export': async (req, res, _, uid) => {
+    const cs = db.prepare('SELECT * FROM characters WHERE account_id=?').all(uid), ids = cs.map(c => c.id), q = ids.map(() => '?').join(',') || '0';
+    const by = t => db.prepare(`SELECT * FROM ${t} WHERE char_id IN (${q})`).all(...ids);
+    send(res, 200, { v: 1, chars: cs, items: [...by('items'), ...db.prepare('SELECT * FROM items WHERE char_id=0 AND acct=?').all(uid)], mails: by('mails'), runs: by('runs'), towers: by('towers'),
+      stash: db.prepare('SELECT stash FROM accounts WHERE id=?').get(uid)?.stash ?? null });
+  },
+  'POST /api/import': async (req, res, _, uid) => {
+    const d = await body(req, 2e7);
+    if (d?.v !== 1 || !Array.isArray(d.chars)) return send(res, 400, { error: '存檔格式不對' });
+    if (db.prepare('SELECT 1 FROM characters WHERE account_id=? LIMIT 1').get(uid)) return send(res, 409, { error: '雲端帳號已經有角色了，不能再搬' });
+    const COL = /^[a-z_0-9]+$/, ins = (t, row) => { const ks = Object.keys(row).filter(k => COL.test(k)); return db.prepare(`INSERT INTO ${t} (${ks.join(',')}) VALUES (${ks.map(() => '?').join(',')})`).run(...ks.map(k => row[k])); };
+    const map = new Map();
+    tx(() => {
+      for (const c of d.chars) { const { id, ...r } = c; r.account_id = uid; let nm = r.name, k = 1;
+        while (db.prepare('SELECT 1 FROM characters WHERE name=?').get(nm)) nm = `${r.name}${++k}`; // 角色名稱雲端有人用了 → 後面加數字
+        r.name = nm; map.set(id, Number(ins('characters', r).lastInsertRowid)); }
+      for (const t of ['items', 'mails', 'runs', 'towers']) for (const row of d[t] || []) { const { id, ...r } = row;
+        if (t === 'items' && !r.char_id) { r.acct = uid; r.char_id = 0; } else { if (!map.has(r.char_id)) continue; r.char_id = map.get(r.char_id); }
+        if (t === 'items' && r.acct) r.acct = uid; ins(t, r); }
+      if (d.stash != null) db.prepare('UPDATE accounts SET stash=? WHERE id=?').run(d.stash, uid);
+    });
+    send(res, 200, { ok: true, chars: map.size });
   },
 };
 const PUBLIC = new Set(['POST /api/register', 'POST /api/login']);
