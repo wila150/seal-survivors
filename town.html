@@ -164,7 +164,7 @@
 import * as THREE from 'three';
 import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES, seatOf, NOVICE, JOB1_AT, FIRST_JOBS, LIFE_LV } from './src/1_data/jobs.js';
 import { renderLook } from './src/2_core/look-ui.js';
-import { sealModel, sealProp, sealActor, sealMob, glowGear } from './src/2_core/seal-model.js';
+import { sealModel, sealProp, sealActor, sealMob, sealMount, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
 import { pcLoading } from './src/2_core/pc-loading.js';
 import * as PSN from './src/1_data/persona.js';
@@ -1242,7 +1242,7 @@ let townMount = null, townRiding = false, townRider = null;
 function seatTownRider() { const [y, z] = townRiding ? seatOf(JOBS[CHAR.job].mount) : [0, 0]; for (const ch of player.children) if (ch !== townMount) { ch.position.y = y; ch.position.z = z; ch.userData.actor?.setRiding?.(townRiding); } }
 function loadTownMount() {
   if (townMount || !((CHAR.mountUntil || 0) > Date.now())) return;
-  sealModel(JOBS[CHAR.job].mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; player.add(m); townMount = m; }).catch(() => {});
+  sealMount(JOBS[CHAR.job].mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; player.add(m); townMount = m; }).catch(() => {});
 }
 addEventListener('keydown', e => {
   if (e.code !== 'KeyR' || dlgOpen || !townMount) return;
@@ -1533,7 +1533,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   for (const A of npcActors) A.update(dt);
   const uiLock = dlgOpen && !DLG_MULTI; // 電腦開著視窗也能走（PC 一樣）；手機開視窗時不動
-  if (uiLock) { pActor?.update(dt, false); townMoving = false; }
+  if (uiLock) { pActor?.update(dt, false); townMoving = false; if (townRiding) { townMount?.userData.actor?.move(false); townMount?.userData.actor?.update(dt); } }
   if (!uiLock) {
     let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.dx;
     let mz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + joy.dy;
@@ -1542,6 +1542,7 @@ function loop(now) {
     else if (click.on) { const dx = click.x - player.position.x, dz = click.z - player.position.z, d = Math.hypot(dx, dz); if (d < 0.35) click.on = false; else { mx = dx / d; mz = dz / d; } }
     const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
     pActor?.update(dt, ml > 0.05); townMoving = ml > 0.05;
+    if (townRiding) { const ma = townMount?.userData.actor; ma?.move(townMoving); ma?.update(dt); if (ma) { const y = seatOf(JOBS[CHAR.job].mount)[0] + (ma.bob || 0); for (const ch of player.children) if (ch !== townMount) ch.position.y = y; } } // 坐騎跟著播站／走（跳／浮的人物一起動）
     if (ml > 0.05) {
       const p = player.position; if (!walkMove(TMAP, p, p.x + mx * 7 * dt, p.z + mz * 7 * dt)) click.on = false; { let d = Math.atan2(mx, mz) - player.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); player.rotation.y += d * Math.min(1, dt * 14); } // 平滑轉身
       for (const s of solids) { const dx = p.x - s.x, dz = p.z - s.z, d = Math.hypot(dx, dz), r = s.r + 0.45; if (d < r && d > 0.001) { p.x = s.x + dx / d * r; p.z = s.z + dz / d * r; } }

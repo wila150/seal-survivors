@@ -272,6 +272,22 @@ export function sealMob(model, height = 1) {
   return mobCache.get(key);
 }
 
+// 坐騎：有骨架動作就用會動的版本（站／走，actor.move(on)＋actor.update(dt)），沒有就退回靜態模型（11/20 使用者：坐騎移動沒有動畫像在飛）
+// 原版走路動作套上去會壞的（水晶巨蛙翻過來、火焰飛龍 run 是往上飛 → 人物脫離）：改播站姿＋起伏（蛙用跳、龍用浮），actor.bob＝這一格的高度，人物也加同樣高度
+const MOUNT_HOP = { G_water_flog_stand04: [0.16, 7, true], G_flame_dragon04: [0.1, 4, false] }; // [高度, 速度, 跳(取絕對值)]
+export async function sealMount(name, height = 1.5) {
+  const f = await sealMob(name, height).catch(() => null);
+  if (!f) return sealModel(name, height);
+  const g = f.create(), a = g.userData.actor, hop = MOUNT_HOP[name];
+  a.bob = 0;
+  if (hop) {
+    const inner = g.children[0], y0 = inner.position.y, om = a.move, ou = a.update; let mv = false, t = 0;
+    a.move = on => { mv = on; om(false); };
+    a.update = dt => { ou(dt); t = mv ? t + dt : 0; const s = Math.sin(t * hop[1]); a.bob = mv ? (hop[2] ? Math.abs(s) : (s + 1) / 2) * hop[0] : 0; inner.position.y = y0 + a.bob; };
+  }
+  return g;
+}
+
 // 項目 46：G 化武器發光——角色手上的武器（gear id 以 wpn_ 開頭）材質加自發光；color＝null 取消
 export function glowGear(group, color) {
   group.traverse(o => { if (!o.isMesh || !/^wpn_/i.test(o.userData.gear || '')) return;

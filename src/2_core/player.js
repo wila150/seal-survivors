@@ -1,7 +1,7 @@
 // 玩家：輸入（鍵盤＋拖曳搖桿）、XZ 移動、轉向、坐騎、受傷閃爍、磁吸經驗寶石
 // 距離一律只算 XZ（不要用 3D 距離）
 import * as THREE from 'three';
-import { sealModel, sealActor, glowGear } from './seal-model.js';
+import { sealModel, sealActor, sealMount, glowGear } from './seal-model.js';
 import { GUP } from '../1_data/items.js';
 import { OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, seatOf } from '../1_data/jobs.js';
 import { view } from './camera.js';
@@ -74,7 +74,7 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
 
   const rig = { group, actor: null, mounted: false, mountCd: 0, mountObj: null };
   // 坐騎：上坐騎時人坐到坐騎背上
-  const mountReady = MOUNT_ON ? sealModel(JOB.mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; group.add(m); rig.mountObj = m; }).catch(() => {}) : Promise.resolve();
+  const mountReady = MOUNT_ON ? sealMount(JOB.mount, 1.5).then(m => { m.children[0].rotation.y = Math.PI; m.visible = false; group.add(m); rig.mountObj = m; }).catch(() => {}) : Promise.resolve();
   const LOOK = playerLook(CHAR.job, CHAR.gender, CHAR.hair ?? 0, CHAR.hairColor ?? 0, CHAR.outfit ?? 0, CHAR.items, CHAR.costume);
   const actorReady = sealActor(playerModelId(CHAR.job, CHAR.gender), playerAnimSet(CHAR.job, CHAR.gender), 1.7, LOOK.gear, LOOK.opts).then(async m => {
     await Promise.race([m.userData.texReady, new Promise(r => setTimeout(r, 4000))]); // 等貼圖載好再拍頭像
@@ -118,6 +118,7 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
     let d = rig.yaw - group.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); // 最短角度
     group.rotation.y += Math.max(-12 * dt, Math.min(12 * dt, d * Math.min(1, dt * 14))); // 最快每秒轉 12 弧度
     rig.actor?.update(dt, rig.moving);
+    if (rig.mounted) { const ma = rig.mountObj?.userData.actor; ma?.move(rig.moving); ma?.update(dt); const m = group.userData.model; if (m && ma) m.position.y = seatOf(JOB.mount)[0] + (ma.bob || 0); } // 坐騎跟著播站／走（跳／浮的人物一起動）
   };
   // 受傷無敵期間閃爍
   rig.blink = P => { const m = group.userData.model; if (m) m.visible = !(P.inv > 0 && Math.floor(P.inv * 20) % 2); };

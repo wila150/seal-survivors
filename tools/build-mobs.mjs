@@ -43,17 +43,19 @@ const kindOf = n => KIND.find(([, r]) => r.test(n))?.[0];
 
 const SND = path.join(client, 'sound'), sndIndex = new Map(fs.readdirSync(SND).map(f => [f.toLowerCase(), f]));
 fs.mkdirSync(path.join(ROOT, 'assets/sfx/mob'), { recursive: true });
-const mobSounds = {}; // 模型 → { f1 攻擊, dd 倒下, ms 受擊 } 原版音效
+// 模型 → { f1 攻擊, dd 倒下, ms 受擊 } 原版音效（只轉指定的幾隻時保留其他怪的紀錄，不然會被清掉）
+const mobSounds = want.length ? (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'assets/sfx/mob/index.json'), 'utf8')); } catch { return {}; } })() : {};
 const setsFile = path.join(ROOT, 'assets/anims/sets.json');
 const sets = JSON.parse(fs.readFileSync(setsFile, 'utf8'));
 const T = 160 * 30;
 let ok = 0;
 for (const model of (want.length ? want : usedModels())) {
-  const msF = find(model + '.ms1'), bnF = find(model + '.bn1');
+  // 坐騎（G_*04）：網格是 <名>04.ms1，骨架／動作用不帶數字的 <名>.bn1（例：G_Unicon04 → G_Unicon.bn1）
+  const msF = find(model + '.ms1'), bnF = find(model + '.bn1') || find(model.replace(/\d+$/, '') + '.bn1');
   if (!msF || !bnF) { console.log(`${model}：沒有骨架／模型，維持靜態`); continue; }
   const skel = parseBn1(fs.readFileSync(bnF)); const buf = fs.readFileSync(msF), ps = parseMs1(buf);
   // 動作檔：.act 清單＋同名開頭的 .an1
-  const base = model.replace(/_(stand|attack|walk|pi)$/i, '');
+  const base = model.replace(/\d+$/, '').replace(/_(stand|attack|walk|pi)$/i, '');
   const names = new Set();
   // .act：動作名後面的 [xxx] 是這個動作的音效（sound/xxx.wav），例：Tabyf1 [monster7001]
   const sndOf = {};
