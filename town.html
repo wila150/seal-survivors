@@ -217,7 +217,7 @@ async function refreshChar() {
   const c = await call('GET', '/api/char/' + CHAR.id); CHAR = c;
   try { sessionStorage.setItem('ss_char', JSON.stringify(c)); } catch {}
   $('#meName').textContent = (titleOf(c.title) ? `【${titleOf(c.title).name}】` : '') + c.name; $('#meJob').textContent = c.jobName || c.job;
-  $('#meLv').textContent = `Job ${c.jobLv}　經驗 ${c.exp} / ${c.need}`; $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
+  $('#meLv').textContent = `經驗 ${c.exp} / ${c.need}`; /* 11/19 使用者：大廳只顯示一個等級（Job 只在角色視窗／百業宗師看） */ $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
   $('#meExp').style.width = Math.min(100, c.exp / c.need * 100) + '%';
   showChar(c);
 }
@@ -228,7 +228,7 @@ function showChar(c) {
     const k2 = k + JSON.stringify(c.costume || {}); // 衣櫥時裝也算
     if (wearKey !== null && k2 !== wearKey && typeof loadPlayer === 'function') loadPlayer(); wearKey = k2; }
   $('#meGold').textContent = `💰 ${c.gold}` + (c.points ? `　素質點 ${c.points}` : '');
-  $('#meLv').textContent = `Job ${c.jobLv}　經驗 ${c.exp} / ${c.need}`; $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
+  $('#meLv').textContent = `經驗 ${c.exp} / ${c.need}`; /* 11/19 使用者：大廳只顯示一個等級（Job 只在角色視窗／百業宗師看） */ $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
 }
 // 模組裡有 top-level await（主城地圖），要等整個模組跑完才執行開場（不然 townMount 等變數還沒宣告，11/18 修）
 let moduleReady; const moduleDone = new Promise(r => moduleReady = r);
