@@ -190,7 +190,7 @@ import { openTalents } from './src/2_core/talent-ui.js';
 import { openGems } from './src/2_core/gem-ui.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
-import { PETS, PET_MAX, PET_MAX_LV, EGG_PRICE, FEED_EXP, petStage, petName, petNeed, petAtk, petBonusText } from './src/1_data/pets.js';
+import { PC_PETS, PET_MAX, PET_MAX_LV, EGGS, FAM_NAME, CAT_NAME, FEED_EXP, petName, petNeed, petStatText, petBonusText, evoTargets } from './src/1_data/pets.js';
 import * as PV2 from './src/1_data/pets.js';
 import { diffRows, DIFF_KEYS, DIFF_MAX, LV_MAX, cleanDiff, diffMods, diffLoot, lootBonus, legendRate, stageBaseLv, pcRef } from './src/1_data/difficulty.js';
 import { DECOMPOSE, DUST_PER_CRYSTAL } from './src/1_data/stones.js';
@@ -313,7 +313,7 @@ const NPCS = [
   { id: 'mount', name: '坐騎管理員', color: 0x8a6a3a, x: -7, z: 9, model: 'N_Kein_new_stand' },
   { id: 'auction', name: '拍賣商人', color: 0xb07cff, x: 7, z: 9, model: 'N_CandyLady' },
   { id: 'stylist', name: '造型師', color: 0xe86fa8, x: 13, z: 0, model: 'N_GirlB' },
-  { id: 'pet', name: '寵物飼育員', color: 0x8fd16a, x: -12, z: -9, model: 'N_petbreeder' }, // 項目 30
+  { id: 'pet', name: '寵物管理員', color: 0x8fd16a, x: -12, z: -9, model: 'N_petbreeder' }, // 項目 30
   { id: 'rebirth', name: '轉生師', color: 0x9b59b6, x: -6, z: -11, model: 'N_Ingzela_fw' }, // 項目 21
   { id: 'mail', name: '郵差', color: 0xd9a030, x: 6, z: -11, model: 'N_Hk' }, // 項目 20
   { id: 'zaro', name: '寶石收藏家 扎羅', color: 0xe0483c, x: 4, z: 3, model: 'N_Lseung' }, // 項目 28 鑲嵌石（PC：獅子城中央水池）
@@ -644,46 +644,51 @@ $('#tmmMap').onclick = openTownMap; $('#tmm').onclick = openTownMap;
 
 // ===== 項目 30：寵物飼育員（買蛋、出戰、餵食、改名）=====
 let petSel = null, petFeed = new Set(), petEvo = {}; // petEvo：進化要放的材料 { key: 數量 }
+// 寵物 v3（11/20 照 PC：服務端 item.txt 類別 22＋官方 wiki 49）：蛋在這裡買 → 放進裝備欄（出戰）才會長大 → 第 9 階段帶材料進化成同系列下一階
 function openPets() {
   const c = CHAR, pets = c.pets || [], p = pets.find(x => x.id === petSel) || pets.find(x => x.id === c.pet) || pets[0]; petSel = p?.id ?? null;
-  const hex = n => '#' + n.toString(16).padStart(6, '0');
-  const card = x => { const D = PETS[x.kind], on = x.id === c.pet; return `<div data-ps="${x.id}" style="cursor:pointer;flex:0 0 132px;background:#fff;border:2px solid ${x.id === petSel ? '#ff8a3d' : on ? '#e0a826' : '#c9d5f3'};border-radius:12px;padding:6px 8px;text-align:center">
-    <div style="font-size:26px;color:${hex(D.color)}">${['', '✦', '✶'][petStage(x.lv)] || ''}●</div><b style="font-size:13px">${esc(petName(x))}</b><br><small>Lv ${x.lv}・${D.name}${on ? '<br><b style="color:#c8901a">★ 出戰中</b>' : ''}</small></div>`; };
+  const D = p ? PC_PETS[p.pc] : null, ico = id => `<img src="assets/items/${PC_PETS[id]?.icon}.png" alt="" style="width:40px;height:40px;image-rendering:pixelated">`;
+  const card = x => { const on = x.id === c.pet, X = PC_PETS[x.pc]; return `<div data-ps="${x.id}" style="cursor:pointer;flex:0 0 112px;background:#fff;border:2px solid ${x.id === petSel ? '#ff8a3d' : on ? '#e0a826' : '#c9d5f3'};border-radius:12px;padding:6px 8px;text-align:center">
+    ${ico(x.pc)}<br><b style="font-size:13px">${esc(petName(x))}</b><br><small>${FAM_NAME[X?.fam] || ''}・第 ${PV2.petStage9(x.lv)} 階段${on ? '<br><b style="color:#c8901a">★ 裝備中</b>' : ''}</small></div>`; };
   const bag = (c.items || []).filter(i => !i.equipped), fexp = bag.filter(i => petFeed.has(i.id)).reduce((t, i) => t + Math.round(FEED_EXP[i.rarity] * (1 + 0.1 * (i.refine || 0))), 0);
-  const det = !p ? '<p>還沒有寵物。在下面挑一顆蛋吧！</p>' : (() => { const D = PETS[p.kind], A = petAtk(p);
-    return `<div style="background:#fff;border-radius:12px;padding:10px 12px;line-height:1.7"><b style="font-size:16px;color:${hex(D.color)}">${esc(petName(p))}</b>　<small>${D.name}・屬性 ${['無', '火', '水', '木', '金', '土', '光', '暗'][D.elem]}</small>
-      <div>第 <b>${PV2.petStage9(p.lv)}</b> / 9 階段　Lv ${p.lv}　${p.lv < PET_MAX_LV ? `經驗 ${p.exp} / ${petNeed(p.lv)}` : '（滿級）'}${p.evo ? `　<small>已進化 ${p.evo} 次${p.trait ? `・性格「${PV2.TRAITS[p.trait]?.name}」${p.perfect ? '（完美）' : ''}` : ''}</small>` : ''}</div>
+  const lvOk = D && (c.baseLv || 1) >= D.req, on = p && p.id === c.pet;
+  const det = !p ? '<p>還沒有寵物。在下面買一顆寵物蛋吧！</p>' : `<div style="background:#fff;border-radius:12px;padding:10px 12px;line-height:1.7">
+      <div style="display:flex;gap:10px;align-items:center">${ico(p.pc)}<div><b style="font-size:16px">${esc(petName(p))}</b>　<small>${D.name}・${FAM_NAME[D.fam]}・第 ${D.tier} 型・需求 Base Lv ${D.req}${lvOk ? '' : '<b style="color:#c0392b">（等級不夠）</b>'}</small><br><small>${esc(D.desc)}</small></div></div>
+      <div>第 <b>${PV2.petStage9(p.lv)}</b> / 9 階段　${p.lv < PET_MAX_LV ? `經驗 ${p.exp} / ${petNeed(p.lv, D.tier)}` : '（第 9 階段滿了）'}</div>
+      <div><small>能力（PC 原版）：${petStatText(p)} → 出征 ${petBonusText(p)}</small></div>
       <div style="display:flex;align-items:center;gap:8px"><small>飢餓</small><div style="flex:1;height:8px;border-radius:5px;background:#e6dccb;overflow:hidden"><i style="display:block;height:100%;width:${Math.round(p.hunger || 0)}%;background:${(p.hunger || 0) >= 100 ? '#e74c3c' : (p.hunger || 0) >= 70 ? '#f0a030' : '#5cb85c'}"></i></div><small>${Math.round(p.hunger || 0)}${(p.hunger || 0) >= 100 ? '（餓壞了！）' : ''}</small><button class="btn" id="petPlay" ${(p.hunger || 0) > 0 ? '' : 'disabled'}>遊戲</button></div>
-      <div><small>💬「我想吃<b>${PV2.WANT_NAMES[p.wants] || '什麼都好'}</b>！」（餵想吃的部位經驗 ×2）出征才會餓；餓到 100 不會長大還會掉經驗，剛出生的寵物會餓死。</small></div>
-      ${PV2.petStage9(p.lv) >= 9 ? `<div style="margin-top:6px;padding:6px 8px;border-radius:8px;background:#fff6e0"><b>進化</b>　${(p.s9 || 0) >= PV2.EVOLVE_SECS ? `可以進化了！選最多 10 個材料（材料種類決定性格）：<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${Object.keys(PV2.EVO_CAT).filter(k => c.mats?.[k] > 0).map(k => `<button class="btn" data-pevo="${k}">${ORES[k]?.name || k} ${petEvo[k] || 0}/${c.mats[k]}</button>`).join('') || '<small>沒有可以用的材料（礦石、寶石、粉末、卷軸、券…）</small>'}</div>${Object.keys(petEvo).length ? `<small>預測性格：${(r => r ? PV2.TRAITS[r.trait].name + (r.perfect ? '（完美）' : '') : '')(PV2.evolveResult(petEvo))}</small> <button class="btn primary" id="petEvolve">進化（${Object.values(petEvo).reduce((a, b) => a + b, 0)} 個材料）</button>` : ''}` : `<small>第 9 階段再出征 ${Math.ceil((PV2.EVOLVE_SECS - (p.s9 || 0)) / 60)} 分鐘就能進化</small>`}</div>` : ''}
-      <div><small>出征：每 ${A.cd.toFixed(1)} 秒攻擊最近的怪 ${Math.round(A.dmg)} 傷害（屬性相剋）・被動 ${petBonusText(p)}</small></div>
-      <div class="acts" style="margin-top:6px">${p.id === c.pet ? '<button class="btn" data-pa="">收回</button>' : '<button class="btn primary" data-pa="1">出戰</button>'}<button class="btn" id="petRename">改名</button>${p.id !== c.pet ? (p.sit ? `<button class="btn" data-psit="claim">領回代養（已 ${Math.min(24, (Date.now() - p.sit) / 3600e3).toFixed(1)} 小時，+${Math.floor(Math.min(24, (Date.now() - p.sit) / 3600e3) * 80)} 經驗）</button>` : '<button class="btn" data-psit="start">交給飼育員代養（每小時 +80 經驗）</button>') : ''}${pets.filter(x => x.id !== p.id && x.id !== c.pet && !x.sit).map(x => `<button class="btn" data-psm="${x.id}">冶煉 ⇦ ${esc(petName(x))} Lv${x.lv}（500 希幣）</button>`).join('')}</div>
-      <div style="margin-top:8px"><small><b>餵食</b>：點背包裡不要的裝備（品質越高經驗越多，餵了就沒了）</small></div>
+      <div><small>💬「我想吃<b>${PV2.WANT_NAMES[p.wants] || '什麼都好'}</b>！」（餵牠想吃的，成長 2 倍）放在裝備欄、出城才會長大和肚子餓；在村莊不長、不餓、不死。挨餓到經驗歸 0 會死掉（剛出生、剛進化的最容易）。</small></div>
+      ${D.tier >= 5 ? '<div><small>已經是最終型態</small></div>' : PV2.petStage9(p.lv) >= 9 ? `<div style="margin-top:6px;padding:6px 8px;border-radius:8px;background:#fff6e0"><b>進化</b>　可能變成：${evoTargets(p.pc).map(id => PC_PETS[id].name).join('、')}<br>${(p.s9 || 0) >= PV2.EVOLVE_SECS ? `選最多 10 個材料（材料越統一，越照方向進化）：<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${Object.keys(PV2.EVO_CAT).filter(k => c.mats?.[k] > 0).map(k => `<button class="btn" data-pevo="${k}">${ORES[k]?.name || k} ${petEvo[k] || 0}/${c.mats[k]}</button>`).join('') || '<small>沒有可以用的材料（礦石、寶石、粉末、卷軸、券…）</small>'}</div>${Object.keys(petEvo).length ? `<small>方向：${(r => r ? CAT_NAME[r.cat] + (r.perfect ? '（全部同一類，一定照方向）' : '') : '')(PV2.evolveResult(p.pc, petEvo, () => 0))}</small> <button class="btn primary" id="petEvolve">進化（${Object.values(petEvo).reduce((a, b) => a + b, 0)} 個材料）</button>` : ''}` : `<small>第 9 階段再出征 ${Math.ceil((PV2.EVOLVE_SECS - (p.s9 || 0)) / 60)} 分鐘就能進化</small>`}</div>` : ''}
+      <div class="acts" style="margin-top:6px">${on ? '<button class="btn" data-pa="">從裝備欄拿下</button>' : `<button class="btn primary" data-pa="1" ${lvOk ? '' : 'disabled'}>放進裝備欄</button>`}<button class="btn" id="petRename">改名</button>${!on ? (p.sit ? `<button class="btn" data-psit="claim">領回代養（已 ${Math.min(24, (Date.now() - p.sit) / 3600e3).toFixed(1)} 小時，+${Math.floor(Math.min(24, (Date.now() - p.sit) / 3600e3) * 80)} 經驗）</button>` : '<button class="btn" data-psit="start">交給管理員代養（每小時 +80 經驗）</button>') : ''}${pets.filter(x => x.id !== p.id && x.id !== c.pet && !x.sit).map(x => `<button class="btn" data-psm="${x.id}">冶煉 ⇦ ${esc(petName(x))}（500 希幣）</button>`).join('')}</div>
+      <div style="margin-top:8px"><small><b>餵食</b>：寵物什麼都能吃——點背包裡不要的裝備（品質越高經驗越多，餵了就沒了；沒放在裝備欄的寵物吃了只會不餓、不會長大）</small></div>
       <div class="bag">${bag.map(i => `<div class="cell ${petFeed.has(i.id) ? 'sel' : ''}" data-pf="${i.id}" style="border-color:${RARITY[i.rarity].color}"><img src="${itemIcon(i)}" alt="">${i.refine ? `<b>+${i.refine}</b>` : ''}</div>`).join('') || '<small style="grid-column:1/-1">背包沒有可以餵的裝備</small>'}</div>
-      <button class="btn" id="petFeedAuto">一鍵挑選非本職業</button> <button class="btn primary" id="petFeedGo" ${petFeed.size ? '' : 'disabled'}>餵 ${petFeed.size} 件（+${fexp} 經驗）</button></div>`; })();
-  const html = `<p>「寵物陪你出征才會長大，也會肚子餓——記得餵牠或陪牠玩。長到第 9 階段，再出征一陣子，就可以拿材料來找我進化，材料不同、性格也不同喔。」</p>
-    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">${pets.map(card).join('')}</div>${p ? (() => { const D = PETS[p.kind], st9 = PV2.petStage9(p.lv), pct = p.lv < PET_MAX_LV ? Math.round(p.exp / petNeed(p.lv) * 100) : 100;
+      <button class="btn" id="petFeedAuto">一鍵挑選非本職業</button> <button class="btn primary" id="petFeedGo" ${petFeed.size ? '' : 'disabled'}>餵 ${petFeed.size} 件（+${fexp} 經驗）</button></div>`;
+  const html = `<p>「想養寵物就先買一顆寵物蛋。寵物要放進裝備欄、跟你出城才會長大，也會肚子餓——記得餵牠或陪牠玩。長到第 9 階段再出征一陣子，就可以拿材料來找我進化，材料不同、進化成的寵物也不同喔。」</p>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">${pets.map(card).join('')}</div>${p ? (() => { const st9 = PV2.petStage9(p.lv), pct = p.lv < PET_MAX_LV ? Math.round(p.exp / petNeed(p.lv, D.tier) * 100) : 100;
       // PC 原版 PET EAT 蛋形視窗（interface/mainblue_item_fat_eat.tex）：名字＋成長條、想吃的東西、飢餓（紅色尾巴條）、餵食／玩遊戲
       return `<div class="peteat"><div class="pe-name">${esc(petName(p))} [${pct}%]<span class="pe-lev" style="width:${Math.round(st9 / 9 * 100)}%"></span></div>
         <div class="pe-say">今天我想吃 [${PV2.WANT_NAMES[p.wants] || '什麼都好'}]<br>～快點給我吃吧，不然我會餓昏喔！</div>
         <div class="pe-item">${petFeed.size ? `<b>${petFeed.size}</b>` : ''}</div><div class="pe-hunger"><span style="width:${Math.round(p.hunger || 0)}%"></span></div>
-        <button class="pe-feed" title="餵食（下面挑裝備）" ${petFeed.size ? '' : 'disabled'} onclick="document.getElementById('petFeedGo')?.click()"></button><button class="pe-play" title="玩遊戲（不餓但不會長大）" onclick="document.getElementById('petPlay')?.click()"></button></div>`; })() : ''}${det}
-    <div class="sec" style="margin-top:10px"><b>買寵物蛋</b>　<small>每顆 ${EGG_PRICE} 金幣・最多 ${PET_MAX} 隻・打倒 MVP 也有機會撿到</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${Object.entries(PETS).map(([k, D]) => `<button class="btn" data-pb="${k}" ${c.gold < EGG_PRICE || pets.length >= PET_MAX ? 'disabled' : ''}><span style="color:${hex(D.color)}">●</span> ${D.name}</button>`).join('')}</div></div>`;
-  openDlg('寵物飼育員', html, [], true);
+        <button class="pe-feed" title="餵食（下面挑裝備）" ${petFeed.size ? '' : 'disabled'} onclick="document.getElementById('petFeedGo')?.click()"></button><button class="pe-play" title="遊戲（不餓但不會長大）" onclick="document.getElementById('petPlay')?.click()"></button></div>`; })() : ''}${det}
+    <div class="sec" style="margin-top:10px"><b>寵物蛋</b>　<small>最多 ${PET_MAX} 隻・高等級的寵物要角色等級夠才能養</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${EGGS.map(E => { const X = PC_PETS[E.id]; return `<button class="btn" data-pb="${E.id}" ${c.gold < E.price || pets.length >= PET_MAX ? 'disabled' : ''} style="display:flex;align-items:center;gap:6px">${ico(E.id)}<span style="text-align:left">${X.name}<br><small>${FAM_NAME[X.fam]}・${E.price} 希幣・Lv ${X.req}</small></span></button>`; }).join('')}</div></div>`;
+  openDlg('寵物管理員', html, [], true);
   const b = $('#dlgBody'), done = (c2, m) => { showChar(c2); refreshChar(); if (m) toast(m); openPets(); };
-  b.querySelectorAll('[data-ps]').forEach(x => x.onclick = () => { petSel = +x.dataset.ps; petFeed.clear(); openPets(); });
-  b.querySelectorAll('[data-pb]').forEach(x => x.onclick = async () => { try { const c2 = await call('POST', '/api/petbuy', { charId: c.id, kind: x.dataset.pb }); petSel = c2.pets.at(-1).id; done(c2, `孵出了 ${PETS[x.dataset.pb].name}！`); } catch (e) { toast(e.message); } });
-  b.querySelectorAll('[data-pa]').forEach(x => x.onclick = async () => { try { done(await call('POST', '/api/petactive', { charId: c.id, petId: x.dataset.pa ? p.id : null }), x.dataset.pa ? '出戰！下次出征會跟著你' : '收回了'); } catch (e) { toast(e.message); } });
+  b.querySelectorAll('[data-ps]').forEach(x => x.onclick = () => { petSel = +x.dataset.ps; petFeed.clear(); petEvo = {}; openPets(); });
+  b.querySelectorAll('[data-pb]').forEach(x => x.onclick = async () => { const X = PC_PETS[+x.dataset.pb]; try { const c2 = await call('POST', '/api/petbuy', { charId: c.id, egg: +x.dataset.pb }); petSel = c2.pets.at(-1).id; done(c2, `買到 ${X.name}！放進裝備欄、出城就會開始長大`); } catch (e) { toast(e.message); } });
+  b.querySelectorAll('[data-pa]').forEach(x => x.onclick = async () => {
+    const cur = pets.find(q => q.id === c.pet), willReset = cur && (!x.dataset.pa || cur.id !== p.id) && (cur.lv > 1 || cur.exp > 0);
+    if (willReset && !(await askConfirm(`把「${petName(cur)}」從裝備欄拿下來？\n照 PC：拿下來的寵物不會死也不會長，但餵食得到的經驗會全部歸回最初（回到第 1 階段）。`, { ok: '拿下來', danger: true }))) return;
+    try { done(await call('POST', '/api/petactive', { charId: c.id, petId: x.dataset.pa ? p.id : null }), x.dataset.pa ? '放進裝備欄了！出城就會開始長大' : '拿下來了'); } catch (e) { toast(e.message); } });
   b.querySelectorAll('[data-pf]').forEach(x => x.onclick = () => { const id = +x.dataset.pf; petFeed.has(id) ? petFeed.delete(id) : petFeed.add(id); openPets(); });
-  b.querySelectorAll('[data-psit]').forEach(x => x.onclick = async () => { try { const r = await call('POST', '/api/petsit', { charId: c.id, petId: p.id, op: x.dataset.psit }); showChar(r.char); toast(x.dataset.psit === 'start' ? '交給飼育員代養了' : `代養結束：+${r.exp} 經驗${r.ups ? `，升了 ${r.ups} 級` : ''}`); openPets(); } catch (e) { toast(e.message); } }); // 指令 4-2 代養
+  b.querySelectorAll('[data-psit]').forEach(x => x.onclick = async () => { try { const r = await call('POST', '/api/petsit', { charId: c.id, petId: p.id, op: x.dataset.psit }); showChar(r.char); toast(x.dataset.psit === 'start' ? '交給管理員代養了' : `代養結束：+${r.exp} 經驗${r.ups ? `，升了 ${r.ups} 級` : ''}`); openPets(); } catch (e) { toast(e.message); } });
   b.querySelectorAll('[data-psm]').forEach(x => x.onclick = async () => { const f = pets.find(q => q.id === +x.dataset.psm); if (!(await askConfirm(`把「${petName(f)}」冶煉進「${petName(p)}」？\n${petName(f)} 會消失，${petName(p)} 得到牠 60% 的經驗。`, { ok: '冶煉', danger: true }))) return;
-    try { const r = await call('POST', '/api/petsmelt', { charId: c.id, petId: p.id, fromId: f.id }); showChar(r.char); toast(`冶煉成功：+${r.exp} 經驗${r.ups ? `，升了 ${r.ups} 級` : ''}`); openPets(); } catch (e) { toast(e.message); } }); // 指令 4-2 冶煉
-  $('#petPlay')?.addEventListener('click', async () => { try { showChar(await call('POST', '/api/petplay', { charId: c.id, petId: p.id })); toast('陪寵物玩了一下，牠比較不餓了'); openPets(); } catch (e) { toast(e.message); } }); // 寵物 v2
+    try { const r = await call('POST', '/api/petsmelt', { charId: c.id, petId: p.id, fromId: f.id }); showChar(r.char); toast(`冶煉成功：+${r.exp} 經驗${r.ups ? `，升了 ${r.ups} 級` : ''}`); openPets(); } catch (e) { toast(e.message); } });
+  $('#petPlay')?.addEventListener('click', async () => { try { showChar(await call('POST', '/api/petplay', { charId: c.id, petId: p.id })); toast('陪寵物玩了一下，牠忘記肚子餓了'); openPets(); } catch (e) { toast(e.message); } });
   b.querySelectorAll('[data-pevo]').forEach(x => x.onclick = () => { const k = x.dataset.pevo, tot = Object.values(petEvo).reduce((a, b2) => a + b2, 0); if ((petEvo[k] || 0) >= (c.mats[k] || 0) || tot >= 10) { delete petEvo[k]; } else petEvo[k] = (petEvo[k] || 0) + 1; openPets(); });
-  $('#petEvolve')?.addEventListener('click', async () => { if (!(await askConfirm('進化後寵物回到 Lv1（加成變強），材料會用掉，確定？', { ok: '進化' }))) return; try { const r = await call('POST', '/api/petevolve', { charId: c.id, petId: p.id, mats: petEvo }); petEvo = {}; showChar(r.char); toast(`進化成功！性格「${r.trait}」${r.perfect ? '（完美）' : ''}`); openPets(); } catch (e) { toast(e.message); } });
-  $('#petFeedAuto')?.addEventListener('click', () => { const pick = (c.items || []).filter(i => !i.equipped && !i.locked && offJob(i, c.job)); if (!pick.length) return toast('背包沒有非本職業的裝備（鎖定的不算）'); petFeed = new Set(pick.map(i => i.id)); openPets(); }); // 項目 50
+  $('#petEvolve')?.addEventListener('click', async () => { if (!(await askConfirm('進化後回到第 1 階段，材料會用掉，確定？', { ok: '進化' }))) return; try { const r = await call('POST', '/api/petevolve', { charId: c.id, petId: p.id, mats: petEvo }); petEvo = {}; showChar(r.char); toast(`進化成功！${r.from} → ${r.to}`); openPets(); } catch (e) { toast(e.message); } });
+  $('#petFeedAuto')?.addEventListener('click', () => { const pick = (c.items || []).filter(i => !i.equipped && !i.locked && offJob(i, c.job)); if (!pick.length) return toast('背包沒有非本職業的裝備（鎖定的不算）'); petFeed = new Set(pick.map(i => i.id)); openPets(); });
   $('#petFeedGo')?.addEventListener('click', async () => { if (!(await askConfirm(`把 ${petFeed.size} 件裝備餵給${petName(p)}？餵了就沒了。`))) return;
-    try { const r = await call('POST', '/api/petfeed', { charId: c.id, petId: p.id, itemIds: [...petFeed] }); petFeed.clear(); done(r.char, `+${r.exp} 經驗${r.ups ? `，升到 Lv ${r.pet.lv}！` : ''}`); } catch (e) { toast(e.message); } });
+    try { const r = await call('POST', '/api/petfeed', { charId: c.id, petId: p.id, itemIds: [...petFeed] }); petFeed.clear(); done(r.char, r.exp ? `+${r.exp} 經驗${r.ups ? `，長到第 ${PV2.petStage9(r.pet.lv)} 階段！` : ''}` : '吃飽了（沒放在裝備欄不會長大）'); } catch (e) { toast(e.message); } });
   $('#petRename')?.addEventListener('click', async () => { const n = await askText('寵物的新名字（1～8 個字，空白＝原名）', p.name || '', { max: 8 }); if (n == null) return;
     try { done(await call('POST', '/api/petname', { charId: c.id, petId: p.id, name: n }), '改好了'); } catch (e) { toast(e.message); } });
 }
@@ -1317,7 +1322,7 @@ function openCharInfo() {
   // PC 飾品照服務端第 70 欄拆成 頭飾／耳環／項鍊／手鐲／戒指＋一般飾品（翅膀、拳套…）；PC 沒有獨立的手套、披風格（拳套算飾品、斗篷算上衣）
   const grid = [slot('deco', '頭飾'), slot('head', '頭部'), slot('earring', '耳環'), slot('neck', '項鍊'),
     slot('weapon', '武器'), slot('top', '上衣'), c.job === '騎士' ? slot('shield', '盾牌') : lock('', '盾牌'), slot('acc', '飾品'),
-    slot('bracelet', '手鐲'), slot('bottom', '下衣'), slot('ring', '戒指'), other('寵物', pet ? `<span class="pet" style="color:${hex(PETS[pet.kind]?.color)}">●</span>` : '', pet ? `寵物：${esc(petName(pet))} Lv${pet.lv}` : '沒有出戰的寵物'),
+    slot('bracelet', '手鐲'), slot('bottom', '下衣'), slot('ring', '戒指'), other('寵物', pet && PC_PETS[pet.pc] ? `<img src="assets/items/${PC_PETS[pet.pc].icon}.png" alt="" style="width:32px;height:32px;image-rendering:pixelated">` : '', pet ? `寵物：${esc(petName(pet))}（第 ${PV2.petStage9(pet.lv)} 階段）` : '沒有放進裝備欄的寵物'),
     other('坐騎', mountOn ? '<span class="pet">🐎</span>' : '', mountOn ? `坐騎：${MOUNT_NAMES[JOBS[c.job]?.mount] || ''}` : '沒有租坐騎'), slot('shoes', '鞋子'), lock('', '—'), lock('', '—')].join('');
   const face = $('#faceImg')?.src || '', img = (u, cls) => u ? `<img class="${cls}" src="${u}" alt="">` : '';
   const cos = [other('髮型', img(face, 'shot') || `<b style="font-size:15px">${(c.hair ?? 0) + 1}</b>`, `髮型 ${(c.hair ?? 0) + 1}（找造型師可以改）`), other('髮色', `<span class="sw" style="background:${HAIR_COLORS[c.hairColor ?? 0]?.hex != null ? hex(HAIR_COLORS[c.hairColor ?? 0].hex) : 'linear-gradient(135deg,#d9b48a,#7a5230)'}"></span>`, '髮色'),
