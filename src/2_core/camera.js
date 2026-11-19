@@ -5,12 +5,15 @@ export function createCamera() { return new THREE.PerspectiveCamera(45, 1, 0.1, 
 
 export function fitCamera(camera, w, h) { camera.aspect = w / h; camera.updateProjectionMatrix(); }
 
-// 視角：V 鍵或按鈕切換（斜角 → 遠景 → 3D 低角度），滑鼠滾輪縮放
-export const VIEWS = [{ name: '斜角', h: 20, back: 13 }, { name: '遠景', h: 32, back: 10 }, { name: '3D', h: 7.5, back: 13 }];
+// 視角：V 鍵或按鈕切換（斜角 ↔ 背後），滑鼠滾輪連續縮放（11/20 使用者「照建議做」：照 PC——鏡頭跟在角色背後、滾輪拉遠拉近、右鍵轉；
+// 拿掉固定的「遠景」檔，想看遠一點用滾輪拉到最遠就有（範圍放大到 0.5～2.2），縮放會記住）
+export const VIEWS = [{ name: '斜角', h: 18, back: 14 }, { name: '背後（PC）', h: 7.5, back: 13 }];
 export const view = { i: 0, zoom: 1, yaw: 0, pitch: 1 }; // pitch：鏡頭高度倍率（右鍵上下拖）
-export function cycleView() { view.i = (view.i + 1) % VIEWS.length; try { localStorage.setItem('ss_view', view.i); } catch {} return VIEWS[view.i].name; }
-try { view.i = +(localStorage.getItem('ss_view') || 0) % VIEWS.length; } catch {}
-addEventListener('wheel', e => { view.zoom = Math.min(1.8, Math.max(0.5, view.zoom * (e.deltaY > 0 ? 1.08 : 0.93))); }, { passive: true });
+export function cycleView() { view.i = (view.i + 1) % VIEWS.length; try { localStorage.setItem('ss_view2', view.i); } catch {} return VIEWS[view.i].name; }
+try { const o = localStorage.getItem('ss_view2') ?? (localStorage.getItem('ss_view') === '2' ? '1' : '0'); view.i = +o % VIEWS.length; view.zoom = Math.min(2.2, Math.max(0.5, +(localStorage.getItem('ss_zoom') || 1) || 1)); } catch {}
+let zSave = 0;
+addEventListener('wheel', e => { if (e.target.closest?.('.win,.panel,#levelup,[data-scroll]')) return; view.zoom = Math.min(2.2, Math.max(0.5, view.zoom * (e.deltaY > 0 ? 1.08 : 0.93)));
+  clearTimeout(zSave); zSave = setTimeout(() => { try { localStorage.setItem('ss_zoom', view.zoom.toFixed(2)); } catch {} }, 400); }, { passive: true });
 // 滑鼠右鍵按住拖曳＝轉視角（左鍵是移動）
 // 右鍵（或中鍵）按住：左右拖＝轉向、上下拖＝俯角；Q／E 鍵也能轉。用 mouse 事件＋window 監聽，游標拖出畫面或放在介面上也不會斷
 export function enableOrbit(dom) {
@@ -31,7 +34,7 @@ export function enableOrbit(dom) {
 const cam = { h: null, back: null, look: 0 }; // 11/20 切換視角改成平滑過渡（約 0.4 秒），不再瞬間跳
 export function followCamera(camera, pp, fx, groundY = 0) {
   const portrait = innerHeight > innerWidth, V = VIEWS[view.i], z = view.zoom;
-  const th = (portrait && view.i === 0 ? 30 : V.h) * z, tb = (portrait && view.i === 0 ? 12 : V.back) * z, tl = view.i === 2 ? 1.2 : 0;
+  const th = (portrait && view.i === 0 ? 30 : V.h) * z, tb = (portrait && view.i === 0 ? 12 : V.back) * z, tl = view.i === 1 ? 1.2 : 0;
   const now = performance.now(), dt = Math.min(0.1, (now - (cam.t || now)) / 1000); cam.t = now; const k = cam.h == null ? 1 : 1 - Math.exp(-dt * 8);
   cam.h = cam.h == null ? th : cam.h + (th - cam.h) * k; cam.back = cam.back == null ? tb : cam.back + (tb - cam.back) * k; cam.look += (tl - cam.look) * k;
   const h = cam.h, back = cam.back;
