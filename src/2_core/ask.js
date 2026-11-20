@@ -12,11 +12,11 @@ const CSS = `#ssAsk{position:fixed;inset:0;width:100%;height:100%;max-width:none
 #ssAsk button{flex:1;font:inherit;font-weight:700;font-size:15px;padding:10px;border-radius:10px;border:1px solid #9db4ee;background:linear-gradient(#fff,#e6ecfa);color:#26324d;cursor:pointer}
 #ssAsk button.ok{background:linear-gradient(#7f9ff0,#3a5bbf);color:#fff;border-color:#3a5bbf}
 #ssAsk button.ok.danger{background:linear-gradient(#f7a4a4,#e06666);border-color:#c94f4f}`;
-function open(msg, { ok = '確定', cancel = '取消', danger = false, title = '確認', input = null, max = 40 } = {}) {
+function open(msg, { ok = '確定', cancel = '取消', danger = false, title = '確認', input = null, max = 40, password = false } = {}) {
   if (!document.getElementById('ssAskCss')) { const st = document.createElement('style'); st.id = 'ssAskCss'; st.textContent = CSS; document.head.appendChild(st); }
   document.getElementById('ssAsk')?.remove();
   const el = document.createElement('dialog'); el.id = 'ssAsk';
-  el.innerHTML = `<div class="box"><header>${title}</header><div class="msg"></div>${input != null ? `<input maxlength="${max}">` : ''}<div class="row"><button type="button" class="ok${danger ? ' danger' : ''}">${ok}</button><button type="button" class="no">${cancel}</button></div></div>`;
+  el.innerHTML = `<div class="box"><header>${title}</header><div class="msg"></div>${input != null ? `<input maxlength="${max}"${password ? ' type="password" autocomplete="new-password"' : ''}>` : ''}<div class="row"><button type="button" class="ok${danger ? ' danger' : ''}">${ok}</button><button type="button" class="no">${cancel}</button></div></div>`;
   el.querySelector('.msg').textContent = msg;
   const inp = el.querySelector('input'); if (inp) inp.value = input;
   document.body.appendChild(el); el.showModal(); (inp || el.querySelector('.ok')).focus();

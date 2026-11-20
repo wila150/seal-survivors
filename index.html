@@ -166,6 +166,7 @@
       <label id="pass2Row" class="hide">再輸入一次密碼<input id="pass2" type="password" autocomplete="new-password" maxlength="64"></label>
       <div class="err" id="authErr"></div>
       <button class="btn primary" id="authBtn">登入</button>
+      <p class="pwhint" id="pwHint"><small>忘記密碼？沒有綁信箱，請聯絡 GM 幫你重設（GM 指令 /resetpw）。登入後可以在選角畫面按「改密碼」。</small></p>
       <ul class="tips">
         <li><img src="assets/items/117.png" alt="">選一個職業，出征割草、升級、轉職</li>
         <li><img src="assets/items/2313.png" alt="">角色、裝備、金幣都會存起來</li>
@@ -184,6 +185,7 @@
       <div class="bar">
         <button class="btn" id="delBtn" disabled>刪除</button>
         <button class="btn" id="logoutBtn">登出</button>
+        <button class="btn" id="pwBtn">改密碼</button>
         <span class="grow"></span>
         <button class="btn" id="newBtn" disabled>建立</button>
         <button class="btn primary" id="playBtn" disabled>開始遊戲</button>
@@ -381,6 +383,14 @@ async function logout() {
   show('auth');
 }
 $('#logoutBtn').onclick = logout;
+// 11/20 使用者：「忘記密碼怎麼辦」→ 登入後自己改（要舊密碼）；忘記的話 GM 用 /resetpw 重設
+$('#pwBtn').onclick = async () => {
+  const old = await askText('輸入目前的密碼', '', { title: '改密碼', password: true, max: 64 }); if (old == null) return;
+  const pw = await askText('新密碼（6～64 個字）', '', { title: '改密碼', password: true, max: 64 }); if (pw == null) return;
+  const pw2 = await askText('再輸入一次新密碼', '', { title: '改密碼', password: true, max: 64 }); if (pw2 == null) return;
+  if (pw !== pw2) return toast('兩次新密碼不一樣');
+  try { await call('POST', '/api/passwd', { old, pw }); toast('密碼已更新（其他裝置會被登出）'); } catch (e) { toast(e.message); }
+};
 
 // ===== 角色欄位：15 格角色卡（大頭照／名字／職業／Lv）=====
 async function loadChars() {

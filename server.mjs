@@ -959,6 +959,14 @@ const api = {
   },
   // ===== GM 指令（本機連線，或 GM 帳號：環境變數 GM_USERS＝逗號分隔的帳號；雲端在 cloud/wrangler.toml 的 [vars]）=====
   'GET /api/gm': async (req, res, _, uid) => send(res, 200, { gm: isGm(req, uid) }),
+  'POST /api/passwd': async (req, res, _, uid) => { // 登入後自己改密碼（要舊密碼）；其他裝置的登入會被登出
+    const { old = '', pw = '' } = await body(req); const a = db.prepare('SELECT pass FROM accounts WHERE id=?').get(uid);
+    if (!a || !verify(old, a.pass)) return send(res, 400, { error: '舊密碼不對' });
+    if (pw.length < 6 || pw.length > 64) return send(res, 400, { error: '新密碼要 6～64 個字' });
+    const t = (req.headers.authorization || '').replace('Bearer ', '');
+    db.prepare('UPDATE accounts SET pass=? WHERE id=?').run(hash(pw), uid); db.prepare('DELETE FROM sessions WHERE account_id=? AND token<>?').run(uid, t);
+    send(res, 200, { ok: true });
+  },
   'POST /api/gm': async (req, res, _, uid) => {
     if (!isGm(req, uid)) return send(res, 403, { error: 'GM 指令只限本機或 GM 帳號' });
     const { charId, line } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
@@ -971,6 +979,10 @@ const api = {
         case 'lv': { const v = int(0, 1, 99); db.prepare('UPDATE characters SET base_lv=?, exp=0 WHERE id=?').run(v, c.id); { const sh = pointsShould(v, d); if (sh > (d.points || 0)) { d.points = sh; saveD(); } } msg = `Base Lv → ${v}`; break; }
         case 'bpet': { const b = (d.bpets || []).find(x => x.id === d.bpet) || (d.bpets || [])[0]; if (!b) throw new Error('沒有戰寵'); b.lv = int(0, 1, 100); b.exp = 0; if (args[1] && args[1] !== '-') b.grade = String(args[1]).toUpperCase(); if (args[2] != null) { b.loyal = Math.max(0, +args[2] || 0); b.close = 100; } saveD(); msg = `戰寵 Lv → ${b.lv}${b.grade ? ' ' + b.grade : ''}${args[2] != null ? `・忠誠度 ${b.loyal}` : ''}`; break; } // 戰寵等級（測試用）：bpet <等級> [GRADE 或 -] [忠誠度]
         case 'job': { const max = jobMaxOf(d), v = int(0, 1, max); d.jobExp = 0; saveD(); db.prepare('UPDATE characters SET job_lv=? WHERE id=?').run(v, c.id); msg = `Job Lv → ${v}`; break; }
+        case 'resetpw': { // 11/20 使用者：「忘記密碼怎麼辦」→ 沒有信箱，GM 幫忙重設；舊的登入全部登出
+          const [u, pw] = args; const acc = u && db.prepare('SELECT id FROM accounts WHERE username=?').get(u); if (!acc) throw new Error('找不到這個帳號');
+          if (!pw || pw.length < 6 || pw.length > 64) throw new Error('新密碼要 6～64 個字');
+          db.prepare('UPDATE accounts SET pass=? WHERE id=?').run(hash(pw), acc.id); db.prepare('DELETE FROM sessions WHERE account_id=?').run(acc.id); msg = `帳號 ${u} 的密碼已重設`; break; }
         case 'gold': { const v = int(0, -1e9, 1e9); db.prepare('UPDATE characters SET gold=MAX(0, gold+?) WHERE id=?').run(v, c.id); msg = `金幣 ${v >= 0 ? '+' : ''}${v}`; break; }
         case 'points': { const v = int(0, -999, 999); d.points = Math.max(0, (d.points || 0) + v); saveD(); msg = `素質點 → ${d.points}`; break; }
         case 'job2': { const b = (args[0] || '').toUpperCase();
