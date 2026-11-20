@@ -124,7 +124,7 @@ export function createBossSystem(ctx) {
         spawnFx('hammer', c, { scale: ai.R * 2.2, life: 0.5, grow: 1.5, color: 0xff8040, y: 1 });
         spawnFx('shock', c, { flat: true, scale: ai.R * 2.6, life: 0.5, grow: 1.3, color: 0xff4020 });
         play('boom', 0.9, 0); fx.shake = 0.9;
-        if (Math.hypot(pp.x - c.x, pp.z - c.z) < ai.R) hitPlayer(e.dmg * 1.3);
+        { const me = ctx.player.position; if (Math.hypot(me.x - c.x, me.z - c.z) < ai.R) hitPlayer(e.dmg * 1.3); ctx.onAoe?.(c.x, c.z, ai.R, e.dmg * 1.3); } // 傷害照自己的位置判定（組隊時 pp 可能是別的隊員）；組隊：同步給隊員
         dropTele(ai.tA); dropTele(ai.tB); ai.st = 'chase'; ai.cd = 2.6;
       }
     } else if (ai.st === 'chargeTele') {
@@ -141,14 +141,16 @@ export function createBossSystem(ctx) {
         ai.waves--; ai.wt = 0.35; const n = ai.enraged ? 18 : 14, off = Math.random() * Math.PI;
         for (let i = 0; i < n; i++) {
           const a = off + i * Math.PI * 2 / n, m = new THREE.Sprite(addMat(tex.fireball, 0xc040ff)); m.scale.setScalar(1.1);
-          m.position.set(p.x, 1, p.z); scene.add(m); eShots.push({ mesh: m, vx: Math.cos(a) * 8, vz: Math.sin(a) * 8, life: 3.5, dmg: e.dmg * 0.6 });
+          m.position.set(p.x, 1, p.z); scene.add(m); eShots.push({ mesh: m, vx: Math.cos(a) * 8, vz: Math.sin(a) * 8, life: 3.5, dmg: e.dmg * 0.6 }); ctx.onShot?.(p.x, p.z, Math.cos(a) * 8, Math.sin(a) * 8, e.dmg * 0.6);
         }
         play('zap', 0.4, 0);
       }
       if (ai.tm <= 0 && ai.waves <= 0) { ai.st = 'chase'; ai.cd = 2.2; }
     }
-    if (d < e.r + 0.5) hitPlayer(e.dmg);
+    { const me = ctx.player.position; if (Math.hypot(me.x - p.x, me.z - p.z) < e.r + 0.5) hitPlayer(e.dmg); } // 碰到自己才受傷（組隊時首領可能在追別人）
   }
+  // 組隊隊員：隊長那邊首領放的彈幕，在自己畫面上也生一份（會打到自己）
+  function addShot(x, z, vx, vz, dmg) { const m = new THREE.Sprite(addMat(tex.fireball, 0xc040ff)); m.scale.setScalar(1.1); m.position.set(x, 1, z); scene.add(m); eShots.push({ mesh: m, vx, vz, life: 3.5, dmg }); }
 
   function updateShots(dt) {
     const pp = ctx.player.position;
@@ -174,7 +176,7 @@ export function createBossSystem(ctx) {
     for (const m of [...teles]) dropTele(m);
   }
 
-  return { fx, eShots, teles, enter, think, updateShots, death, clear };
+  return { fx, eShots, teles, enter, think, updateShots, death, clear, addShot };
 }
 
 // ===== 結算：只在局末送一次，伺服器自己擲裝備、算經驗與金幣（防作弊）=====

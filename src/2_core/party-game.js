@@ -77,6 +77,8 @@ export function createPartyGame(G) {
       case 'kill': { if (host) break; const e = byNid.get(d.id); byNid.delete(d.id); G.guestKill(e, d, d.by === me); break; }
       case 'pick': { if (!G.removeGem(d.gid)) break; const P = G.P(); if (!P.down && !P.dead) { const x = NET.share(d.xp, false); if (x > 0) G.gainXp(x); } break; }
       case 'rev': if (d.to === me) revived(); break;
+      case 'aoe': { if (host) break; const P = G.P(), pp = G.player.position; G.spawnFx?.('shock', { x: d.x, z: d.z }, { flat: true, scale: d.r * 2.6, life: 0.5, grow: 1.3, color: 0xff4020 }); if (!P.down && !P.dead && Math.hypot(pp.x - d.x, pp.z - d.z) < d.r) G.hitPlayer(d.dmg); break; }
+      case 'shot': if (!host) G.BS?.addShot(d.x, d.z, d.vx, d.vz, d.dmg); break;
       case 'sw': { const r = NET.remotes.get(from); const A = r?.g?.userData.actor; if (A && !r.down && !r.dead) { if (d.f != null && !r.mv) r.ry = -d.f + Math.PI / 2; A.attack(1.6, d.m); } break; }
       case 'end': if (!NET.over) { NET.end(!!d?.win); G.gameOver(!!d?.win, false, d?.reason === 'leader' ? '隊長離開了，這局結束' : null); } break;
       case 'drop': { const r = NET.remotes.get(from); if (r) r.gone = true; break; }
@@ -128,6 +130,8 @@ export function createPartyGame(G) {
       r.el.classList.toggle('down', r.down || r.dead);
     }
   };
+  NET.aoe = (x, z, r, dmg) => send('aoe', { x: +x.toFixed(2), z: +z.toFixed(2), r, dmg: Math.round(dmg) });
+  NET.shot = (x, z, vx, vz, dmg) => send('shot', { x: +x.toFixed(2), z: +z.toFixed(2), vx: +vx.toFixed(2), vz: +vz.toFixed(2), dmg: Math.round(dmg) });
   NET.conn = conn; NET._THREE = G.THREE;
   // 隊友攻擊動作：自己出招（rig.swing）就廣播，最多每 0.25 秒一次；對方畫面上的隊友播同一個原版動作
   if (G.rig) { const sw = G.rig.swing; let lastSw = 0; G.rig.swing = (face, motion = null) => { sw(face, motion); const now = performance.now(); if (now - lastSw > 250) { lastSw = now; send('sw', { f: face == null ? null : +face.toFixed(2), m: motion }); } }; }
