@@ -27,6 +27,7 @@ import { createInput, createPlayer, magnetGems } from './src/2_core/player.js';
 import { BOSS_TITLES, createSpawner, createBossSystem, submitRun } from './src/2_core/game-manager.js';
 import { createWatchdog } from './src/4_diagnostics/watchdog.js';
 import { createPartyGame } from './src/2_core/party-game.js';
+import { partyBuffs } from './src/1_data/party-buff.js'; // 組隊 BUFF（PC：依職業給全隊增益）
 import { loadSealMap, buildSealMap, liftScene, zoneAt, zoneName, walkMove, drawSealMinimap, addWalkSurfaces } from './src/2_core/seal-map.js';
 const SKD = await loadSkills();
 // 項目 26：局外天賦（主城天賦樹點的）→ 開局套到 P 與技能
@@ -546,6 +547,7 @@ function reset() {
   // 賢者之塔艾希頓套裝加成（2／4 件）
   { const sb = setBonus(CHAR.items); P.might *= 1 + (sb.atk || 0); P.crit += sb.crit || 0; P.dr = Math.min(0.5, (P.dr || 0) + (sb.dmgDown || 0)); if (sb.hp) { P.maxHp = Math.round(P.maxHp * (1 + sb.hp)); P.hp = P.maxHp; } }
   if (TOWER && TSET?.penalty) P.might *= 0.85; // 戰鬥力未達建議值：懲罰
+  P.pbuffs = NET ? partyBuffs(NET.jobs) : []; for (const b of P.pbuffs) b.apply(P, b.k); // 組隊 BUFF（src/1_data/party-buff.js）
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
   chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; winAt = null; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
@@ -653,7 +655,7 @@ function guestKill(e, d, mine) { // 隊員：隊長說這隻倒了
   const pos = { x: d.x, z: d.z }; dropGem(pos, d.xp, 'k' + d.id); if (mine) kills++;
   if (!e || e.dead) return; e.dead = true; dropCoin(pos); cbOnKill(e); mobSound(e, 'dd');
   if (e.netBoss) { runBosses.push(e.type); dropChest(pos, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); } // 首領寶箱每個人各一個（結算時各自開）
-  else if (e.elite) { if (Math.random() < 0.4) dropChest(pos, false); dropChest({ x: pos.x + 1.2, z: pos.z }, false, true); }
+  else if (e.elite) { if (Math.random() < 0.4 + (P.pbLoot || 0)) dropChest(pos, false); dropChest({ x: pos.x + 1.2, z: pos.z }, false, true); }
   if (e.mvp) finalDown = true;
   if (e === boss) setBoss(null);
   spawnFx('hit', e.mesh.position, { scale: 1.6, life: 0.25, grow: 1.5, color: 0xffffff });
@@ -693,6 +695,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   const tags = opts.tags || [], st = opts.status || {};
   // 屬性聯動：緩速／暈眩中的怪被火或重擊打到 → 必定爆擊 ×1.5（碎冰）
   const weak = (e.slowT > 0 || e.stunT > 0) && (tags.includes('fire') || tags.includes('heavy'));
+  if (P.pbHit && (e.elite || e.boss || e.ai)) dmg *= 1 + P.pbHit; // 組隊 BUFF 獵人的知識
   const gm = P.gem?.[src], eg = P.egem?.[src];
   // 項目 44：屬性相剋（element.scr）；項目 23：屬性寶石改招式屬性、每級爆擊 +3%
   if (src) e.lastSrc = src; // 戰寵擊殺歸屬
@@ -718,7 +721,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
     e.dead = true; if (e.lastSrc === 'bpet') bpet.kills++; /* 戰寵自己殺的才算戰寵經驗 */ if (!NET || (e.by ?? NET.me) === NET.me) kills++; dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
     if (e.mvp) finalDown = true;
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
-    else if (e.elite) { if (Math.random() < 0.4) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
+    else if (e.elite) { if (Math.random() < 0.4 + (P.pbLoot || 0)) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
     if (e === boss) setBoss(null);
     spawnFx('hit', e.mesh.position, { scale: 1.6, life: 0.25, grow: 1.5, color: 0xffffff });
   }
@@ -1189,6 +1192,7 @@ const perf = { upd: 0, ren: 0 };
 async function start() {
   document.getElementById('go').textContent = '載入中…'; await modelsReady; await rig.actorReady; await rig.mountReady; document.getElementById('go').textContent = '開始';
   reset(); state = 'play'; last = performance.now(); drawSkillbar();
+  if (P.pbuffs?.length) setTimeout(() => showBanner('組隊 BUFF：' + P.pbuffs.map(b => `<b>${b.name}</b> ${b.text}`).join('　'), 4500), 1800); // PC 組隊 BUFF
   for (const id of ['start', 'over']) document.getElementById(id).classList.remove('on');
   if (!muted) { bgm.currentTime = 0; bgm.play().catch(() => {}); }
 }

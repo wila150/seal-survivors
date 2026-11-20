@@ -16,7 +16,7 @@ export function createPartyGame(G) {
   const R = runInfo(); if (!R?.code || !window.SS_CLOUD) return null;
   let token = null; try { token = localStorage.getItem('ss_token'); } catch {}
   const me = G.CHAR.id, host = R.leader === me, n = Math.max(1, R.members?.length || 1), exp = R.exp === 'even' ? 'even' : 'own';
-  const NET = { host, guest: !host, me, n, mul: PARTY_MUL(n), exp, seq: 0, remotes: new Map(), over: false };
+  const NET = { host, guest: !host, me, n, jobs: (R.members || []).map(m => m.job || '初心者'), mul: PARTY_MUL(n), exp, seq: 0, remotes: new Map(), over: false };
   const conn = new PartyConn(R.code, { token, charId: me });
   const send = (k, d) => conn.send({ t: 'g', k, d }), toHost = (k, d) => conn.send({ t: 'h', k, d });
   const byNid = new Map(); let newSpawns = [], fullResend = 0, sendAcc = 0, hitQ = [];
