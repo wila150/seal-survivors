@@ -1232,7 +1232,7 @@ document.addEventListener('visibilitychange', () => {
 NET = createPartyGame({ CHAR, THREE, scene, camera, player, P: () => P, t: () => t, setT: v => { t = v; }, state: () => state, enemies: () => enemies || [],
   spawnMirror, guestKill, removeGem, gainXp, netDamage, hitPlayer, showBanner, gameOver, actorPlay: k => rig.actor?.play(k), moving: () => input.read().ml > 0.05, groundAt: (x, z) => MAP.heightAt(x, z) });
 if (NET) { document.getElementById('start')?.classList.remove('on'); start(); } // 組隊：不用按開始，進來就打
-if (NET) window.__party = { NET, player, setT: v => { t = v; }, P: () => P, enemies: () => enemies, state: () => state, t: () => t, kills: () => kills, gems: () => gems, chests: () => [chests, bossChests] }; // 測試用
+if (NET) window.__party = { NET, player, setT: v => { t = v; }, forceWin: () => { finalDown = true; }, P: () => P, enemies: () => enemies, state: () => state, t: () => t, kills: () => kills, gems: () => gems, chests: () => [chests, bossChests] }; // 測試用
 reset();
 // ===== 未完成的一局（企劃_工程交付 項目 13）=====
 // 出征中每 5 秒、切走或關頁時把進度存到瀏覽器；回主城時問要不要繼續，放棄就先結算已拿到的部分
