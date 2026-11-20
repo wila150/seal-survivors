@@ -52,6 +52,12 @@
   .btn{font:inherit;font-weight:700;font-size:14px;padding:8px 14px;border-radius:10px;border:1px solid #b8c6e8;background:#fff;color:#26324d;cursor:pointer}
   .btn.primary{background:linear-gradient(#5b7fe0,#3a5bbf);color:#fff;border-color:#2c4aa0}
   #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .emo{position:absolute;left:50%;bottom:calc(100% + 4px);width:32px;height:32px;background:url(assets/ui/emo.png) no-repeat;transform:translateX(-50%);animation:emoPop .25s ease-out;pointer-events:none}
+  @keyframes emoPop{from{transform:translateX(-50%) scale(.3)}to{transform:translateX(-50%) scale(1)}}
+  .emw{display:grid;grid-template-columns:repeat(5,40px);gap:6px;justify-content:center;background:#e9e3dc;border-radius:12px;padding:10px}
+  .emw button{width:40px;height:40px;border-radius:6px;border:2px solid #d5cbc2;background:#f3eee8;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .emw button i{width:32px;height:32px;background:url(assets/ui/emo.png) no-repeat;display:block}
+  .emw button:hover{border-color:#ff8a3d}
   .lbl{position:absolute;transform:translate(-50%,-100%);background:#eef2fbe6;border:1px solid #9db4ee;border-radius:8px;padding:2px 8px;font-size:13px;font-weight:700;white-space:nowrap}
   .lbl.me{background:none;border:0;color:#fff;text-shadow:0 1px 3px #000}
   .lbl.near{background:#ffe9a8;border-color:#e6a23c}
@@ -277,6 +283,7 @@ import { openGems } from './src/2_core/gem-ui.js';
 import { RANK_BUFF, rankBuffText } from './src/1_data/rank-buff.js';
 import { gapExp, gapDrop } from './src/1_data/level-gap.js';
 import { POLY } from './src/1_data/polymorph.js';
+import { EMO_TABS, emoPos } from './src/1_data/emote.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
@@ -353,6 +360,7 @@ $('#stoneMenuBtn').onclick = () => $('#stoneBtn').click();
 // 圖示：官方公告圖裁下的 10 個圓形圖示（assets/ui/qm，已經有外框）；其他用 PC 原版按鈕／系統／道具圖＋圓框
 const QM_CATS = ['活動', '設定', '社群', '角色', '目錄'];
 const QM = {
+  emote:   { n: '表情', c: '社群', i: 'qm/emo', f: 1, run: () => openEmote() },
   online:  { n: '在線', c: '活動', i: 'sys/online', f: 0, run: () => openAttend('online') },
   checkin: { n: '簽到', c: '活動', i: 'sys/checkin', f: 0, run: () => openAttend('check') },
   exp:     { n: '傳送', c: '活動', i: 'qm/pin', f: 0, run: () => openExpedition() },
@@ -407,6 +415,18 @@ function openQuickMenu() {
   draw();
 }
 qmRender();
+// ===== PC 表情（EMOTION 視窗：感情／記號／特殊；圖＝客戶端 Emoticon.tex）：自己頭上冒 3 秒，主城其他玩家也看得到 =====
+let emoTab = 0;
+function showEmote(e) { meLbl.querySelector('.emo')?.remove(); const i = document.createElement('i'); i.className = 'emo'; i.style.backgroundPosition = emoPos(e); meLbl.appendChild(i); setTimeout(() => i.remove(), 3000); TNET?.emote(e); }
+function openEmote() {
+  const [, st, n] = EMO_TABS[emoTab];
+  openDlg('EMOTION 表情', `<div class="tabs2">${EMO_TABS.map(([t], i) => `<button class="btn ${i === emoTab ? 'primary' : ''}" data-emt="${i}">${t}</button>`).join('')}</div>
+    <div class="emw">${Array.from({ length: n }, (_, k) => `<button data-emo="${st + k}"><i style="background-position:${emoPos(st + k)}"></i></button>`).join('')}</div>
+    <p style="text-align:center;font-size:12px;color:#6b5a4e;margin:6px 0">點一下，角色頭上會出現表情（主城裡其他玩家也看得到）</p>`, []);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-emt]').forEach(x => x.onclick = () => { emoTab = +x.dataset.emt; openEmote(); });
+  b.querySelectorAll('[data-emo]').forEach(x => x.onclick = () => showEmote(+x.dataset.emo));
+}
 // ===== PC 在線與簽到系統（2u id=72；獎勵照服務端 Attendance_Reward.scr／Reward_Time.scr，寄到信箱）=====
 const ATT_ICON = id => ({ 432: 39, 433: 618, 434: 341, 3981: 380, 3689: 759, 3690: 760, 3691: 761, 25807: 31, 11835: 2315, 11836: 2315, 11837: 2315 })[id] || 0;
 let ATT_V = null;

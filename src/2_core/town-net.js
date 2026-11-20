@@ -2,6 +2,7 @@
 // 有動才送位置（每秒最多 4 次）；分頁切到背景、或 5 分鐘沒動作 → 斷線（每個網站閒置就休息），一動或切回來就重連
 import { sealActor } from './seal-model.js';
 import { playerModelId, playerAnimSet, playerLook } from '../1_data/jobs.js';
+import { emoPos } from '../1_data/emote.js';
 
 export function createTownNet({ THREE, scene, camera, player, CHAR, token, groundAt, modelY = groundAt, moving, riding }) { // modelY：主城畫面會整個抬到地面高度（liftScene），模型放 0
   if (!window.SS_CLOUD || !CHAR?.id || !token) return null;
@@ -16,6 +17,8 @@ export function createTownNet({ THREE, scene, camera, player, CHAR, token, groun
     const L = playerLook(m.job, m.gender, m.hair ?? 0, m.hairColor ?? 0, m.outfit ?? 0, m.items || [], m.costume || null);
     sealActor(playerModelId(m.job, m.gender), playerAnimSet(m.job, m.gender), 1.7, L.gear, L.opts).then(g => { if (!others.has(m.charId)) return; g.children[0].rotation.y = Math.PI; g.position.set(o.x, 0, o.z); scene.add(g); o.g = g; }).catch(() => {});
   }
+  // PC 表情：名牌上方冒 3 秒（圖＝客戶端 Emoticon.tex → assets/ui/emo.png，32px 一格）
+  function showEmo(el, e) { el.querySelector('.emo')?.remove(); const i = document.createElement('i'); i.className = 'emo'; i.style.backgroundPosition = emoPos(e); el.appendChild(i); setTimeout(() => i.remove(), 3000); }
   function remove(id) { const o = others.get(id); if (!o) return; o.g && scene.remove(o.g); o.el.remove(); others.delete(id); }
   function clearAll() { for (const id of [...others.keys()]) remove(id); }
   function connect() {
@@ -26,6 +29,7 @@ export function createTownNet({ THREE, scene, camera, player, CHAR, token, groun
       if (o.t === 'all') for (const x of o.list) add(x.m, x.p);
       else if (o.t === 'join') add(o.m, null);
       else if (o.t === 'leave') remove(o.id);
+      else if (o.t === 'e') { const r = others.get(o.id); if (r) showEmo(r.el, o.e); } // PC 表情
       else if (o.t === 'p') { const r = others.get(o.id); if (!r) return; const now = performance.now();
         // 11/20 使用者：「看對方移動卡卡的」→ 記下速度，兩次封包之間照速度往前推（不是走到就停），再慢慢修正誤差
         if (r.seen && r.at) { const dtS = Math.max(0.03, (now - r.at) / 1000); r.vx = (o.x - r.tx) / dtS; r.vz = (o.z - r.tz) / dtS; if (Math.hypot(r.vx, r.vz) > 20) r.vx = r.vz = 0; }
@@ -42,6 +46,7 @@ export function createTownNet({ THREE, scene, camera, player, CHAR, token, groun
   connect();
   return {
     get count() { return others.size; },
+    emote(e) { if (ws?.readyState === 1) ws.send(JSON.stringify({ t: 'e', e })); },
     tick(dt) {
       const now = performance.now(), mv = moving();
       if (mv) { lastAct = now; if (!want) { want = true; connect(); } }
