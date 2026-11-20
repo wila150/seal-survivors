@@ -13,6 +13,7 @@ import { talentEffects, branchOf, boostedAlloc } from './src/1_data/talents.js';
 import { gemEffects } from './src/1_data/gems.js';
 import { stoneEffects } from './src/1_data/stones.js';
 import { titleOf } from './src/1_data/fame.js';
+import { applyRankBuff } from './src/1_data/rank-buff.js'; // PC 戰鬥力排名 BUFF
 import { PC_PETS, petName, petBonus, petStage9 } from './src/1_data/pets.js';
 import { BPETS, BPET_REQ_LV, bpetStats, bpetAux, bpetName, bpetActives } from './src/1_data/bpets.js'; // 戰寵（11/20 照 PC）
 import { cleanDiff, diffMods, stageBaseLv } from './src/1_data/difficulty.js';
@@ -545,6 +546,7 @@ function reset() {
   // 項目 47：裝上的稱號加成
   { const tb = titleOf(CHAR.title)?.bonus || {}; P.might *= 1 + (tb.atk || 0); P.magic += tb.magic || 0; P.crit += tb.crit || 0; P.speed *= 1 + (tb.speed || 0);
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
+  P.rankBuff = applyRankBuff(P, CHAR.pwRank); // PC 戰鬥力排名 BUFF（每天 0 點同職業排名前 50 名，Rank.scr）
   // 個性化 v2 主要個性能力值（src/1_data/persona.js；次要個性已經加在素質裡）
   { const pb = personaBonus(CHAR.persona); P.might *= 1 + (pb.atk || 0); P.crit += pb.crit || 0; P.armor += pb.armor || 0; P.hasteV += (pb.haste || 0) * 100; P.speed *= 1 + (pb.speed || 0);
     P.magnet *= 1 + (pb.magnet || 0); P.dr = Math.min(0.5, (P.dr || 0) + (pb.dmgDown || 0)); P.magic += pb.magic || 0; P.expMul = (P.expMul || 1) + (pb.exp || 0); if (pb.hp) { P.maxHp = Math.round(P.maxHp * (1 + pb.hp)); P.hp = P.maxHp; } }
@@ -1206,6 +1208,7 @@ const perf = { upd: 0, ren: 0 };
 async function start() {
   document.getElementById('go').textContent = '載入中…'; await modelsReady; await rig.actorReady; await rig.mountReady; document.getElementById('go').textContent = '開始';
   reset(); state = 'play'; last = performance.now(); drawSkillbar();
+  if (P.rankBuff) setTimeout(() => showBanner(`戰鬥力排名 BUFF：${CHAR.job} 第 ${CHAR.pwRank} 名`, 3500), 6500); // PC 戰鬥力排名
   if (P.pbuffs?.length) setTimeout(() => showBanner('組隊 BUFF：' + P.pbuffs.map(b => `<b>${b.name}</b> ${b.text}`).join('　'), 4500), 1800); // PC 組隊 BUFF
   for (const id of ['start', 'over']) document.getElementById(id).classList.remove('on');
   if (!muted) { bgm.currentTime = 0; bgm.play().catch(() => {}); }

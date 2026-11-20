@@ -274,6 +274,7 @@ onSettings(G => setBgmVol(townBgm, 0.45 * G.master * G.bgm)); // iPhone 不吃 a
 const startBgm = () => townBgm.play().catch(() => {}); startBgm(); addEventListener('pointerdown', startBgm, { once: true }); addEventListener('keydown', startBgm, { once: true });
 import { openTalents } from './src/2_core/talent-ui.js';
 import { openGems } from './src/2_core/gem-ui.js';
+import { RANK_BUFF, rankBuffText } from './src/1_data/rank-buff.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
@@ -982,7 +983,10 @@ async function openRank(quiet = false) {
     <div class="rk-bar"><select id="rJob"><option value="">全部職業</option>${Object.keys(JOBS).map(j => `<option ${rJob === j ? 'selected' : ''}>${j}</option>`).join('')}</select>
       <small style="color:#6b7896">　共 ${r.total ?? 0} 名・每 30 秒更新（${new Date(r.at || Date.now()).toLocaleTimeString()}）・藍框＝你的角色</small></div>
     ${r.note ? `<p>${r.note}</p>` : r.rows.length ? `<table class="rk-t"><tr><th>排名</th><th>角色名稱</th><th>職業</th><th>${col[0]}</th></tr>${r.rows.map(row).join('')}${r.mine?.length ? `<tr><td colspan="4" style="text-align:center">⋯</td></tr>${r.mine.map(row).join('')}` : ''}</table>` : '<p>還沒有人上榜，去當第一名吧！</p>'}
-    ${rTab === 'power' ? '<p><small>戰力＝身上裝備的數值換算成分數（攻擊、爆擊、冷卻、移速、吸取、HP、護甲）。</small></p>' : ''}</div>`;
+    ${rTab === 'power' ? `<p><small>戰力＝身上裝備的數值換算成分數（攻擊、爆擊、冷卻、移速、吸取、HP、護甲）。</small></p>
+      <div style="background:#fff8e6;border:1px solid #f0d59a;border-radius:10px;padding:6px 10px;font-size:12px;line-height:1.6"><b>戰鬥力排名 BUFF</b>（照 PC：每天 0 點依<b>同職業</b>戰鬥力排名，前 50 名出征時有增益）<br>
+      ${RANK_BUFF.map(b => `第 ${b[0]}${b[1] > b[0] ? '～' + b[1] : ''} 名：${rankBuffText(b[0])}`).join('<br>')}<br>
+      你今天的名次：<b>${CHAR.pwRank ? `${CHAR.job} 第 ${CHAR.pwRank} 名 → ${rankBuffText(CHAR.pwRank)}` : '50 名外（沒有 BUFF）'}</b>　<span style="color:#888">命中率割草版不會打不中，不生效</span></div>` : ''}</div>`;
   openDlg('排行榜', html, [], true);
   const b = $('#dlgBody');
   b.querySelectorAll('[data-rt]').forEach(x => x.onclick = () => { rTab = x.dataset.rt; openRank(); });
