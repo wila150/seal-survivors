@@ -252,6 +252,7 @@ import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
 import { PC_PETS, PET_MAX, PET_MAX_LV, EGGS, FAM_NAME, CAT_NAME, FEED_EXP, petName, petNeed, petStatText, petBonusText, evoTargets } from './src/1_data/pets.js';
 import * as PV2 from './src/1_data/pets.js';
+import * as BPV from './src/1_data/bpets.js'; // 戰寵（11/20 照 PC）
 import { diffRows, DIFF_KEYS, DIFF_MAX, LV_MAX, cleanDiff, diffMods, diffLoot, lootBonus, legendRate, stageBaseLv, pcRef } from './src/1_data/difficulty.js';
 import { DECOMPOSE, DUST_PER_CRYSTAL } from './src/1_data/stones.js';
 import { GUIDE_CATS, buildGuide, guideImg } from './src/1_data/guide.js';
@@ -743,9 +744,39 @@ function openTownMap() {
 $('#tmmMap').onclick = openTownMap; $('#tmm').onclick = openTownMap;
 
 // ===== 項目 30：寵物飼育員（買蛋、出戰、餵食、改名）=====
+let petTab = 'p', bpSel = null; // 寵物管理員分頁：p 寵物／b 戰寵
 let petSel = null, petFeed = new Set(), petEvo = {}; // petEvo：進化要放的材料 { key: 數量 }
 // 寵物 v3（11/20 照 PC：服務端 item.txt 類別 22＋官方 wiki 49）：蛋在這裡買 → 放進裝備欄（出戰）才會長大 → 第 9 階段帶材料進化成同系列下一階
+const petTabs = () => `<div style="display:flex;gap:6px;margin-bottom:8px"><button class="btn ${petTab === 'p' ? 'primary' : ''}" data-ptab="p">寵物</button><button class="btn ${petTab === 'b' ? 'primary' : ''}" data-ptab="b">戰寵</button></div>`;
+const bindPetTabs = () => $('#dlgBody').querySelectorAll('[data-ptab]').forEach(x => x.onclick = () => { petTab = x.dataset.ptab; openPets(); });
+// 戰寵分頁（照 PC 戰寵資訊；src/1_data/bpets.js）
+function openBpets() {
+  const c = CHAR, L = BPV.BPETS, list = c.bpets || [], b = list.find(x => x.id === bpSel) || list.find(x => x.id === c.bpet) || list[0]; bpSel = b?.id ?? null;
+  const lvOk = (c.baseLv || 1) >= BPV.BPET_REQ_LV, ico = k => `<img src="assets/items/${L[k].icon}.png" alt="" style="width:40px;height:40px;image-rendering:pixelated">`;
+  const card = x => `<div data-bs="${x.id}" style="cursor:pointer;flex:0 0 112px;background:#fff;border:2px solid ${x.id === bpSel ? '#ff8a3d' : x.id === c.bpet ? '#e0a826' : '#c9d5f3'};border-radius:12px;padding:6px;text-align:center">${ico(x.kind)}<br><b style="font-size:13px">${esc(BPV.bpetName(x))}</b><br><small>Lv ${x.lv}${x.grade ? '・' + x.grade : ''}${x.dead ? '<br><b style="color:#c0392b">死亡</b>' : x.id === c.bpet ? '<br><b style="color:#c8901a">★ 召喚中</b>' : ''}</small></div>`;
+  let det = '';
+  if (b) { const S = BPV.bpetStats(b), A = BPV.AWAKEN[b.stage || 0], on = b.id === c.bpet;
+    det = `<div style="background:#fff;border-radius:12px;padding:10px 12px;line-height:1.7;margin-top:8px">
+      <div style="display:flex;gap:10px;align-items:center">${ico(b.kind)}<div><b style="font-size:16px">${esc(BPV.bpetName(b))}</b>　<small>Lv ${b.lv}・${BPV.STAGE_NAME[b.stage || 0]}・GRADE ${b.grade || '（Lv35 覺醒時決定）'}</small><br>
+      <small>${b.lv < BPV.BPET_MAX_LV ? `經驗 ${b.exp} / ${BPV.bpetNeed(b)}` : '已滿級'}　親密度 ${b.close ?? 0}%　忠誠度 ${b.loyal || 0}</small></div></div>
+      <div><small>戰寵能力：傷害 ${S.dmg}・每 ${S.cd.toFixed(1)} 秒一次・射程 ${S.range} 公尺・HP ${S.hp}</small></div>
+      <div><small>召喚中加給你：<b>${BPV.bpetAuxText(b)}</b>（等級、GRADE、覺醒越高越多；親密度 100% 再 +10%）</small></div>
+      <div class="acts" style="margin-top:6px">${b.dead ? `<button class="btn primary" data-ba="revive">復活（${BPV.reviveCost(b)} 希幣）</button>` : on ? '<button class="btn" data-ba="seal">封印</button>' : `<button class="btn primary" data-ba="summon" ${lvOk ? '' : 'disabled'}>召喚（出征會跟著你）</button>`}
+      ${A ? `<button class="btn" data-ba="awaken" ${b.lv >= A.lv && (c.natStone || 0) > 0 && c.gold >= A.gold ? '' : 'disabled'}>覺醒 → ${BPV.STAGE_NAME[(b.stage || 0) + 1]}（Lv ${A.lv}・${BPV.STONE.name} ×1・${A.gold} 希幣・成功率 ${Math.round(A.rate * 100)}%）</button>` : '<small>已經是終極形態期</small>'}</div></div>`; }
+  const adopt = Object.entries(L).filter(([k]) => !list.some(x => x.kind === k)).map(([k, D]) => `<button class="btn" data-badopt="${k}" ${lvOk ? '' : 'disabled'}><img src="assets/items/${D.icon}.png" alt="" style="width:20px;height:20px;vertical-align:middle;image-rendering:pixelated"> ${D.name}</button>`).join(' ');
+  const html = petTabs() + `<p>「戰鬥寵物會跟你一起出征、自動攻擊怪物。牠自己打倒的怪才會長經驗；倒下的話回來找我花一點希望幣就能復活。等級到 35／55／75／95 拿<b>屬性自然石</b>來，我幫牠覺醒——第一次覺醒會決定牠的 GRADE（S／AAA／AA／A）。」</p>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">${list.map(card).join('') || '<small>還沒有戰寵</small>'}</div>${det}
+    <div class="sec" style="margin-top:10px"><b>領養戰寵</b>　<small>要 Base Lv ${BPV.BPET_REQ_LV}${lvOk ? '' : `（你現在 Lv ${c.baseLv}）`}・每種一隻・免費</small><div style="margin-top:6px">${adopt || '<small>四種都有了</small>'}</div></div>
+    <div class="sec" style="margin-top:10px"><b>${BPV.STONE.name}</b>　<small>持有 ${c.natStone || 0} 個</small>　<button class="btn" data-ba="stone" ${c.gold >= BPV.STONE.price ? '' : 'disabled'}><img src="assets/items/${BPV.STONE.icon}.png" alt="" style="width:20px;height:20px;vertical-align:middle;image-rendering:pixelated"> 買 1 個（${BPV.STONE.price} 希幣）</button></div>`;
+  openDlg('寵物管理員', html, [], true); bindPetTabs();
+  const B = $('#dlgBody'), go = async (body, confirmMsg) => { if (confirmMsg && !(await askConfirm(confirmMsg))) return; try { const r = await call('POST', '/api/bpet', { charId: c.id, ...body }); showChar(r.char); refreshChar(); toast(r.msg); openBpets(); } catch (e) { toast(e.message); } };
+  B.querySelectorAll('[data-bs]').forEach(x => x.onclick = () => { bpSel = +x.dataset.bs; openBpets(); });
+  B.querySelectorAll('[data-badopt]').forEach(x => x.onclick = () => go({ act: 'adopt', kind: x.dataset.badopt }));
+  B.querySelectorAll('[data-ba]').forEach(x => x.onclick = () => { const a = x.dataset.ba;
+    go({ act: a, id: b?.id }, a === 'awaken' ? `覺醒${BPV.bpetName(b)}？\n成功率 ${Math.round(BPV.AWAKEN[b.stage || 0].rate * 100)}%，不管成功或失敗，屬性自然石和希幣都會用掉（戰寵不會消失）。` : a === 'seal' ? '封印戰寵？照 PC，封印後親密度會歸 0。' : null); });
+}
 function openPets() {
+  if (petTab === 'b') return openBpets();
   const c = CHAR, pets = (c.pets || []).filter(x => PC_PETS[x.pc]), p = pets.find(x => x.id === petSel) || pets.find(x => x.id === c.pet) || pets[0]; petSel = p?.id ?? null; // 舊格式（沒有 pc）不顯示，避免視窗打不開
   const D = p ? PC_PETS[p.pc] : null, ico = id => `<img src="assets/items/${PC_PETS[id]?.icon}.png" alt="" style="width:40px;height:40px;image-rendering:pixelated">`;
   const card = x => { const on = x.id === c.pet, X = PC_PETS[x.pc]; return `<div data-ps="${x.id}" style="cursor:pointer;flex:0 0 112px;background:#fff;border:2px solid ${x.id === petSel ? '#ff8a3d' : on ? '#e0a826' : '#c9d5f3'};border-radius:12px;padding:6px 8px;text-align:center">
@@ -771,7 +802,7 @@ function openPets() {
         <div class="pe-item">${petFeed.size ? `<b>${petFeed.size}</b>` : ''}</div><div class="pe-hunger"><span style="width:${Math.round(p.hunger || 0)}%"></span></div>
         <button class="pe-feed" title="餵食（下面挑裝備）" ${petFeed.size ? '' : 'disabled'} onclick="document.getElementById('petFeedGo')?.click()"></button><button class="pe-play" title="遊戲（不餓但不會長大）" onclick="document.getElementById('petPlay')?.click()"></button></div>`; })() : ''}${det}
     <div class="sec" style="margin-top:10px"><b>寵物蛋</b>　<small>最多 ${PET_MAX} 隻・高等級的寵物要角色等級夠才能養</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${EGGS.map(E => { const X = PC_PETS[E.id]; return `<button class="btn" data-pb="${E.id}" ${c.gold < E.price || pets.length >= PET_MAX ? 'disabled' : ''} style="display:flex;align-items:center;gap:6px">${ico(E.id)}<span style="text-align:left">${X.name}<br><small>${FAM_NAME[X.fam]}・${E.price} 希幣・Lv ${X.req}</small></span></button>`; }).join('')}</div></div>`;
-  openDlg('寵物管理員', html, [], true);
+  openDlg('寵物管理員', petTabs() + html, [], true); bindPetTabs();
   const b = $('#dlgBody'), done = (c2, m) => { showChar(c2); refreshChar(); if (m) toast(m); openPets(); };
   b.querySelectorAll('[data-ps]').forEach(x => x.onclick = () => { petSel = +x.dataset.ps; petFeed.clear(); petEvo = {}; openPets(); });
   b.querySelectorAll('[data-pb]').forEach(x => x.onclick = async () => { const X = PC_PETS[+x.dataset.pb]; try { const c2 = await call('POST', '/api/petbuy', { charId: c.id, egg: +x.dataset.pb }); petSel = c2.pets.at(-1).id; done(c2, `買到 ${X.name}！放進裝備欄、出城就會開始長大`); } catch (e) { toast(e.message); } });

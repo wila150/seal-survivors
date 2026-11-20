@@ -14,6 +14,7 @@ import { gemEffects } from './src/1_data/gems.js';
 import { stoneEffects } from './src/1_data/stones.js';
 import { titleOf } from './src/1_data/fame.js';
 import { PC_PETS, petName, petBonus, petStage9 } from './src/1_data/pets.js';
+import { BPETS, BPET_REQ_LV, bpetStats, bpetAux, bpetName } from './src/1_data/bpets.js'; // 戰寵（11/20 照 PC）
 import { cleanDiff, diffMods, stageBaseLv } from './src/1_data/difficulty.js';
 import { ELEMS, ELEM_COLOR, elemMult, MONSTER_ELEM, skillElem } from './src/1_data/element.js';
 import { TOWER_NAME, towerFloor, towerSeg, towerHpMul, towerDmgMul, towerBossAt, CURSES } from './src/1_data/tower.js';
@@ -534,6 +535,8 @@ function reset() {
     if (S.hp) { P.maxHp = Math.round(P.maxHp * (1 + S.hp)); P.hp = P.maxHp; } }
   // 項目 30：出戰寵物的被動加成
   if (PET) { const pb = petBonus(PET); P.might *= 1 + (pb.atk || 0); P.skd = (P.skd || 0) + (pb.skd || 0); P.armor = (P.armor || 0) + (pb.armor || 0); } // 寵物 v3：PC 攻擊／魔攻／防禦
+  // 戰寵輔助屬性（召喚中；src/1_data/bpets.js）
+  if (BP) { const a = bpetAux(BP); P.might *= 1 + (a.atk || 0); P.hasteV += (a.haste || 0) * 100; P.crit += a.crit || 0; if (a.hp) { P.maxHp = Math.round(P.maxHp * (1 + a.hp)); P.hp = P.maxHp; } }
   // 項目 47：裝上的稱號加成
   { const tb = titleOf(CHAR.title)?.bonus || {}; P.might *= 1 + (tb.atk || 0); P.magic += tb.magic || 0; P.crit += tb.crit || 0; P.speed *= 1 + (tb.speed || 0);
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
@@ -692,7 +695,8 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   const weak = (e.slowT > 0 || e.stunT > 0) && (tags.includes('fire') || tags.includes('heavy'));
   const gm = P.gem?.[src], eg = P.egem?.[src];
   // 項目 44：屬性相剋（element.scr）；項目 23：屬性寶石改招式屬性、每級爆擊 +3%
-  const em0 = elemMult(eg ? eg.e : (skillElem(SKD.skills[src]) || W_ELEM), MONSTER_ELEM[e.type] ?? 0); // 指令 4-3：招式本身沒屬性 → 用武器合成的屬性 // 寵物＝自己的屬性
+  if (src) e.lastSrc = src; // 戰寵擊殺歸屬
+  const em0 = elemMult(opts.elem ?? (eg ? eg.e : (skillElem(SKD.skills[src]) || W_ELEM)), MONSTER_ELEM[e.type] ?? 0); // 指令 4-3：招式本身沒屬性 → 用武器合成的屬性 // 寵物＝自己的屬性
   const em = em0 > 1 ? 1 + (em0 - 1) * 1.5 : em0; // 項目 57：提高相剋倍率（剋制的加成 ×1.5，例：1.2 → 1.3）
   const crit = weak || Math.random() < P.crit + (gm?.crit || 0) + (eg ? 0.03 * eg.lv : 0);
   // 項目 34：× 0.9～1.1 隨機；爆擊 ×1.6＋額外（技能寶石爆傷）
@@ -711,7 +715,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   if (from) { e.kb.subVectors(e.mesh.position, from).setY(0).normalize().multiplyScalar(e.boss ? 0.3 : e.elite ? 2 : 6); }
   play('hit', 0.25, 60);
   if (e.hp <= 0 && !e.dead) {
-    e.dead = true; if (!NET || (e.by ?? NET.me) === NET.me) kills++; dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
+    e.dead = true; if (e.lastSrc === 'bpet') bpet.xp += e.xp || 0; /* 戰寵自己殺的才算戰寵經驗 */ if (!NET || (e.by ?? NET.me) === NET.me) kills++; dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
     if (e.mvp) finalDown = true;
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
     else if (e.elite) { if (Math.random() < 0.4) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
@@ -978,7 +982,7 @@ function update(dt) {
   if (dashCd > 0) { dashCd -= dt; const mb = document.getElementById('mountBtn'); if (mb) { mb.style.setProperty('--cd', Math.max(0, dashCd / DASH_CD)); mb.classList.toggle('ready', dashCd <= 0); } }
 
   SM.update(dt, !rig.mounted && !P.down && !P.dead); // 騎乘時、倒地時不能攻擊
-  petTick(dt); // 項目 30 寵物
+  petTick(dt); bpetTick(dt); // 項目 30 寵物＋戰寵
   fxPool.update(dt); PCFX.update(dt);
 
   // 敵人移動＋簡單分離
@@ -1071,6 +1075,32 @@ if (PET) { const D = PC_PETS[PET.pc], el = document.createElement('div'); el.id 
   el.innerHTML = `<img src="assets/items/${D.icon}.png" alt="" style="width:30px;height:30px;image-rendering:pixelated;border-radius:50%;background:#fff3">${petName(PET)}<small style="opacity:.75">　${petStage9(PET.lv)}/9</small>`;
   document.body.appendChild(el); }
 function petTick() {}
+// ===== 戰寵（11/20 照 PC 戰寵資訊）：跟在主角斜後方、自動打最近的怪（戰寵自己的屬性，照相剋表）；有自己的 HP，被怪碰到會扣血，倒下這局就不再出來（回主城找寵物管理員復活）
+// 戰寵自己殺的怪才算戰寵經驗（結算回報 bpetXp）；原版 E_Bpet_* 模型只有幾片卡片（靠原版特效系統畫）→ 用屬性特效貼圖做發光精靈球，覺醒階段越高越大越亮
+const BP = (CHAR.bpets || []).find(b => b.id === CHAR.bpet && !b.dead && BPETS[b.kind] && (CHAR.baseLv || 1) >= BPET_REQ_LV) || null;
+const bpet = { g: null, cd: 1, hp: 0, max: 0, xp: 0, dead: false, ht: 0 };
+if (BP) { const D = BPETS[BP.kind], st = BP.stage || 0, S = bpetStats(BP); bpet.S = S; bpet.max = bpet.hp = S.hp; bpet.h = 1 + st * 0.3;
+  const g = new THREE.Group(), core = new THREE.Sprite(addMat(tex[D.fx] || tex.hit, D.color)), glow = new THREE.Sprite(addMat(tex.circle || tex[D.fx] || tex.hit, D.color));
+  core.scale.setScalar(0.9 + st * 0.3); glow.scale.setScalar(1.6 + st * 0.5); glow.material.opacity = 0.55; g.add(glow, core);
+  g.add(new THREE.PointLight(D.color, 4 + st * 5, 4 + st * 2, 1.6)); g.position.set(player.position.x - 1.5, 0, player.position.z - 1.5); scene.add(g); Object.assign(bpet, { g, core, glow });
+  const el = document.createElement('div'); el.id = 'bpetBadge';
+  el.style.cssText = 'position:fixed;left:12px;top:calc(env(safe-area-inset-top) + 128px);z-index:6;display:flex;align-items:center;gap:4px;padding:2px 8px 2px 2px;border-radius:20px;background:#0b1430b0;border:1px solid #fff5;color:#fff;font:700 11px sans-serif;pointer-events:none';
+  el.innerHTML = `<img src="assets/items/${D.icon}.png" alt="" style="width:30px;height:30px;image-rendering:pixelated;border-radius:50%;background:#fff3"><span>${bpetName(BP)} Lv${BP.lv}${BP.grade ? ' ' + BP.grade : ''}<br><i style="display:block;height:4px;width:70px;background:#0008;border-radius:2px"><b style="display:block;height:100%;width:100%;background:#5fe07a;border-radius:2px"></b></i></span>`;
+  document.body.appendChild(el); bpet.bar = el.querySelector('b'); bpet.el = el; }
+function bpetTick(dt) {
+  if (!bpet.g || bpet.dead) return;
+  const pp = player.position, p = bpet.g.position, a = player.rotation.y + Math.PI * 0.75, tx = pp.x + Math.sin(a) * 1.8, tz = pp.z + Math.cos(a) * 1.8;
+  const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
+  if (d > 12) p.set(tx, 0, tz); else if (d > 0.2) { const k = Math.min(1, dt * 4); p.x += dx * k; p.z += dz * k; }
+  bpet.t = (bpet.t || 0) + dt; bpet.core.position.y = bpet.glow.position.y = 1.1 + bpet.h * 0.3 + Math.sin(bpet.t * 3) * 0.15; bpet.core.material.rotation += dt * 2;
+  const S = bpet.S, D = BPETS[BP.kind]; bpet.cd -= dt;
+  const e = bpet.cd <= 0 ? nearest(p, S.range) : null;
+  if (e) { bpet.cd = S.cd; spawnFx(D.fx, e.mesh.position, { scale: 1.8, life: 0.35, grow: 1.4, color: D.color, y: 1 }); hurt(e, S.dmg, p, 'magic', 'bpet', { elem: D.elem }); }
+  // 被怪碰到扣血（每 0.5 秒結算一次）、每秒回 1%
+  if ((bpet.ht += dt) >= 0.5) { let taken = 0; for (const en of enemies) if (!en.dead && (en.mesh.position.x - p.x) ** 2 + (en.mesh.position.z - p.z) ** 2 < 1.4) taken += (en.dmg || 5) * 0.5;
+    bpet.hp = Math.min(bpet.max, bpet.hp - taken + bpet.max * 0.005); bpet.ht = 0; bpet.bar.style.width = Math.max(0, bpet.hp / bpet.max * 100) + '%';
+    if (bpet.hp <= 0) { bpet.dead = true; scene.remove(bpet.g); bpet.el.style.opacity = 0.4; showBanner(`<small>戰寵</small><b>${bpetName(BP)}倒下了</b><span>回主城找寵物管理員復活</span>`, 1600); } }
+}
 // ===== 技能列冷卻遮罩（像 PC 快捷列：圖示上順時針掃過的暗色＋剩餘秒數；環繞型技能沒有冷卻）=====
 function drawSkillCd() {
   if (!SM) return;
@@ -1164,7 +1194,7 @@ async function saveRun() {
   if (!token || !CHAR.id) return;
   out.textContent = '結算中…';
   try {
-    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done, combos: CB.done || 0, party: NET?.n || 1 });
+    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done, combos: CB.done || 0, party: NET?.n || 1, bpetXp: Math.round(bpet.xp), bpetDead: bpet.dead });
     const F = j.fame; // 項目 47
     out.innerHTML = (F?.gain ? `🏅 名聲 +${F.gain}${F.up ? `　<b>名聲 Lv${F.lv}！</b>` : ''}${F.newTitles?.length ? `　新稱號：${F.newTitles.map(t => `【${t}】`).join('')}` : ''}${F.gear?.length ? `　名聲裝備已寄到信箱` : ''}<br>` : '') + (j.tower ? `<b>分數 ${j.tower.score.toLocaleString()}</b>${j.tower.newBest ? '　🏆 新紀錄！' : ''}${j.tower.newFloor ? `　最高樓層更新（塔點數 ${j.tower.points}）` : ''}<br>` : '') + (j.bonus ? `通關獎勵 ×1.5！　` : '') + `經驗 +${j.gain}　金幣 +${j.gold}${j.spent ? `（菁英寶箱 −${j.spent}）` : ''}${j.gemUps?.length ? `<br>💎 連續技融合：技能寶石升級 ${j.gemUps.map(g => ['N', 'G', 'DG', 'XG'][g]).join('、')}！` : ''}` + (j.levelUps ? `<br>角色升級！Lv ${j.baseLv}（素質點 +${j.levelUps * 3}）` : `　（${j.exp} / ${j.need}）`) + (j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}` : '') + (j.gems?.length ? `<br>拿到技能寶石 ${j.gems.length} 顆（主城「寶石」開放後裝備）` : '')
       + (j.newStage ? `<br>🔓 解鎖新地圖：${j.newStage}` : '') + (j.items.length ? `<div class="loot">${j.items.map(it => `<span class="${it.rarity >= 3 ? 'glow' : ''}" style="border-color:${RARITY[it.rarity].color};${it.rarity >= 3 ? `color:${RARITY[it.rarity].color}` : ''}"><img src="${itemIcon(it)}" alt=""><em style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</em></span>`).join('')}</div>` : '')
@@ -1225,5 +1255,5 @@ if (location.search.includes('auto')) start().then(() => {
   if (location.search.includes('ride')) setMounted(true);
   const bq = location.search.match(/boss=(\d)/); if (bq) { spawner.bossIdx = +bq[1]; t = BOSSES[spawner.bossIdx][0] - 0.1; }
   const m = location.search.match(/sim=([\d.]+)/); if (m) { for (let i = 0; i < +m[1] * 30 && state !== 'over'; i++) { if (state === 'level') document.querySelector('.card')?.click(); P.hp = P.maxHp; update(1 / 30); } }
-  window.__ss = { P: () => P, pet: () => PET ? { pc: PET.pc, name: petName(PET), lv: PET.lv, bonus: petBonus(PET) } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, setT: v => { t = v; }, coins: () => coins.length, goldHave: () => goldHave(), tmp: () => P.tmp, cb: () => CB, ev: () => EV, evStart: k => { EV_TYPES.length; evStart(); }, perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
+  window.__ss = { P: () => P, bpet: () => bpet, pet: () => PET ? { pc: PET.pc, name: petName(PET), lv: PET.lv, bonus: petBonus(PET) } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, setT: v => { t = v; }, coins: () => coins.length, goldHave: () => goldHave(), tmp: () => P.tmp, cb: () => CB, ev: () => EV, evStart: k => { EV_TYPES.length; evStart(); }, perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
 });
