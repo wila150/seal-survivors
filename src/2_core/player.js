@@ -91,14 +91,22 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
 
   // 出招：播攻擊動作並轉向目標（face = 弧度，跟 P.face 同一套）
   // 轉身一律平滑轉到 rig.yaw（以前直接設角度，多招同時放、目標不同時角色會一直抽搐）
-  // 移動中只面向移動方向；站著時出招才轉向目標，攻擊動作最快 0.9 秒播一次
+  // 移動中只面向移動方向；站著時出招才轉向目標；普攻動作速度跟著實際普攻間隔（11/20），技能動作最快 1.1 秒一次
   rig.yaw = 0; rig.moving = false; rig.swingCd = 0;
   rig.swing = (face, motion = null) => {
     if (!rig.actor || rig.moving) return;
     if (face != null && rig.swingCd <= 0) rig.yaw = -face + Math.PI / 2;
-    if (rig.swingCd > 0 || (rig.actor.busy && rig.actor.current !== 'fid')) return; // 等待動作（伸懶腰）可以被攻擊打斷
-    rig.swingCd = motion ? 1.1 : 0.9; rig.actor.attack(1.6, motion);
+    if (rig.swingCd > 0 || (rig.actor.busy && rig.actor.current !== 'fid' && (motion || /^p\d/.test(rig.actor.current)))) return; // 等待動作（伸懶腰）可以被攻擊打斷；普攻可以接在上一下普攻後面（技能動作播完才接）
+    if (motion) { rig.swingCd = 1.1; rig.actor.attack(1.6, motion); return; }
+    // 11/20 使用者「普攻的時候會跟不上動作」：以前普攻動作固定最快 0.9 秒一次，普攻冷卻 0.6～0.9 秒＋冷卻縮短更快 → 打到了動作還沒出來
+    // 改成量實際普攻間隔（平滑），動作加速到間隔的 85% 內播完、每一下都播
+    const k = rig.atkSpeed ? Math.max(1, rig.atkDur / (rig.atkGap * 0.85)) : 1, sp = Math.min(4, 1.6 * k);
+    const dur = rig.actor.attack(sp, null); if (dur) rig.atkDur = Math.max(rig.atkDur * 0.98, dur * sp / 1.6); // 換算回 1.6 倍速的長度
+    rig.swingCd = Math.max(0.15, Math.min(0.9, (rig.atkGap || 0.6) * 0.7));
   };
+  // 普攻間隔：每次要求普攻動作就記一次（含冷卻中被擋掉的），用來決定動作速度
+  rig.atkGap = 0.6; rig.atkDur = 0; rig.atkSpeed = true; rig.lastReq = 0; rig.gt = 0;
+  { const sw = rig.swing; rig.swing = (face, motion = null) => { if (!motion) { const now = rig.gt, g = now - rig.lastReq; /* 用遊戲時間（手機掉幀時 dt 有上限，遊戲時間比真實時間慢）*/ rig.lastReq = now; if (g > 0.1 && g < 2) rig.atkGap += (g - rig.atkGap) * 0.3; } sw(face, motion); }; }
   // 人物坐上／離開坐騎：照坐騎座位放好＋切換騎乘坐姿（seatOf，jobs.js）
   rig.seatRider = () => { const m = group.userData.model; if (!m) return; const [y, z] = rig.mounted ? seatOf(JOB.mount) : [0, 0]; m.position.y = y; m.position.z = z; m.userData.actor?.setRiding?.(rig.mounted); };
   // 上下坐騎（冷卻中或沒租回傳 false）
@@ -112,7 +120,7 @@ export function createPlayer(scene, { CHAR, JOB, MOUNT_ON, onPortrait }) {
   // XZ 移動＋面向移動方向＋站／跑動作；騎乘移速 +15%
   rig.move = (dt, inp, P) => {
     rig.mountCd -= dt; const spd = P.speed * (rig.mounted ? 1 + MOUNT.speed : 1) * (P.tmp?.speed > 0 ? 1.2 : 1) * (P.tmp?.dash > 0 ? 1.6 : 1); // 項目 37 祝福、54 衝鋒加速
-    rig.moving = inp.ml > 0.05; rig.swingCd -= dt;
+    rig.moving = inp.ml > 0.05; rig.swingCd -= dt; rig.gt += dt;
     if (rig.moving) { const nx = group.position.x + inp.mx * spd * dt, nz = group.position.z + inp.mz * spd * dt;
       if (rig.walk) rig.walk(group.position, nx, nz); else { group.position.x = nx; group.position.z = nz; } P.face = Math.atan2(inp.mz, inp.mx); rig.yaw = -P.face + Math.PI / 2; }
     let d = rig.yaw - group.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); // 最短角度
