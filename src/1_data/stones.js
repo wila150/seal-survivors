@@ -7,7 +7,8 @@
 //   - 初始化：回 +0、屬性全部消失
 //   - 材料：分解「合成寶石」得閃亮粉末（必得）、閃亮結晶、七彩粉末（機率）；寶石收藏家扎羅 10 粉末換 1 結晶
 //     割草版沒有合成寶石 → 改成分解裝備：普通／精良＝水晶、稀有＝紅寶石、史詩＝鑽石、傳說＝粉紅鑽（掉落表照原版）
-//   - 原版屬性有命中率、回避率、AP(%)，割草版沒有這些 → 不出；屬性機率與數值照服務端 Stone_LevelStatus／Stone_StatusGroup（11/18）
+//   - 屬性機率與數值照服務端 Stone_LevelStatus／Stone_StatusGroup（11/18）；11/21 使用者「完全照 PC」→ 補回命中率、回避率、AP(%)：
+//     回避率接迴避（同戰鬥力 BUFF：N → +N/10%）；命中率、AP(%) 割草版沒有對應 → 有顯示、不生效（同戰鬥力 BUFF／變身）
 //   - 希望幣 ÷1000
 export const STONES = {
   red:    { name: '紅色石頭',   color: '#e0483c', extra: 'haste', rare: 'dmgUp' },
@@ -21,11 +22,15 @@ export const STONES = {
 //   （換算比例是割草版自訂：讓平均值跟之前暫定的差不多）
 const D100 = [[1, 15, 3205], [16, 30, 7205], [31, 45, 9205], [46, 60, 9605], [61, 70, 9835], [71, 80, 9935], [81, 90, 9985], [91, 100, 10000]];
 const D30 = [[1, 6, 3000], [7, 12, 7000], [13, 18, 9000], [19, 24, 9700], [25, 30, 10000]];
+const DAP = [[1, 1, 4000], [2, 2, 7000], [3, 3, 9500], [4, 4, 9900], [5, 5, 10000]]; // Stone_StatusGroup 第 6 組（AP%）
 const D5 = [[1, 1, 5870], [2, 2, 9370], [3, 3, 9870], [4, 4, 9995], [5, 5, 10000]];
 export const STONE_ATTRS = {
   atk:     { name: '攻擊力',   pid: 1,  dist: D100, per: 0.0005, unit: '傷害' },
   magic:   { name: '魔法力',   pid: 2,  dist: D100, per: 0.0005, unit: '魔法傷害' },
   armor:   { name: '防禦力',   pid: 3,  dist: D100, per: 1 / 30, unit: '護甲', flat: true },
+  hit:     { name: '命中率',   pid: 4,  dist: D30,  per: 0,      unit: '割草版不生效', none: true },
+  dodge:   { name: '回避率',   pid: 5,  dist: D30,  per: 0.001,  unit: '迴避' },
+  ap:      { name: 'AP(%)',    pid: 6,  dist: DAP,  per: 0,      unit: '割草版不生效', none: true },
   haste:   { name: '攻擊速度', pid: 7,  dist: D30,  per: 0.001,  unit: '冷卻縮短' },
   speed:   { name: '移動速度', pid: 8,  dist: D30,  per: 0.001,  unit: '移速' },
   crit:    { name: '必殺技',   pid: 9,  dist: D30,  per: 0.0006, unit: '爆擊率' },
@@ -34,13 +39,13 @@ export const STONE_ATTRS = {
   hp:      { name: 'HP(%)',    pid: 12, dist: D5,   per: 0.01,   unit: '最大 HP', rare: true },
   dmgDungeon: { name: '[副本]增加傷害', pid: 13, dist: D5, per: 0.01, unit: '賢者之塔／組隊副本傷害', rare: true }, // 2u：綠色石頭稀有屬性（分布 58.7／35／5／1.25／0.05%）
 };
-// 每階出哪條屬性（Stone_LevelStatus；原版機率 ×100%）：攻擊力 10%、魔法力 10%、其他各 16%、稀有階 稀有屬性 2%
-//   原版還有命中率（4）、回避率（5）、AP%（6）各 16%，割草版沒有 → 拿掉後其餘依比例放大
+// 每階出哪條屬性（Stone_LevelStatus 累積機率換算，原版照搬）：一般階 攻擊力 10、魔法力 10、其他各 16；稀有階 防禦 15、命中 16、回避 16、AP 16、第 7 條 15、稀有 2
+const B = { atk: 10, magic: 10, armor: 16, hit: 16, dodge: 16, ap: 16 }, BR = { atk: 10, magic: 10, armor: 15, hit: 16, dodge: 16, ap: 16 };
 export const LEVEL_STATUS = {
-  red:    { normal: { atk: 10, magic: 10, armor: 16, haste: 16 }, rare: { atk: 10, magic: 10, armor: 15, haste: 15, dmgUp: 2 } },
-  orange: { normal: { atk: 10, magic: 10, armor: 16, speed: 16 }, rare: { atk: 10, magic: 10, armor: 15, speed: 15, dmgDown: 2 } },
-  yellow: { normal: { atk: 10, magic: 10, armor: 16, crit: 16 },  rare: { atk: 10, magic: 10, armor: 15, crit: 15, hp: 2 } },
-  green:  { normal: { atk: 10, magic: 10, armor: 16, crit: 16 },  rare: { atk: 10, magic: 10, armor: 15, crit: 15, dmgDungeon: 2 } }, // 2u 沒寫機率，照黃色
+  red:    { normal: { ...B, haste: 16 }, rare: { ...BR, haste: 15, dmgUp: 2 } },
+  orange: { normal: { ...B, speed: 16 }, rare: { ...BR, speed: 15, dmgDown: 2 } },
+  yellow: { normal: { ...B, crit: 16 },  rare: { ...BR, crit: 15, hp: 2 } },
+  green:  { normal: { ...B, crit: 16 },  rare: { ...BR, crit: 15, dmgDungeon: 2 } }, // 2u 沒寫機率，照黃色
 };
 // 強化表：第 i 筆＝+i → +(i+1)：[閃亮結晶, 七彩粉末(紅／朱黃／黃／綠), 成功率, 金幣]（綠色照 2u id=55，跟黃色一樣）
 export const STONE_UP = [
@@ -80,6 +85,7 @@ export function rollAttr(k, lv, fixed = null, rand = Math.random) {
 // 效果值（舊資料只有 v 就直接用）
 export const attrValue = a => a.pv != null ? a.pv * STONE_ATTRS[a.k].per : a.v;
 export const fmtAttr = a => { const A = STONE_ATTRS[a.k], v = attrValue(a);
+  if (A.none) return `${A.name} +${a.pv}（${A.unit}）`;
   return a.pv != null ? `${A.name} +${a.pv}（${A.unit}${A.flat ? ' +' + +v.toFixed(1) : ' ' + (a.k === 'dmgDown' ? '' : '+') + +(v * 100).toFixed(2) + '%'}）` : `${A.name} +${A.flat ? v : +(v * 100).toFixed(1) + '%'}`; };
 // 四顆石頭的屬性加總
 export function stoneEffects(stones) {

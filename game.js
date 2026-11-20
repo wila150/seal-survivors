@@ -556,7 +556,7 @@ function reset() {
   // 項目 28：鑲嵌石（三顆石頭的屬性直接加到角色）
   { const S = stoneEffects(CHAR.stones);
     P.might *= (1 + (S.atk || 0)) * (1 + (S.dmgUp || 0)); P.magic += S.magic || 0; P.armor += S.armor || 0; P.hasteV += (S.haste || 0) * 100;
-    P.speed *= 1 + (S.speed || 0); P.crit += S.crit || 0; P.dr = Math.min(0.5, S.dmgDown || 0);
+    P.speed *= 1 + (S.speed || 0); P.crit += S.crit || 0; P.dr = Math.min(0.5, S.dmgDown || 0); if (S.dodge) P.dodge = Math.min(0.4, (P.dodge || 0) + S.dodge); // 回避率→迴避（命中率、AP% 不生效）
     if (S.hp) { P.maxHp = Math.round(P.maxHp * (1 + S.hp)); P.hp = P.maxHp; }
     if (S.dmgDungeon && (TOWER || NET)) P.might *= 1 + S.dmgDungeon; } // 綠色石頭稀有屬性：[副本]增加傷害＝賢者之塔／組隊副本
   // 項目 30：出戰寵物的被動加成
