@@ -205,7 +205,7 @@ const asdTex = 'ASD'.split('').map(ch => { const c = document.createElement('can
   g.fillStyle = '#ffe28a'; g.font = '900 36px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 32, 34);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return new THREE.SpriteMaterial({ map: t, depthWrite: false }); });
 function cbDropOrb(pos, pts, scale = 1) {
-  if (CBO.length > 160) return;
+  if (CBO.length >= ORB_CAP) { const o = nearestOf(CBO, pos, x => x.m.position); if (o) { o.pts += pts; o.m.scale.multiplyScalar(o.m.scale.x < 2 ? 1.04 : 1); } return; } /* 超過上限：點數加進最近那顆（以前超過 160 顆直接丟掉）*/
   if (!cbElem()) { const m = new THREE.Sprite(asdTex[Math.floor(Math.random() * 3)]); m.scale.setScalar(0.7 * scale); m.position.set(pos.x + (Math.random() - 0.5) * 1.2, 0.6, pos.z + (Math.random() - 0.5) * 1.2); scene.add(m); CBO.push({ m, pts, ph: Math.random() * 6 }); return; }
   const m = new THREE.Mesh(orbGeo, orbMat(cbElem())); m.scale.setScalar(scale);
   const halo = new THREE.Sprite(addMat(tex.gem, new THREE.Color(cbElem() ? ELEM_COLOR[cbElem()] : '#ffffff').getHex())); halo.scale.setScalar(1.1 * scale); m.add(halo);
@@ -573,7 +573,7 @@ const coinGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.05, 14).rotateX(Math.PI /
 let coins = [];
 const runGold = () => Math.floor(((kills || 0) / 3 + (t || 0) / 2) * (STAGE?.reward || 1));
 const goldHave = () => (CHAR.gold || 0) + runGold() - goldSpent;
-function dropCoin(pos) { if (Math.random() > 0.35) return; const mesh = new THREE.Mesh(coinGeo, coinMat); mesh.position.set(pos.x + (Math.random() - 0.5) * 0.6, 0.45, pos.z + (Math.random() - 0.5) * 0.6); scene.add(mesh); coins.push({ mesh, pull: false }); }
+function dropCoin(pos) { if (Math.random() > 0.35 || coins.length >= COIN_CAP) return; /* 金幣只是看的（金額照公式算），超過上限就不再掉 */ const mesh = new THREE.Mesh(coinGeo, coinMat); mesh.position.set(pos.x + (Math.random() - 0.5) * 0.6, 0.45, pos.z + (Math.random() - 0.5) * 0.6); scene.add(mesh); coins.push({ mesh, pull: false }); }
 const gemMat = [new THREE.MeshBasicMaterial({ color: 0x4fc3ff }), new THREE.MeshBasicMaterial({ color: 0x7dff9a }), new THREE.MeshBasicMaterial({ color: 0xffd36b })];
 const chestTex = loader.load('assets/items/351.png'); chestTex.colorSpace = THREE.SRGBColorSpace; chestTex.magFilter = THREE.NearestFilter;
 // PC 原版掉落物模型（客戶端 item/item_xx.ms1）：寶箱＝禮物盒 item_07、經驗寶石＝淡藍水晶 item_10／粉紅寶石 item_16／紫寶石 item_23
@@ -592,12 +592,29 @@ function dropChest(pos, isBoss, elite = false) {
   if (elite) m.traverse(o => { if (o.isMesh || o.isSprite) { o.material = o.material.clone(); o.material.color.setHex(0xc08cff); } });
   chestsArr.push({ mesh: m, isBoss, elite });
 }
+// 11/20 使用者「掉落物會不會有點太多了」：地上最多 GEM_CAP 顆，超過就把經驗加進最近的那顆（經驗不會少；寶石照經驗變大換色）
+// 組隊：合併時保留目標那顆的 gid，被合併的掉落不產生新 gid
+const GEM_CAP = 120, COIN_CAP = 40, ORB_CAP = 60;
+const gemTier = xp => xp >= 20 ? 2 : xp >= 3 ? 1 : 0;
+function gemLook(g) { const k = gemTier(g.xp); if (g.k === k) return; const pos = g.mesh.position.clone(); if (g.mesh) gemPool.release(g.mesh); g.k = k;
+  g.mesh = gemPool.get('gem' + k, () => new THREE.Mesh(gemGeo, gemMat[k])); if (gemGeos[k] && g.mesh.geometry !== gemGeos[k]) { g.mesh.geometry = gemGeos[k]; g.mesh.material = gemMats[k]; } g.mesh.position.copy(pos); }
+function nearestOf(arr, pos, get) { let b = null, bd = Infinity; for (const o of arr) { const p = get(o), d = (p.x - pos.x) ** 2 + (p.z - pos.z) ** 2; if (d < bd) { bd = d; b = o; } } return b; }
 function dropGem(pos, xp, gid = null) { // gid：組隊時每個人同一顆（撿到的人廣播）
-  const k = xp >= 20 ? 2 : xp >= 3 ? 1 : 0;
+  if (gems.length >= GEM_CAP) { const g = nearestOf(gems, pos, o => o.mesh.position); if (g) { g.xp += xp; gemLook(g); return g; } }
+  const k = gemTier(xp);
   const mesh = gemPool.get('gem' + k, () => new THREE.Mesh(gemGeo, gemMat[k]));
   if (gemGeos[k] && mesh.geometry !== gemGeos[k]) { mesh.geometry = gemGeos[k]; mesh.material = gemMats[k]; } // 原版水晶模型載好了就換上
   mesh.position.set(pos.x, 0.35, pos.z);
-  gems.push({ mesh, xp, pull: false, gid });
+  const g = { mesh, xp, pull: false, gid, k }; gems.push(g); return g;
+}
+// 單人：離玩家 40 公尺以外的寶石每秒合成一顆（組隊不合，避免各台不一致）
+let gemMergeT = 0;
+function mergeFarGems(dt) {
+  if (NET || (gemMergeT += dt) < 1) return; gemMergeT = 0;
+  const pp = player.position; let into = null;
+  for (let i = gems.length - 1; i >= 0; i--) { const g = gems[i], p = g.mesh.position; if (g.pull || (p.x - pp.x) ** 2 + (p.z - pp.z) ** 2 < 1600) continue;
+    if (!into) { into = g; continue; } into.xp += g.xp; gemPool.release(g.mesh); gems.splice(i, 1); }
+  if (into) gemLook(into);
 }
 // ===== 組隊副本：給 party-game.js 用的接口 =====
 const NO_INPUT = { mx: 0, mz: 0, ml: 0 };
@@ -989,6 +1006,7 @@ function update(dt) {
   // 經驗寶石：磁吸（player.js），撿到回收進池子
   noviceWave(dt);
   const mg0 = P.magnet; if (rig.moving) P.magnet *= 1.3; // 移動中拾取範圍 ×1.3（鼓勵走位）
+  mergeFarGems(dt);
   magnetGems(gems, pp, P, dt, g => {
     gemPool.release(g.mesh); gainXp(g.xp * (NET && g.gid ? NET.pick(g) : 1)); play('gem', 0.2, 50); // 組隊：撿到的人廣播，照經驗值分配
   });
