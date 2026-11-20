@@ -56,6 +56,7 @@
   .lbl.me{background:none;border:0;color:#fff;text-shadow:0 1px 3px #000}
   .lbl.near{background:#ffe9a8;border-color:#e6a23c}
   #talk{left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translateX(-50%);display:none;font-size:17px;padding:12px 28px}
+  #fishHere{left:50%;bottom:calc(136px + env(safe-area-inset-bottom));transform:translateX(-50%);display:none;font-size:17px;padding:12px 28px}
   #talk kbd{font:inherit;font-size:12px;background:#fff3;border-radius:4px;padding:1px 6px;margin-left:8px}
   #dlg{position:fixed;inset:0;z-index:20;display:none;align-items:flex-end;justify-content:center;padding:16px;background:#0004}
   #dlg.on{display:flex}
@@ -180,7 +181,7 @@
   }
   /* 11/20：手機（窄或橫放矮螢幕）視窗是整頁的 → 視窗打開時蓋在左欄／底部按鈕上面（之前按鈕壓在寵物管理員等視窗上） */
   @media (max-width:640px),(max-height:500px){#menu,#sideMenu{z-index:19!important}}
-  body.fishing #menu,body.fishing #sideMenu,body.fishing #talk,body.fishing #joy{display:none!important}
+  body.fishing #menu,body.fishing #sideMenu,body.fishing #talk,body.fishing #fishHere,body.fishing #joy{display:none!important}
 
 </style>
 <link rel="stylesheet" href="src/2_core/pc-ui.css">
@@ -212,7 +213,7 @@
   <button class="sd-b" id="charsBtn" title="換角色"><i class="sd-ic">👥</i><span>換角色</span></button>
   <button class="sd-b m-only" id="setBtnM" title="菜單（設定）"><i class="sd-ic">⚙️</i><span>菜單</span></button>
 </div></div>
-<button class="btn primary chip" id="talk"></button>
+<button class="btn primary chip" id="talk"></button><button class="btn primary chip" id="fishHere">🎣 釣魚</button>
 <div id="tmmBox" title="主城地圖（點 MAP 放大，放大後點地圖可以直接走過去）"><canvas id="tmm" width="196" height="196"></canvas><button id="tmmMap">MAP</button></div>
 <button id="gmBtn" title="GM 指令（本機或 GM 帳號）" style="display:none;position:fixed;right:12px;top:calc(220px + env(safe-area-inset-top));z-index:5;border:2px solid #fff;border-radius:10px;background:linear-gradient(#ffb55a,#e07a1c);color:#fff;font-weight:900;padding:6px 12px;box-shadow:0 2px 8px #0005;cursor:pointer">GM</button>
 <div id="joy"><i></i></div>
@@ -588,6 +589,7 @@ function closeDlg() { const b = $('#dlgTitle')?.closest('.box'); if (b && !b.hid
 dlgBoxes()[0].querySelector('button').onclick = () => closeBox(dlgBoxes()[0]); dlgBoxes()[0].hidden = true;
 $('#dlg').addEventListener('pointerdown', e => { if (e.target.id === 'dlg' && !DLG_MULTI) closeDlg(); });
 $('#talk').onclick = () => nearNpc && talk(nearNpc);
+let fishHereOn = false; $('#fishHere').onclick = () => $('#fishBtn').click();
 
 async function talk(n) {
   joyEnd();
@@ -1369,8 +1371,8 @@ function openFishing() {
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><img src="assets/items/1351.png" style="width:28px;height:28px" alt=""><small>「拿 <b>2 條稀有魚</b>（白金金魚、鯉魚、綢緞鯉魚）來，我就送你<b>艾彼斯的祝福</b>。」持有 ${CHAR.mats?.abis || 0}</small>
       <button class="btn primary" id="fishTrade" ${CATCH.filter(c => c.rare && !c.mat).reduce((t, c) => t + (F.fish?.[c.key] || 0), 0) >= 2 ? '' : 'disabled'}>兌換</button></div>
     <details><summary><small>魚餌價格和釣到的東西（2u 釣魚表）</small></summary><small>${FISH_TABLE.map((t, i) => `${t[0]}${FISH_TABLE[i + 1] ? '～' + (FISH_TABLE[i + 1][0] - 1) : ' 以上'}`).join('、')}（PC 購買價格）。魚餌 40、灰蚯蚓 150、紅蚯蚓 250；背包裡的裝備也能當魚餌（價格＝賣價 ×20）。</small></details>
-    <p><small><b>自動釣魚</b>：走到水池邊，按左邊的「釣魚」，放魚餌按「開始」，每 ${AUTO_SECS} 秒釣一次。<b>手動釣魚</b>：按「前往釣魚台」，比較快，但要會拉魚。</small></p>`;
-  openDlg('釣魚老人', html, [['前往釣魚台', () => openFishPier(), true], ['全部賣掉', async () => { try { const r = await call('POST', '/api/fishsell', { charId: CHAR.id }); showChar(r.char); toast(`賣了 ${r.gold} 金幣`); openFishing(); } catch (e) { toast(e.message); } }]]);
+    <p><small><b>自動釣魚</b>：走到水池邊，按左邊的「釣魚」，放魚餌按「開始」，每 ${AUTO_SECS} 秒釣一次。<b>手動釣魚</b>：一樣在水池邊打開「釣魚」，選「手動釣魚」再按開始，比較快，但要會拉魚。</small></p>`;
+  openDlg('釣魚老人', html, [['全部賣掉', async () => { try { const r = await call('POST', '/api/fishsell', { charId: CHAR.id }); showChar(r.char); toast(`賣了 ${r.gold} 金幣`); openFishing(); } catch (e) { toast(e.message); } }]]);
   $('#dlgBody').querySelectorAll('[data-rod]').forEach(b => b.onclick = () => fishBuy('rod' + b.dataset.rod, 1));
   $('#dlgBody').querySelectorAll('[data-bk]').forEach(b => b.onclick = () => fishBuy(b.dataset.bk, +b.dataset.bn));
   $('#fishTrade')?.addEventListener('click', async () => { try { const r = await call('POST', '/api/fishtrade', { charId: CHAR.id }); showChar(r.char); toast(`換到艾彼斯的祝福！（持有 ${r.abis}）`); openFishing(); } catch (e) { toast(e.message); } }); // 項目 55
@@ -1380,8 +1382,10 @@ async function fishBuy(what, n) { try { showChar(await call('POST', '/api/fishbu
 // 下方選單「釣魚」→ 原版 FISHING 視窗（interface/mainblue_fishingonskill.tex）：魚餌格、開始／停止、釣魚中進度條；離開水池邊自動停止
 const fishWin = document.createElement('div'); fishWin.id = 'fishWin'; fishWin.style.display = 'none'; document.body.appendChild(fishWin);
 let fishAuto = null;
-const nearPond = () => Math.hypot(player.position.x - TC.x, player.position.z - TC.z) < 15;
-let fishBait = 'bait', fishEnd = 0; // 選的魚餌（key 或 { itemId }）；這一竿結束的時間
+// 11/20 使用者：「釣魚一定要站在池塘旁」→ 以前是離廣場中心 15 公尺內就算（站在池子另一頭、甚至走不到都算）；改成：在水池範圍附近、而且身邊 3 公尺內真的有水（原版地圖不可走區）
+const nearPond = () => { const p = player.position; if (p.x < TC.x - 14 || p.x > TC.x + 14 || p.z < TC.z - 8 || p.z > TC.z + 22) return false;
+  for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; for (const r of [1.5, 3]) if (!TMAP.canWalk(p.x + Math.cos(a) * r, p.z + Math.sin(a) * r)) return true; } return false; };
+let fishBait = 'bait', fishEnd = 0, fishMode = 'auto'; // 11/20 使用者：「釣魚按鈕看他要自動或是手動」 // 選的魚餌（key 或 { itemId }）；這一竿結束的時間
 const baitList = () => { const F = CHAR.fishing || {}; return [...Object.entries(BAITS).filter(([k]) => F.baits?.[k] > 0).map(([k, B]) => ({ key: k, name: B.name, icon: B.icon, n: F.baits[k], pc: B.pc })),
   ...(CHAR.items || []).filter(i => !i.equipped && !i.locked).map(i => ({ key: { itemId: i.id }, name: itemName(i), icon: null, img: itemIcon(i), n: 1, pc: baitPcPrice({ sellP: sellPrice(i) }) }))]; };
 const baitNow = () => baitList().find(b => typeof b.key === 'object' ? b.key.itemId === fishBait?.itemId : b.key === fishBait) || null;
@@ -1390,10 +1394,12 @@ function drawFishWin(msg = '') {
   const left = on ? Math.max(0, Math.ceil((fishEnd - Date.now()) / 1000)) : 0, pct = on ? 100 - left / AUTO_SECS * 100 : 0;
   fishWin.innerHTML = `<div class="fw"><button class="fwx" title="關閉">✕</button><button class="slot" title="點這裡換魚餌">${B ? `${B.img ? `<img src="${B.img}" alt="">` : `<img src="assets/items/${B.icon}.png" alt="">`}<i>${B.n}</i>` : '<small>魚餌</small>'}</button>
     <div class="bar ${on ? 'on' : ''}"><span style="width:${pct}%"></span></div><div class="msg">${msg || (on ? `釣魚中… ${left} 秒` : !F.rod ? '還沒有釣竿（找釣魚老人買）' : B ? `${B.name}（價格 ${B.pc}）按「開始」` : '點魚餌格放魚餌')}</div>
-    <button class="go" ${on ? 'disabled' : ''}></button><button class="st" ${on ? '' : 'disabled'}></button></div>`;
+    <button class="go" ${on ? 'disabled' : ''}></button><button class="st" ${on ? '' : 'disabled'}></button>
+    <div class="fmode">${[['auto', '自動釣魚'], ['manual', '手動釣魚']].map(([k, t]) => `<button data-fm="${k}" class="${fishMode === k ? 'on' : ''}" ${on ? 'disabled' : ''}>${t}</button>`).join('')}</div></div>`;
+  fishWin.querySelectorAll('[data-fm]').forEach(b => b.onclick = () => { fishMode = b.dataset.fm; drawFishWin(fishMode === 'manual' ? (F.rod ? `手動：魚餌價格 ${ROD_CAP[F.rod]} 以下，按「開始」` : '手動釣魚要有釣竿') : ''); });
   fishWin.querySelector('.fwx').onclick = () => { stopFish(); fishWin.style.display = 'none'; };
   fishWin.querySelector('.slot').onclick = () => { if (!on) openBaitPick(b => { fishBait = b; drawFishWin(); }); };
-  fishWin.querySelector('.go').onclick = startFish; fishWin.querySelector('.st').onclick = () => { stopFish(); drawFishWin('停止釣魚'); };
+  fishWin.querySelector('.go').onclick = () => fishMode === 'manual' ? startManual() : startFish(); fishWin.querySelector('.st').onclick = () => { stopFish(); drawFishWin('停止釣魚'); };
 }
 // 選魚餌（照 PC：不能當魚餌的圖示顯示灰色；手動釣魚超過釣竿上限也是灰的）
 function openBaitPick(pick, cap = Infinity) {
@@ -1416,16 +1422,19 @@ function startFish() {
   fishAuto = 1; cast(); clearInterval(fishTickT); fishTickT = setInterval(() => fishWin.style.display !== 'none' && fishAuto && drawFishWin(), 1000); drawFishWin();
 }
 // ===== 手動釣魚（釣魚台）：照 2u——第一階段點擊確認魚餌位置；第二階段 ←→ 控制魚、滾輪（手機按「收線」）扣魚血；危險區或扣血時能量上升，滿了失敗，魚血 0 成功 =====
-function openFishPier() {
-  const F = CHAR.fishing || {}; if (!F.rod) return toast('要先有釣竿（照 PC：沒裝備釣竿不能手動釣魚）');
-  const cap = ROD_CAP[F.rod];
-  openBaitPick(bait => runPier(bait, cap), cap);
+// 手動釣魚：從釣魚視窗選「手動釣魚」→ 開始；照 PC 一樣要站在水邊、有釣竿、魚餌價格不超過釣竿上限
+function startManual() {
+  const F = CHAR.fishing || {}; if (!F.rod) return drawFishWin('手動釣魚要有釣竿（找釣魚老人買）');
+  if (!nearPond()) return drawFishWin('要在水池邊才能釣魚');
+  const B = baitNow(), cap = ROD_CAP[F.rod]; if (!B) return drawFishWin('點魚餌格放魚餌');
+  if (B.pc > cap) return drawFishWin(`這支釣竿只能用價格 ${cap} 以下的魚餌`);
+  fishWin.style.display = 'none'; runPier(fishBait, cap, () => { fishWin.style.display = 'block'; drawFishWin(); });
 }
 // 11/20 使用者：「手動釣魚改 PC 的玩法」→ 用原版 Seal Wheel Fishing 介面圖（interface/mainblue_skill_fish02/03，tools/build-fishui.mjs）
 // 疊在主城畫面左下（不蓋全畫面）；左邊 Danger 能量條＋停止鈕；河裡：第一階段「魚兒聚集點」＋來回移動的魚鉤，左鍵在聚集點上確認；
 // 第二階段：魚在河裡左右跑、兩端是「河流危險區」，←→ 控制魚、滾輪扣魚血（數字在魚下面），魚在危險區或扣血時能量上升，滿了失敗、魚血 0 成功
 const WF = {}; const wfImg = n => WF[n] ??= Object.assign(new Image(), { src: `assets/ui/pc/wf_${n}.png` });
-function runPier(bait, cap) {
+function runPier(bait, cap, after) {
   const B = baitList().find(b => typeof b.key === 'object' ? b.key.itemId === bait?.itemId : b.key === bait), pc = B?.pc || 40, rod = (CHAR.fishing || {}).rod || 1;
   ['base', 'wave', 'splash', 'gauge', 'gauge0', 'hook', 'fish', 'dcur', 'spot1', 'spot2', 'spot3', 'dz1', 'dz2', 'dz3', 'dz4'].forEach(wfImg);
   closeDlg(); document.body.classList.add('fishing'); // 照 PC：釣魚台時只剩釣魚介面
@@ -1444,7 +1453,7 @@ function runPier(bait, cap) {
   const done = async ok => { if (end) return; end = true; msg(ok ? '釣到了！' : '能量爆表，魚跑掉了…');
     try { const r = await call('POST', '/api/fish', { charId: CHAR.id, bait, mode: 'manual', ok }); showChar(r.char); toast(ok && r.got ? `${r.got.rare ? '✨ ' : ''}釣到了 ${r.got.name}！${r.exp ? `（經驗 +${r.exp}）` : ''}` : '魚跑掉了（魚餌用掉了）'); } catch (e) { toast(e.message); }
     setTimeout(close, 1100); };
-  const close = () => { cancelAnimationFrame(raf); removeEventListener('keydown', kd, true); removeEventListener('keyup', ku, true); removeEventListener('wheel', wh, { capture: true }); ov.remove(); document.body.classList.remove('fishing'); };
+  const close = () => { cancelAnimationFrame(raf); removeEventListener('keydown', kd, true); removeEventListener('keyup', ku, true); removeEventListener('wheel', wh, { capture: true }); ov.remove(); document.body.classList.remove('fishing'); after?.(); };
   const reel = () => { if (ph !== 2 || end) return; hp = Math.max(0, hp - dmg); en += 0.012; shake = 0.12; if (hp <= 0) done(true); };
   const pick = () => { if (ph !== 1 || end) return;
     if (hx >= spX - 6 && hx <= spX + spW + 6) { ph = 2; fx = hx; msg('第二階段：←→ 把魚拉離兩邊的危險區，滾動滑鼠滾輪（手機按「收線」）把魚的血扣光'); }
@@ -1914,6 +1923,8 @@ function loop(now) {
   // 最近的 NPC
   let best = null, bd = 3.2;
   for (const n of NPCS) { const d = Math.hypot(n.x - p.x, n.z - p.z); if (d < bd) { bd = d; best = n; } }
+  { const fp = nearPond() && fishWin.style.display === 'none' && !document.body.classList.contains('fishing') && CHAR.baseLv >= (LIFE_LV.釣魚 || 0); // 走到水池邊才出現「釣魚」
+    if (fp !== fishHereOn) { fishHereOn = fp; $('#fishHere').style.display = fp ? 'block' : 'none'; } }
   if (best !== nearNpc) { nearNpc = best; const t = $('#talk'); t.style.display = best ? 'block' : 'none'; if (best) t.innerHTML = `與${esc(best.name)}交談<kbd>空白鍵</kbd>`; }
   // 鏡頭
   { const gy = TMAP.heightAt(p.x, p.z), z = view.zoom, sy = Math.sin(view.yaw), cy = Math.cos(view.yaw);

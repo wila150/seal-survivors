@@ -421,3 +421,8 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #pier .pr-pad { display: none; position: fixed; right: 12px; bottom: 16px; gap: 10px; pointer-events: auto; }
 #pier .pr-pad button { min-width: 64px; height: 56px; border-radius: 14px; border: 2px solid #fff; background: linear-gradient(#4d86e8, #2a5bbf); color: #fff; font-size: 18px; font-weight: 900; touch-action: none; user-select: none; }
 @media (pointer: coarse) { #pier .pr-pad { display: flex; } #pier { width: min(560px, 62vw); } }
+/* 11/20 使用者（手機直向截圖）：釣魚台太小、跟按鈕疊在一起 → 直向佔滿寬度，◀ 收線 ▶ 移到釣魚台上面 */
+@media (pointer: coarse) and (orientation: portrait) { #pier { width: 100vw; } #pier .pr-pad { right: 50%; transform: translateX(50%); bottom: calc(100vw * 400 / 760 + 6px); } }
+#fishWin .fmode { position: absolute; left: 0; right: 0; top: -34px; display: flex; gap: 4px; justify-content: center; }
+#fishWin .fmode button { flex: 1; height: 30px; border-radius: 10px 10px 4px 4px; border: 2px solid #fff; background: linear-gradient(#8a9bc4, #5b6a92); color: #e8eeff; font-weight: 800; font-size: 13px; cursor: pointer; }
+#fishWin .fmode button.on { background: linear-gradient(#4d86e8, #2a5bbf); color: #fff; box-shadow: 0 0 0 2px #ffd36b; }
