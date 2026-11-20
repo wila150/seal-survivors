@@ -19,7 +19,7 @@ import { BPETS, BPET_REQ_LV, AWAKEN, STONE as NAT_STONE, rollGrade, bpetName, ad
 import { PC_PETS, PET_MAX, EGGS, FEED_EXP, addPetExp, petNeed, petStage9, petName, HUNGER_PER_SEC, FEED_HUNGER, PLAY_HUNGER, EVOLVE_SECS, WANT_SLOTS, EVO_CAT, evolveResult, migratePets } from '../src/1_data/pets.js';
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from '../src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../src/1_data/talents.js';
-import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf } from '../src/1_data/fishing.js';
+import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../src/1_data/fishing.js';
 import { itemFromPc, wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
 
 const PORT = +process.env.PORT || 8765;
@@ -598,7 +598,8 @@ const api = {
     const { charId, what, n = 1 } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}'), F = d.fishing ??= { rod: 0, bait: 0, fish: {} }; let cost;
     fishMigrate(F);
-    if (BAITS[what]) { if (![10, 50].includes(n)) return send(res, 400, { error: '數量不對' }); cost = BAITS[what].price * n; F.baits[what] = (F.baits[what] || 0) + n; } // 11/20 v2：魚餌／灰蚯蚓／紅蚯蚓
+    if (what === 'expfish') { cost = EXP_FISH.price; F.expFish = (F.expFish || 0) + EXP_FISH.uses; }
+    else if (BAITS[what]) { if (![10, 50].includes(n)) return send(res, 400, { error: '數量不對' }); cost = BAITS[what].price * n; F.baits[what] = (F.baits[what] || 0) + n; } // 11/20 v2：魚餌／灰蚯蚓／紅蚯蚓
     else { const r = +String(what).replace('rod', ''); if (!RODS[r]) return send(res, 400, { error: '沒有這種釣竿' }); if (F.rod >= r) return send(res, 400, { error: '已經有一樣好或更好的釣竿了' }); cost = RODS[r].price; F.rod = r; }
     if ((c.gold ?? 0) < cost) return send(res, 400, { error: `金幣不夠（要 ${cost}）` });
     db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(cost, JSON.stringify(d), c.id);
@@ -627,8 +628,11 @@ const api = {
       else if (JUNK[id]) { F.junk ??= {}; F.junk[id] = (F.junk[id] || 0) + 1; got = { kind: 'junk', name: JUNK[id][0] }; }
       else { const it = itemFromPc(id); if (it && bagCount(c.id) < BAG_MAX) { const { name, ...rest } = it; giveItem(c.id, rest); got = { kind: 'gear', name, rare: true }; } else { F.junk ??= {}; F.junk[41] = (F.junk[41] || 0) + 1; got = { kind: 'junk', name: '廢鐵罐（背包滿了）' }; } }
     }
-    db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
-    send(res, 200, { got, tier: tierOf(price), next: manual ? 0 : AUTO_SECS, char: fullChar(ownChar(uid, c.id)) });
+    // EXP 釣魚：每竿（成功或失敗都算一次垂釣）拿經驗，用掉 1 次
+    let expGot = 0, base = c.base_lv, exp = c.exp;
+    if (F.expFish > 0) { F.expFish--; expGot = expFishGain(base); exp += expGot; let ups = 0; while (exp >= needExp(base) && base < BASE_MAX) { exp -= needExp(base); base++; ups++; } if (base >= BASE_MAX) exp = 0; d.points = (d.points || 0) + ups * 3; }
+    db.prepare('UPDATE characters SET data=?, base_lv=?, exp=? WHERE id=?').run(JSON.stringify(d), base, exp, c.id);
+    send(res, 200, { got, exp: expGot, tier: tierOf(price), next: manual ? 0 : AUTO_SECS, char: fullChar(ownChar(uid, c.id)) });
   },
   // 項目 55：稀有魚 2 條 → 艾彼斯的祝福 1 個（白金金魚、鯉魚、綢緞鯉魚任意組合）
   'POST /api/fishtrade': async (req, res, _, uid) => {

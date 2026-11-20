@@ -80,3 +80,6 @@ export function rollFishV2(pcPrice, rod = 1, manual = false, rand = Math.random)
   const w = ids.map(id => FISH_ID[id] ? FISH_W[id] * (id === 3641 || id === 3642 ? k : 1) : GEM_ID[id] ? GEM_W[id] * (id !== 432 ? k : 1) : JUNK[id] ? (id === 22614 ? 1 : 26 / 3) * (manual ? 0.6 : 1) : 16 / gear.length * (1 + (k - 1) * 0.25));
   let r = rand() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < ids.length; i++) { r -= w[i]; if (r < 0) return ids[i]; } return ids[0];
 }
+// EXP 釣魚（2u：使用 [EXP釣魚] 道具 12913 後，每次垂釣都獲得經驗，不吃任何經驗加倍）：PC 是商城道具 → 本作跟釣魚老人買，一張 10 次（價格暫定）
+export const EXP_FISH = { name: 'EXP 釣魚', icon: 2545, price: 300, uses: 10 };
+export const expFishGain = lv => Math.round(20 + lv * lv * 0.8); // 每竿經驗（暫定：Lv1 約 21、Lv10 約 100、Lv30 約 740）

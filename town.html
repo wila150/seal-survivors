@@ -230,7 +230,7 @@ import { pcLoading } from './src/2_core/pc-loading.js';
 import * as PSN from './src/1_data/persona.js';
 import * as EL from './src/1_data/element.js';
 const TLOAD = pcLoading({ img: 'assets/load/elim_load.png', title: '希望之城' }); document.getElementById('tload0')?.remove(); // PC 原版載入畫面（艾林＝獅子城插畫）
-import { RODS, BAIT, CATCH, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, JUNK, FISH_TABLE, tierOf } from './src/1_data/fishing.js';
+import { EXP_FISH, RODS, BAIT, CATCH, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, JUNK, FISH_TABLE, tierOf } from './src/1_data/fishing.js';
 import { loadSealMap, buildSealMap, liftScene, walkMove, addWalkSurfaces } from './src/2_core/seal-map.js';
 import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
@@ -1351,10 +1351,11 @@ function openFishing() {
   const worth = CATCH.reduce((a, c) => a + (c.sell || 0) * (F.fish?.[c.key] || 0), 0) + Object.entries(F.junk || {}).reduce((a, [id, n]) => a + (JUNK[id]?.[1] || 1) * n, 0);
   const baits = Object.entries(BAITS).map(([k, B]) => `${B.name} ${F.baits?.[k] || 0}`).join('・');
   const html = `<p>「魚餌越貴，釣到的東西越好——便宜的魚餌多半是銅魚、廢鐵罐，貴的魚餌會勾到<b>鯉魚、鑽石，還有裝備</b>。」</p>
-    <p>釣竿：<b>${rod ? rod.name : '沒有'}</b>${rod ? `（手動釣魚可用購買價格 ${ROD_CAP[F.rod]} 以下的魚餌）` : ''}<br>魚餌：${baits}　・　💰 ${CHAR.gold}</p>
+    <p>${F.expFish ? `<b style="color:#2b6fd6">EXP 釣魚剩 ${F.expFish} 次</b>（每竿都有經驗）<br>` : ''}釣竿：<b>${rod ? rod.name : '沒有'}</b>${rod ? `（手動釣魚可用購買價格 ${ROD_CAP[F.rod]} 以下的魚餌）` : ''}<br>魚餌：${baits}　・　💰 ${CHAR.gold}</p>
     <div class="fbag">${bag}${worth ? `<div><small>全部賣掉可得 ${worth} 金幣</small></div>` : ''}</div>
     <div class="fbtns">${RODS.map((r, i) => r && i > F.rod ? `<button class="btn" data-rod="${i}">買${r.name}（${r.price}）</button>` : '').join('')}
-      ${Object.entries(BAITS).map(([k, B]) => `<button class="btn" data-bk="${k}" data-bn="10">${B.name} ×10（${B.price * 10}）</button>`).join('')}</div>
+      ${Object.entries(BAITS).map(([k, B]) => `<button class="btn" data-bk="${k}" data-bn="10">${B.name} ×10（${B.price * 10}）</button>`).join('')}
+      <button class="btn" data-bk="expfish" data-bn="1" title="每次垂釣都獲得經驗（不吃任何經驗加倍）">EXP 釣魚 ${EXP_FISH.uses} 次（${EXP_FISH.price}）</button></div>
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><img src="assets/items/1351.png" style="width:28px;height:28px" alt=""><small>「拿 <b>2 條稀有魚</b>（白金金魚、鯉魚、綢緞鯉魚）來，我就送你<b>艾彼斯的祝福</b>。」持有 ${CHAR.mats?.abis || 0}</small>
       <button class="btn primary" id="fishTrade" ${CATCH.filter(c => c.rare && !c.mat).reduce((t, c) => t + (F.fish?.[c.key] || 0), 0) >= 2 ? '' : 'disabled'}>兌換</button></div>
     <details><summary><small>魚餌價格和釣到的東西（2u 釣魚表）</small></summary><small>${FISH_TABLE.map((t, i) => `${t[0]}${FISH_TABLE[i + 1] ? '～' + (FISH_TABLE[i + 1][0] - 1) : ' 以上'}`).join('、')}（PC 購買價格）。魚餌 40、灰蚯蚓 150、紅蚯蚓 250；背包裡的裝備也能當魚餌（價格＝賣價 ×20）。</small></details>
@@ -1398,7 +1399,7 @@ function startFish() {
   const cast = () => { fishEnd = Date.now() + AUTO_SECS * 1000; fishAuto = setTimeout(async () => {
     if (!nearPond()) { stopFish(); return drawFishWin('離開水邊，停止釣魚'); }
     try { const r = await call('POST', '/api/fish', { charId: CHAR.id, bait: fishBait, mode: 'auto' }); showChar(r.char);
-      if (r.got) toast(`${r.got.rare ? '✨ ' : ''}釣到了 ${r.got.name}！`);
+      if (r.got) toast(`${r.got.rare ? '✨ ' : ''}釣到了 ${r.got.name}！${r.exp ? `（經驗 +${r.exp}）` : ''}`); else if (r.exp) toast(`經驗 +${r.exp}`);
       if (!baitNow()) { stopFish(); return drawFishWin('魚餌用完了'); }
       drawFishWin(r.got ? `釣到 ${r.got.name}` : ''); cast();
     } catch (e) { stopFish(); drawFishWin(e.message); } }, AUTO_SECS * 1000); };
