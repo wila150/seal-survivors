@@ -13,7 +13,8 @@ import { talentEffects, branchOf, boostedAlloc } from './src/1_data/talents.js';
 import { gemEffects } from './src/1_data/gems.js';
 import { stoneEffects } from './src/1_data/stones.js';
 import { titleOf } from './src/1_data/fame.js';
-import { applyRankBuff } from './src/1_data/rank-buff.js'; // PC 戰鬥力排名 BUFF
+import { applyRankBuff } from './src/1_data/rank-buff.js';
+import { gapDrop } from './src/1_data/level-gap.js'; // PC 等差掉寶率 // PC 戰鬥力排名 BUFF
 import { PC_PETS, petName, petBonus, petStage9 } from './src/1_data/pets.js';
 import { BPETS, BPET_REQ_LV, bpetStats, bpetAux, bpetName, bpetActives } from './src/1_data/bpets.js'; // 戰寵（11/20 照 PC）
 import { cleanDiff, diffMods, stageBaseLv } from './src/1_data/difficulty.js';
@@ -72,6 +73,7 @@ let floor = 1; // 塔的目前樓層
 const DIFF_BASE = stageBaseLv(STAGE); // 地圖本身的怪物等級（難度＝選更高的 PC 怪物等級）
 let DIFF = cleanDiff(null, DIFF_BASE); if (!TOWER) { try { DIFF = cleanDiff(JSON.parse(sessionStorage.getItem('ss_diff')), DIFF_BASE); } catch {} }
 const DM = diffMods(DIFF, DIFF_BASE);
+const GAP_DROP = TOWER ? 1 : gapDrop((CHAR.baseLv || 1) - DM.monLv, CHAR.job); // PC 等差掉寶率：等級差太多，菁英掉裝備寶箱的機率打折（經驗在伺服器算）
 const ST = { ...defaultStats(), ...(CHAR.stats || {}) };
 for (const k of ['str', 'agi', 'int', 'vit', 'wis', 'luk']) ST[k] += Math.round(CHAR.bonus?.[k] || 0); // 項目 32：裝備詞綴的素質
 // 坐騎租約期間五項素質 +5
@@ -661,7 +663,7 @@ function guestKill(e, d, mine) { // 隊員：隊長說這隻倒了
   const pos = { x: d.x, z: d.z }; dropGem(pos, d.xp, 'k' + d.id); if (mine) kills++;
   if (!e || e.dead) return; e.dead = true; dropCoin(pos); cbOnKill(e); mobSound(e, 'dd');
   if (e.netBoss) { runBosses.push(e.type); dropChest(pos, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); } // 首領寶箱每個人各一個（結算時各自開）
-  else if (e.elite) { if (Math.random() < 0.4 + (P.pbLoot || 0)) dropChest(pos, false); dropChest({ x: pos.x + 1.2, z: pos.z }, false, true); }
+  else if (e.elite) { if (Math.random() < (0.4 + (P.pbLoot || 0)) * GAP_DROP) dropChest(pos, false); dropChest({ x: pos.x + 1.2, z: pos.z }, false, true); }
   if (e.mvp) finalDown = true;
   if (e === boss) setBoss(null);
   spawnFx('hit', e.mesh.position, { scale: 1.6, life: 0.25, grow: 1.5, color: 0xffffff });
@@ -727,7 +729,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
     e.dead = true; if (e.lastSrc === 'bpet') bpet.kills++; /* 戰寵自己殺的才算戰寵經驗 */ if (!NET || (e.by ?? NET.me) === NET.me) kills++; dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
     if (e.mvp) finalDown = true;
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
-    else if (e.elite) { if (Math.random() < 0.4 + (P.pbLoot || 0)) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
+    else if (e.elite) { if (Math.random() < (0.4 + (P.pbLoot || 0)) * GAP_DROP) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
     if (e === boss) setBoss(null);
     spawnFx('hit', e.mesh.position, { scale: 1.6, life: 0.25, grow: 1.5, color: 0xffffff });
   }

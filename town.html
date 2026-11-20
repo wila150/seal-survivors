@@ -275,6 +275,7 @@ const startBgm = () => townBgm.play().catch(() => {}); startBgm(); addEventListe
 import { openTalents } from './src/2_core/talent-ui.js';
 import { openGems } from './src/2_core/gem-ui.js';
 import { RANK_BUFF, rankBuffText } from './src/1_data/rank-buff.js';
+import { gapExp, gapDrop } from './src/1_data/level-gap.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
@@ -1270,7 +1271,8 @@ function openExpedition() {
     return `PC Lv${DF.monLv} 一般怪：HP ${R.hp.toLocaleString()}・攻擊 ${R.atk}　→ 這張地圖的怪 HP ×${+m.hp.toFixed(2)}・攻擊 ×${+m.dmg.toFixed(2)}・生怪 ×${m.spawn}・精英 ×${m.event}<br><b>裝備 ×${L.gear}</b>（一般寶箱品質）・<b>掉寶 ×${L.boss}</b>（首領寶箱品質）・傳說率 一般 ${(lr * 100).toFixed(2)}%／首領 ${(lrb * 100).toFixed(2)}%<br><b>經驗 +${Math.round(12 * ((DF.count - 1) + (DF.event - 1)))}%</b>（敵人數量、事件數量每多一階 +12%；怪物等級越高 Base 經驗也越多）・<small>金幣不受難度影響</small>`; };
   // 11/20 照 RO 遠征前的難度視窗：怪物等級＋敵人數量／傷害／血量／速度／事件數量、升級「立即／累積」、戰利品倍率
   const ROWS = diffRows(BASE), fmtV = (u, v) => u === 'Lv' ? 'Lv' + v : u === '%' ? v + '%' : '×' + v;
-  const lootTxt = () => { const L = diffLoot(DF, BASE); return `戰利品 <b style="color:#2b6fd6">×${L.gear}</b>　<small>首領寶箱 ×${L.boss}</small>`; };
+  const gapTxt = () => { const g = CHAR.baseLv - DF.monLv, e = gapExp(g), d = gapDrop(g, CHAR.job); return e < 1 || d < 1 ? `<br><small style="color:#c0392b"><b>等差掉寶率</b>（照 PC）：你 Lv${CHAR.baseLv}、怪物 Lv${DF.monLv}，差 ${Math.abs(g)} 級 → 經驗 ${Math.round(e * 100)}%・菁英掉裝備 ${Math.round(d * 100)}%（差 29 級以內＝100%）</small>` : ''; };
+  const lootTxt = () => { const L = diffLoot(DF, BASE); return `戰利品 <b style="color:#2b6fd6">×${L.gear}</b>　<small>首領寶箱 ×${L.boss}</small>${gapTxt()}`; };
   const diffHtml = `<div class="sec" style="padding:0;border:0;background:none">${ROWS.map(([k, n, lo, hi, st, u]) => `<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><span style="width:72px">${n}</span><input type="range" data-df="${k}" data-u="${u}" min="${lo}" max="${hi}" step="${st}" value="${DF[k]}" style="flex:1"><b data-dfv="${k}" style="width:56px;text-align:right;color:#2b6fd6">${fmtV(u, DF[k])}</b></div>`).join('')}
     <div style="display:flex;align-items:center;gap:8px;margin:10px 0 2px"><span style="width:72px">升級</span><span style="flex:1"></span><button class="btn${DF.stack ? '' : ' primary'}" data-stack="0" style="padding:4px 14px">立即</button><button class="btn${DF.stack ? ' primary' : ''}" data-stack="1" style="padding:4px 14px">累積</button></div>
     <small id="stackTip" style="color:#5a6478">${DF.stack ? '升級先存起來，按畫面上的「升級」鈕（或 U 鍵）再一次選，不會一直被打斷' : '每次升級和每個寶箱都會暫停，和以前一樣'}</small>
