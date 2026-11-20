@@ -14,6 +14,7 @@ export const getSettings = () => S;
 export function onSettings(fn) { subs.add(fn); fn(S); return () => subs.delete(fn); }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} for (const f of subs) f(S); }
 export function resetSettings() { S = { ...DEF }; save(); }
+export function setSetting(k, v) { S[k] = v; save(); } // 出征畫面的快速開關（例：自動選卡）用
 
 // 介面大小：把指定的 HUD 元素一起縮放（不縮放 3D 畫布，避免點擊位置跑掉）
 export function applyHud(ids) { for (const id of ids) { const el = document.getElementById(id); if (el) el.style.zoom = S.hud; } }

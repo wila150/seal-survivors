@@ -284,6 +284,7 @@ import { RANK_BUFF, rankBuffText } from './src/1_data/rank-buff.js';
 import { gapExp, gapDrop } from './src/1_data/level-gap.js';
 import { POLY } from './src/1_data/polymorph.js';
 import { EMO_TABS, emoPos } from './src/1_data/emote.js';
+import * as ML from './src/1_data/mainline.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
@@ -360,6 +361,7 @@ $('#stoneMenuBtn').onclick = () => $('#stoneBtn').click();
 // 圖示：官方公告圖裁下的 10 個圓形圖示（assets/ui/qm，已經有外框）；其他用 PC 原版按鈕／系統／道具圖＋圓框
 const QM_CATS = ['活動', '設定', '社群', '角色', '目錄'];
 const QM = {
+  patrol:  { n: '巡邏', c: '活動', i: 'sys/rank', f: 0, run: () => openPatrol() },
   emote:   { n: '表情', c: '社群', i: 'qm/emo', f: 1, run: () => openEmote() },
   online:  { n: '在線', c: '活動', i: 'sys/online', f: 0, run: () => openAttend('online') },
   checkin: { n: '簽到', c: '活動', i: 'sys/checkin', f: 0, run: () => openAttend('check') },
@@ -379,7 +381,7 @@ const QM = {
   status:  { n: '狀態', c: '角色', i: 'qm/sword', f: 0, run: () => $('#statBtn').click() },
   bag:     { n: '背包', c: '角色', i: 'btn_bag_0', f: 1, run: () => $('#bagBtn').click() },
   skill:   { n: '技能', c: '角色', i: 'btn_skill_0', f: 1, run: () => $('#skillBtn').click() },
-  talent:  { n: '天賦', c: '角色', i: 'sys/rank', f: 0, run: () => $('#talentBtn').click() },
+  talent:  { n: '天賦', c: '角色', i: '../items/1352', f: 1, run: () => $('#talentBtn').click() },
   gem:     { n: '寶石', c: '角色', i: 'sys/gem', f: 0, run: () => $('#gemBtn').click() },
   stone:   { n: '鑲嵌', c: '角色', i: 'sys/stone', f: 0, run: () => $('#stoneBtn').click() },
   pet:     { n: '寵物', c: '角色', i: 'qm/heart', f: 0, run: () => openPets() },
@@ -388,7 +390,7 @@ const QM = {
   stash:   { n: '倉庫', c: '目錄', i: 'btn_bank_0', f: 1, run: () => openStash() },
   library: { n: '圖書館', c: '目錄', i: 'qm/search', f: 0, run: () => { bSel = 7; openBestiary(); } },
 };
-const QM_MAX = 10, QM_DEF = matchMedia('(pointer:coarse)').matches ? ['online', 'checkin', 'stone', 'gem', 'fish', 'party', 'friend', 'chars'] : ['online', 'checkin', 'stone', 'gem', 'fish', 'chars'];
+const QM_MAX = 10, QM_DEF = matchMedia('(pointer:coarse)').matches ? ['patrol', 'online', 'checkin', 'stone', 'gem', 'fish', 'party', 'friend', 'chars'] : ['patrol', 'online', 'checkin', 'stone', 'gem', 'fish', 'chars'];
 const qmKey = () => { let u = 'me'; try { u = localStorage.getItem('ss_user') || u; } catch {} return 'ss_qm_' + u; }; // 以帳號為單位（PC 同）
 const qmLoad = () => { try { const a = JSON.parse(localStorage.getItem(qmKey()) || 'null'); if (Array.isArray(a)) return a.filter(k => QM[k]).slice(0, QM_MAX); } catch {} return QM_DEF.slice(); };
 const qmIc = k => `<i class="qm-ic ${QM[k].f ? 'fr' : ''}"><img src="assets/ui/${QM[k].i}.png" alt=""></i>`;
@@ -426,6 +428,22 @@ function openEmote() {
   const b = $('#dlgBody');
   b.querySelectorAll('[data-emt]').forEach(x => x.onclick = () => { emoTab = +x.dataset.emt; openEmote(); });
   b.querySelectorAll('[data-emo]').forEach(x => x.onclick = () => showEmote(+x.dataset.emo));
+}
+// ===== 主線巡邏（docs/企劃_主線獎勵.md）：沒出征也在累積（最多 12 小時），快速巡邏每天 3 次 =====
+async function openPatrol() {
+  let c = CHAR; if (!c.patrol?.secs) { try { c = await call('POST', '/api/patrol', { charId: CHAR.id, act: 'start' }); showChar(c); } catch {} } // 第一次打開＝開始巡邏
+  const V = c.patrol || {}, n = V.n || 0, q = V.quick || 0, h = Math.floor((V.secs || 0) / 3600), mm = Math.floor((V.secs || 0) % 3600 / 60), next = ML.PATROL_QUICK[q];
+  openDlg('巡邏', `<p>「我們的巡邏隊會在你不在的時候到處巡邏、打怪、撿東西。通關的地圖越多，帶回來的越多。」</p>
+    <div class="sec"><h4>巡邏中</h4>已經巡邏 <b>${h} 小時 ${mm} 分</b>（最多累積 12 小時）　通關地圖 <b>${n}</b> / ${STAGES.length}
+      <div style="height:10px;border-radius:5px;background:#e3e8f3;overflow:hidden;margin:6px 0"><i style="display:block;height:100%;width:${Math.min(100, (V.secs || 0) / ML.PATROL_CAP * 100)}%;background:linear-gradient(90deg,#7bd389,#2e9e4a)"></i></div>
+      目前收穫：💰 ${V.gold || 0} 金幣・經驗 ${(V.exp || 0).toLocaleString()}・強化金屬・一 ×${V.ore1 || 0}・裝備 ${V.gear || 0} 件
+      <br><small>每小時：金幣 ${60 + 60 * n}、強化金屬・一 ${1 + n}、最高通關地圖 60 隻怪的經驗；每 2 小時 1 件${RARITY[ML.patrolGear(n)].name}裝備（裝備寄信箱）</small>
+      <div style="margin-top:8px"><button class="btn primary" id="ptClaim" ${(V.secs || 0) >= 60 ? '' : 'disabled'}>領取巡邏收穫</button></div></div>
+    <div class="sec"><h4>快速巡邏</h4>馬上拿到 2 小時的收穫${n >= 4 ? '，<b>四張地圖都通關：固定 4 件裝備</b>' : ''}。今天剩 <b>${ML.PATROL_QUICK.length - q}</b> 次
+      <div style="margin-top:8px"><button class="btn primary" id="ptQuick" ${next == null || c.gold < next ? 'disabled' : ''}>${next == null ? '今天用完了' : next ? `快速巡邏（${next} 金幣）` : '快速巡邏（免費）'}</button></div></div>`, [], true);
+  const done = (r, t) => { showChar(r.char); const g = r.got; toast(`${t}：💰 ${g.gold}、經驗 ${g.exp.toLocaleString()}、強化金屬・一 ×${g.ore1}${g.gear ? `、裝備 ${g.gear} 件（信箱）` : ''}${g.ups ? `，升了 ${g.ups} 級！` : ''}`); openPatrol(); };
+  $('#ptClaim')?.addEventListener('click', async () => { try { done(await call('POST', '/api/patrol', { charId: CHAR.id, act: 'claim' }), '巡邏收穫'); } catch (e) { toast(e.message); } });
+  $('#ptQuick')?.addEventListener('click', async () => { try { done(await call('POST', '/api/patrol', { charId: CHAR.id, act: 'quick' }), '快速巡邏'); } catch (e) { toast(e.message); } });
 }
 // ===== PC 在線與簽到系統（2u id=72；獎勵照服務端 Attendance_Reward.scr／Reward_Time.scr，寄到信箱）=====
 const ATT_ICON = id => ({ 432: 39, 433: 618, 434: 341, 3981: 380, 3689: 759, 3690: 760, 3691: 761, 25807: 31, 11835: 2315, 11836: 2315, 11837: 2315 })[id] || 0;
@@ -1282,6 +1300,9 @@ function openExpedition() {
       <span class="tag ${done ? 'done' : un ? (gs >= (GS_REQ[i] || 0) ? 'ok' : 'lock') : 'lock'}">${done ? '已通關' : un ? (gs >= (GS_REQ[i] || 0) ? '可挑戰' : `GS ${GS_REQ[i]}`) : '未解鎖'}</span></div></div>`; }).join('');
   const info = `<div class="hero" style="background:${S.banner ? `linear-gradient(90deg,#0009,#0000 70%),url(${S.banner}) 22% 78%/175% auto no-repeat,` : ''}linear-gradient(135deg,${hex(S.ground)},${hex(S.fog)})"><span class="lv">Lv ${S.lv}</span><b>${S.name}</b><small>${S.sub}・MVP ${S.bosses[S.bosses.length - 1][1]}</small></div>${mvpElemHint(S.bosses[S.bosses.length - 1][1])}
     <div class="sec"><h4>關卡</h4>Tier ${S.tier || 1}　・　時長 ${fmtT(stageTime(S))}（MVP 在最後出場）　・　裝備分數 <b style="color:${gs >= (GS_REQ[expSel] || 0) ? '#2e7d32' : '#c0392b'}">${gs}</b> / 需要 ${GS_REQ[expSel] || 0}${(S.tier || 1) >= 2 ? `<br><small>高階地圖：開局 ${EARLY_WEAK.secs / 60} 分鐘內怪物較弱（×${EARLY_WEAK.from} 慢慢恢復），首領一律全力</small>` : ''}${gate.ok ? '' : `<br><b style="color:#c0392b">${gate.why}</b>`}<br><small>裝備分數＝每件穿著的裝備（品質＋1）×4＋精煉×2＋G 化×4</small></div>
+    <div class="sec"><h4>時間寶箱</h4><div style="display:flex;gap:8px;flex-wrap:wrap">${ML.msTimes(S).map((sec, i) => { const got = CHAR.msGot?.[S.key]?.[i], ok = (CHAR.bestSecs?.[S.key] || 0) >= sec, R = ML.msReward(expSel, i);
+        return `<button class="btn ${ok && !got ? 'primary' : ''}" data-ms="${i}" ${ok && !got ? '' : 'disabled'} style="flex:1;min-width:90px;line-height:1.35"><img src="assets/items/${i === 2 ? 1352 : 2315}.png" alt="" style="width:24px;height:24px;vertical-align:middle"> <b>${sec / 60} 分鐘</b><br><small>${got ? '已領取' : ok ? '可以領！' : '未達成'}・${R.gold} 金幣${R.gear != null ? `・${RARITY[R.gear].name}裝備` : ''}</small></button>`; }).join('')}</div>
+      <small style="color:#6b7896">在這張地圖活到該時間就能領（每個只能領一次，寄到信箱）；最久紀錄 ${fmtT(CHAR.bestSecs?.[S.key] || 0)}。越後面的地圖寶箱越好</small></div>
     <div class="sec"><h4>頭目</h4><div class="row">${bossTimes(S).map(([sec, n, k]) => `<div class="mon ${k}"><img data-mon="${n}" alt="">${n}<small>${k === 'mvp' ? 'MVP' : '小王'}・${fmtT(sec)}</small></div>`).join('')}</div></div>
     <div class="sec"><h4>怪物</h4><div class="row">${S.monsters.map(n => `<div class="mon"><img data-mon="${n}" alt="">${n}</div>`).join('')}</div></div>
     <div class="sec"><h4>獎勵</h4>經驗、金幣 ×${S.reward}　・　打倒小王和 MVP 必掉首領寶箱（至少精良）<br>精英怪 40% 掉寶箱　・　打倒 MVP 通關，獎勵再 ×1.5${STAGES[expSel + 1] ? `，並解鎖「${STAGES[expSel + 1].name}」` : ''}</div>`;
@@ -1319,6 +1340,7 @@ function openExpedition() {
   const dshort = `<div class="sec"><h4>難度</h4>${lootTxt()}　<small>怪物 Lv${DF.monLv}・數量 ×${DF.count}・傷害 ${DF.dmgP}%・血量 ${DF.hpP}%・速度 ${DF.spdP}%・事件 ×${DF.event}・升級${DF.stack ? '累積' : '立即'}</small><br><small style="color:#5a6478">按「出發」可以調整</small></div>`;
   openDlg('遠征', `<div class="exp"><div class="list">${list}</div><div class="info">${dshort}${info}</div></div>`,
     [...(unlocked ? [['出發', openDiff, true]] : [])], true); // 賢者之塔改成找主城的「越過次元的修道士」（官方 wiki 83；不在遠征視窗跳轉）
+  $('#dlgBody').querySelectorAll('[data-ms]').forEach(el => el.onclick = async () => { try { showChar(await call('POST', '/api/milestone', { charId: CHAR.id, stage: STAGES[expSel].key, m: +el.dataset.ms })); toast('寶箱寄到信箱了，去找郵差領'); openExpedition(); } catch (e) { toast(e.message); } });
   $('#dlgBody').querySelectorAll('[data-st]').forEach(el => el.onclick = () => { const i = +el.dataset.st; if (!stageUnlocked(i, cl)) return toast('先通關前一張地圖才會解鎖'); expSel = i; openExpedition(); });
   fillThumbs($('#dlgBody'));
 }

@@ -28,7 +28,7 @@ import { loadSkills, SkillManager, FxPool, iconHtml, TYPE_NAMES, TAG_NAMES, ENH,
 import { SealFx } from './src/3_skills/seal-fx.js';
 import { MeshPool, DomPool } from './src/2_core/pool.js';
 import { createCamera, fitCamera, followCamera, cycleView, enableOrbit } from './src/2_core/camera.js';
-import { openSettings, onSettings, getSettings, applyHud, pixelRatio } from './src/2_core/settings.js';
+import { openSettings, onSettings, getSettings, applyHud, pixelRatio, setSetting } from './src/2_core/settings.js';
 import { createInput, createPlayer, magnetGems } from './src/2_core/player.js';
 import { BOSS_TITLES, createSpawner, createBossSystem, submitRun } from './src/2_core/game-manager.js';
 import { createWatchdog } from './src/4_diagnostics/watchdog.js';
@@ -684,6 +684,7 @@ let elemCd = 0;
 // ===== 項目 42：寶箱上限＋撿取篩選（一般寶箱每局最多 100 個、首領寶箱不算；篩選＝結算時低於門檻的裝備直接不要）=====
 const LOOT_CAP = 100, LOOT_F = ['全部', '精良以上', '稀有以上', '史詩以上', '只要傳說'];
 let lootMin = 0; try { lootMin = Math.max(0, Math.min(4, +localStorage.getItem('ss_lootf') || 0)); } catch {}
+document.getElementById('autoPk')?.addEventListener('click', e => { e.stopPropagation(); setSetting('autoPick', !getSettings().autoPick); }); // 主線自動選卡開關（企劃_主線獎勵）
 const lootBtn = document.getElementById('lootf');
 const drawLootBtn = () => { if (lootBtn) { lootBtn.textContent = '🔍 ' + LOOT_F[lootMin]; lootBtn.style.color = lootMin ? RARITY[lootMin].color : ''; } };
 lootBtn?.addEventListener('click', e => { e.stopPropagation(); lootMin = (lootMin + 1) % LOOT_F.length; try { localStorage.setItem('ss_lootf', String(lootMin)); } catch {} drawLootBtn(); });
@@ -901,6 +902,7 @@ let passives = {}, dmgStats = {}, dmgTimer = 0;
 const opts = { nums: true, meter: true, shake: true, autoPick: false };
 onSettings(G => {
   opts.nums = G.nums; opts.meter = G.meter; opts.shake = G.shake; opts.autoPick = G.autoPick;
+  { const b = document.getElementById('autoPk'); if (b) { b.textContent = G.autoPick ? '🤖 自動選卡：開' : '🤖 自動選卡：關'; b.style.background = G.autoPick ? '#2e9e4a' : ''; b.style.color = G.autoPick ? '#fff' : ''; } }
   setBgmVol(bgm, 0.5 * G.master * G.bgm, AC); applyHud(['hud']); // iPhone 不吃 audio.volume → bgm-vol.js 走 GainNode
   if (AQ.q !== G.quality) { AQ.q = G.quality; AQ.lvl = 0; AQ.low = 0; } // 自己改畫質 → 自動降級重設
   if (renderer.getPixelRatio() !== pixelRatio() && !AQ.lvl) { renderer.setPixelRatio(pixelRatio()); resize(); }
