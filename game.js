@@ -54,6 +54,8 @@ const BGM_DEFAULT = 'assets/bgm/01.mp3'; // 每張地圖用 stages.js 的 bgm（
 // 目前角色（從角色選擇畫面帶過來）
 let CHAR = null; try { CHAR = JSON.parse(sessionStorage.getItem('ss_char')); } catch {}
 if (!CHAR && !location.search.includes('auto')) location.replace('./');
+// PC 在線系統：出征也算在線時間（每分鐘心跳一次；分頁在背景不算）
+if (CHAR?.id) setInterval(() => { if (document.hidden) return; let t = ''; try { t = localStorage.getItem('ss_token') || ''; } catch {} if (t) fetch('/api/attend', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t }, body: JSON.stringify({ charId: CHAR.id, act: 'tick' }) }).catch(() => {}); }, 60000);
 if (!CHAR) CHAR = { name: '測試', job: new URLSearchParams(location.search).get('job') || '劍士', baseLv: 1, stats: defaultStats(), outfit: 0 };
 const JOB = JOBS[CHAR.job] || JOBS['劍士'];
 // 目前的遠征地圖

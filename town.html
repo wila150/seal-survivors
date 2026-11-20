@@ -274,6 +274,7 @@ onSettings(G => setBgmVol(townBgm, 0.45 * G.master * G.bgm)); // iPhone 不吃 a
 const startBgm = () => townBgm.play().catch(() => {}); startBgm(); addEventListener('pointerdown', startBgm, { once: true }); addEventListener('keydown', startBgm, { once: true });
 import { openTalents } from './src/2_core/talent-ui.js';
 import { openGems } from './src/2_core/gem-ui.js';
+import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
 import { PC_PETS, PET_MAX, PET_MAX_LV, EGGS, FAM_NAME, CAT_NAME, FEED_EXP, petName, petNeed, petStatText, petBonusText, evoTargets } from './src/1_data/pets.js';
@@ -349,6 +350,8 @@ $('#stoneMenuBtn').onclick = () => $('#stoneBtn').click();
 // 圖示：官方公告圖裁下的 10 個圓形圖示（assets/ui/qm，已經有外框）；其他用 PC 原版按鈕／系統／道具圖＋圓框
 const QM_CATS = ['活動', '設定', '社群', '角色', '目錄'];
 const QM = {
+  online:  { n: '在線', c: '活動', i: 'sys/online', f: 0, run: () => openAttend('online') },
+  checkin: { n: '簽到', c: '活動', i: 'sys/checkin', f: 0, run: () => openAttend('check') },
   exp:     { n: '傳送', c: '活動', i: 'qm/pin', f: 0, run: () => openExpedition() },
   rank:    { n: '排行榜', c: '活動', i: 'qm/trophy', f: 0, run: () => openRank() },
   tower:   { n: '賢者之塔', c: '活動', i: 'sys/blueprint', f: 0, run: () => openTower() },
@@ -374,7 +377,7 @@ const QM = {
   stash:   { n: '倉庫', c: '目錄', i: 'btn_bank_0', f: 1, run: () => openStash() },
   library: { n: '圖書館', c: '目錄', i: 'qm/search', f: 0, run: () => { bSel = 7; openBestiary(); } },
 };
-const QM_MAX = 10, QM_DEF = matchMedia('(pointer:coarse)').matches ? ['stone', 'gem', 'fish', 'party', 'friend', 'chars'] : ['stone', 'gem', 'fish', 'chars'];
+const QM_MAX = 10, QM_DEF = matchMedia('(pointer:coarse)').matches ? ['online', 'checkin', 'stone', 'gem', 'fish', 'party', 'friend', 'chars'] : ['online', 'checkin', 'stone', 'gem', 'fish', 'chars'];
 const qmKey = () => { let u = 'me'; try { u = localStorage.getItem('ss_user') || u; } catch {} return 'ss_qm_' + u; }; // 以帳號為單位（PC 同）
 const qmLoad = () => { try { const a = JSON.parse(localStorage.getItem(qmKey()) || 'null'); if (Array.isArray(a)) return a.filter(k => QM[k]).slice(0, QM_MAX); } catch {} return QM_DEF.slice(); };
 const qmIc = k => `<i class="qm-ic ${QM[k].f ? 'fr' : ''}"><img src="assets/ui/${QM[k].i}.png" alt=""></i>`;
@@ -401,6 +404,34 @@ function openQuickMenu() {
   draw();
 }
 qmRender();
+// ===== PC 在線與簽到系統（2u id=72；獎勵照服務端 Attendance_Reward.scr／Reward_Time.scr，寄到信箱）=====
+const ATT_ICON = id => ({ 432: 39, 433: 618, 434: 341, 3981: 380, 3689: 759, 3690: 760, 3691: 761, 25807: 31, 11835: 2315, 11836: 2315, 11837: 2315 })[id] || 0;
+let ATT_V = null;
+async function attTick() { if (document.hidden || !CHAR) return; try { ATT_V = await call('POST', '/api/attend', { charId: CHAR.id, act: 'tick' }); if ($('#dlgTitle')?.dataset.t?.startsWith('在線與簽到')) openAttend(); } catch {} }
+setInterval(attTick, 60000); setTimeout(attTick, 3000);
+let attTab = 'online';
+async function openAttend(tab) {
+  if (tab) attTab = tab; if (!ATT_V) { try { ATT_V = await call('GET', '/api/attend'); } catch (e) { return toast(e.message); } }
+  const V = ATT_V, cell = (id, n) => `<span style="display:inline-flex;align-items:center;gap:3px"><img src="assets/items/${ATT_ICON(id)}.png" alt="" style="width:28px;height:28px">${rewardText(id, n)}</span>`;
+  let h = `<div class="tabs2"><button class="btn ${attTab === 'online' ? 'primary' : ''}" data-att="online">在線系統</button><button class="btn ${attTab === 'check' ? 'primary' : ''}" data-att="check">簽到系統</button></div>`;
+  if (attTab === 'online') {
+    const m = Math.floor(V.secs / 60);
+    h += `<p><small>今天累積在線 <b>${m}</b> 分鐘（主城、出征都算；每天 0 點重算）。每 30 分鐘可以領一次，最多 180 分鐘。獎勵寄到信箱。同一個帳號每天只能一個角色領。</small></p>
+      <div style="height:10px;border-radius:5px;background:#e3e8f3;overflow:hidden;margin:6px 0"><i style="display:block;height:100%;width:${Math.min(100, V.secs / 108)}%;background:linear-gradient(90deg,#5cc8ff,#3a7bd5)"></i></div>
+      ${ONLINE.map(([sec, id, n], i) => { const got = V.claimed.includes(i), can = !got && V.secs >= sec; return `<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border:1px solid #c9d5f3;border-radius:10px;background:${got ? '#eef7ee' : '#fff'};margin-bottom:6px"><b style="width:68px;flex:none">${sec / 60} 分鐘</b><span style="flex:1;min-width:0">${cell(id, n)}</span><button class="btn ${can ? 'primary' : ''}" data-oc="${i}" ${can ? '' : 'disabled'}>${got ? '已領取' : can ? '領取' : `還差 ${Math.ceil((sec - V.secs) / 60)} 分`}</button></div>`; }).join('')}`;
+  } else {
+    const n = V.signN % ATTEND.length, dn = V.signedToday ? ((V.signN - 1) % 28) + 1 : n; // dn＝這一輪已簽幾天
+    h += `<p><small>每天登入簽到一次，28 天一輪（目前第 ${V.signN ? ((V.signN - 1) % 28) + 1 : 0} 天）。獎勵寄到信箱。${V.signedToday ? '<b>今天已經簽到了</b>' : ''}</small></p>
+      <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px">${ATTEND.map(([id, k, id2, k2], i) => { const today = i === (V.signedToday ? (V.signN - 1) % 28 : n);
+        return `<div title="${rewardText(id, k)}${id2 ? '、' + rewardText(id2, k2) : ''}" style="border:2px solid ${today ? '#ff8a3d' : '#c9d5f3'};border-radius:8px;background:${i < dn ? '#e6f4e6' : '#fff'};text-align:center;padding:3px 0;font-size:10px;position:relative"><div>${i + 1}</div><img src="assets/items/${ATT_ICON(id)}.png" alt="" style="width:26px;height:26px">${k > 1 ? `<b style="position:absolute;right:3px;top:14px">×${k}</b>` : ''}${id2 ? `<img src="assets/items/${ATT_ICON(id2)}.png" alt="" style="width:16px;height:16px;position:absolute;left:2px;bottom:2px">` : ''}${i < dn ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:#2e9e4a">✔</div>' : ''}</div>`; }).join('')}</div>
+      <div style="text-align:center;margin-top:8px"><button class="btn primary" id="attSign" ${V.signedToday ? 'disabled' : ''}>${V.signedToday ? '今天已簽到' : `簽到（第 ${n + 1} 天：${rewardText(ATTEND[n][0], ATTEND[n][1])}${ATTEND[n][2] ? '、' + rewardText(ATTEND[n][2], ATTEND[n][3]) : ''}）`}</button></div>`;
+  }
+  openDlg('在線與簽到', h, [], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-att]').forEach(x => x.onclick = () => openAttend(x.dataset.att));
+  b.querySelectorAll('[data-oc]').forEach(x => x.onclick = async () => { try { ATT_V = await call('POST', '/api/attend', { charId: CHAR.id, act: 'claim', idx: +x.dataset.oc }); toast('獎勵寄到信箱了，去找郵差領'); openAttend(); } catch (e) { toast(e.message); } });
+  $('#attSign')?.addEventListener('click', async () => { try { ATT_V = await call('POST', '/api/attend', { charId: CHAR.id, act: 'check' }); toast(`第 ${ATT_V.got} 天簽到成功！獎勵寄到信箱`); openAttend(); } catch (e) { toast(e.message); } });
+}
 $('#escQm').onclick = () => { escMenu(false); openQuickMenu(); };
 // 左邊系統圖示欄：藍色箭頭收起／展開（記住狀態）；手機的組隊／好友／菜單在這一欄
 { let closed = false; try { closed = localStorage.getItem('ss_side_closed') === '1'; } catch {} $('#sideMenu').classList.toggle('closed', closed);
@@ -888,7 +919,8 @@ function openPets() {
       <div class="acts" style="margin-top:6px">${on ? '<button class="btn" data-pa="">從裝備欄拿下</button>' : `<button class="btn primary" data-pa="1" ${lvOk ? '' : 'disabled'}>放進裝備欄</button>`}<button class="btn" id="petRename">改名</button>${!on ? (p.sit ? `<button class="btn" data-psit="claim">領回代養（已 ${Math.min(24, (Date.now() - p.sit) / 3600e3).toFixed(1)} 小時，+${Math.floor(Math.min(24, (Date.now() - p.sit) / 3600e3) * 80)} 經驗）</button>` : '<button class="btn" data-psit="start">交給管理員代養（每小時 +80 經驗）</button>') : ''}${pets.filter(x => x.id !== p.id && x.id !== c.pet && !x.sit).map(x => `<button class="btn" data-psm="${x.id}">冶煉 ⇦ ${esc(petName(x))}（500 希幣）</button>`).join('')}</div>
       <div style="margin-top:8px"><small><b>餵食</b>：寵物什麼都能吃——點背包裡不要的裝備（品質越高經驗越多，餵了就沒了；沒放在裝備欄的寵物吃了只會不餓、不會長大）</small></div>
       <div class="bag">${bag.map(i => `<div class="cell ${petFeed.has(i.id) ? 'sel' : ''}" data-pf="${i.id}" style="border-color:${RARITY[i.rarity].color}"><img src="${itemIcon(i)}" alt="">${i.refine ? `<b>+${i.refine}</b>` : ''}</div>`).join('') || '<small style="grid-column:1/-1">背包沒有可以餵的裝備</small>'}</div>
-      <button class="btn" id="petFeedAuto">一鍵挑選非本職業</button> <button class="btn primary" id="petFeedGo" ${petFeed.size ? '' : 'disabled'}>餵 ${petFeed.size} 件（+${fexp} 經驗）</button></div>`;
+      <button class="btn" id="petFeedAuto">一鍵挑選非本職業</button> <button class="btn primary" id="petFeedGo" ${petFeed.size ? '' : 'disabled'}>餵 ${petFeed.size} 件（+${fexp} 經驗）</button>
+      ${(F => F.length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><small><b>寵物食品</b>（簽到、在線獎勵）：</small>${F.map(([k, e]) => `<button class="btn" data-pfood="${k}" title="${ORES[k].desc}"><img src="assets/items/${ORES[k].icon}.png" alt="" style="width:20px;height:20px;vertical-align:middle"> ${ORES[k].name} ×${c.mats[k]}（+${e}）</button>`).join('')}</div>` : '')(Object.entries(ATT_FOOD).filter(([k]) => (c.mats?.[k] || 0) > 0))}</div>`;
   const html = `<p>「想養寵物就先買一顆寵物蛋。寵物要放進裝備欄、跟你出城才會長大，也會肚子餓——記得餵牠或陪牠玩。長到第 9 階段再出征一陣子，就可以拿材料來找我進化，材料不同、進化成的寵物也不同喔。」</p>
     <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">${pets.map(card).join('')}</div>${p ? (() => { const st9 = PV2.petStage9(p.lv), pct = p.lv < PET_MAX_LV ? Math.round(p.exp / petNeed(p.lv, D.tier) * 100) : 100;
       // PC 原版 PET EAT 蛋形視窗（interface/mainblue_item_fat_eat.tex）：名字＋成長條、想吃的東西、飢餓（紅色尾巴條）、餵食／玩遊戲
@@ -913,6 +945,7 @@ function openPets() {
   b.querySelectorAll('[data-pevo]').forEach(x => x.onclick = () => { const k = x.dataset.pevo, tot = Object.values(petEvo).reduce((a, b2) => a + b2, 0); if ((petEvo[k] || 0) >= (c.mats[k] || 0) || tot >= 10) { delete petEvo[k]; } else petEvo[k] = (petEvo[k] || 0) + 1; openPets(); });
   $('#petEvolve')?.addEventListener('click', async () => { if (!(await askConfirm('進化後回到第 1 階段，材料會用掉，確定？', { ok: '進化' }))) return; try { const r = await call('POST', '/api/petevolve', { charId: c.id, petId: p.id, mats: petEvo }); petEvo = {}; showChar(r.char); toast(`進化成功！${r.from} → ${r.to}`); openPets(); } catch (e) { toast(e.message); } });
   $('#petFeedAuto')?.addEventListener('click', () => { const pick = (c.items || []).filter(i => !i.equipped && !i.locked && offJob(i, c.job)); if (!pick.length) return toast('背包沒有非本職業的裝備（鎖定的不算）'); petFeed = new Set(pick.map(i => i.id)); openPets(); });
+  b.querySelectorAll('[data-pfood]').forEach(x => x.onclick = async () => { try { const r = await call('POST', '/api/petfeed', { charId: c.id, petId: p.id, food: x.dataset.pfood }); done(r.char, r.exp ? `+${r.exp} 經驗${r.ups ? `，長到第 ${PV2.petStage9(r.pet.lv)} 階段！` : ''}` : '吃飽了（沒放在裝備欄不會長大）'); } catch (e) { toast(e.message); } });
   $('#petFeedGo')?.addEventListener('click', async () => { if (!(await askConfirm(`把 ${petFeed.size} 件裝備餵給${petName(p)}？餵了就沒了。`))) return;
     try { const r = await call('POST', '/api/petfeed', { charId: c.id, petId: p.id, itemIds: [...petFeed] }); petFeed.clear(); done(r.char, r.exp ? `+${r.exp} 經驗${r.ups ? `，長到第 ${PV2.petStage9(r.pet.lv)} 階段！` : ''}` : '吃飽了（沒放在裝備欄不會長大）'); } catch (e) { toast(e.message); } });
   $('#petRename')?.addEventListener('click', async () => { const n = await askText('寵物的新名字（1～8 個字，空白＝原名）', p.name || '', { max: 8 }); if (n == null) return;

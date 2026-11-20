@@ -198,6 +198,12 @@ export const ORES = {
   clk1: { name: '實習生的發條', icon: 4298, price: 5000, desc: '使用後，賦予裝備 N～G 等級的 3 種隨機屬性（會蓋掉原本的發條屬性）', scroll: true },
   clk2: { name: '高手的發條', icon: 4299, price: 15000, desc: '進階發條：賦予裝備 N～XG 等級的 3 種隨機屬性', scroll: true },
   clk3: { name: '武爾坎努斯的發條', icon: 4300, price: 30000, desc: '最高級的發條：N～XG 等級的 3 種隨機屬性，可以選擇維持使用前的屬性', scroll: true },
+  // PC 在線與簽到獎勵（服務端 Attendance_Reward.scr／Reward_Time.scr；名稱、圖示、售價照 item.scr ÷1000）
+  quartz:  { name: '水晶', icon: 39, price: 0, desc: '合成用寶石（簽到、在線獎勵送的；PC 用在合成與 G 化）', scroll: true, noshop: true },
+  petMilk: { name: '奶粉', icon: 759, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +50、飢餓 −25', scroll: true, noshop: true },
+  petBaby: { name: '豪華的嬰兒副食品', icon: 760, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +100、飢餓 −25', scroll: true, noshop: true },
+  petGugu: { name: '咕咕大力丸', icon: 761, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +150、飢餓 −25', scroll: true, noshop: true },
+  macaron: { name: '特級全能馬卡龍', icon: 31, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +15、飢餓 −25', scroll: true, noshop: true },
   clkInherit: { name: '發條屬性繼承卷軸', icon: 4336, price: 10000, desc: '把一件裝備的發條屬性移到同部位的另一件裝備上（原本那件的發條屬性會消失）', scroll: true },
 };
 // ===== 指令 4-2 發條配件：items.clk＝[[屬性, 數值, 等級 0 N／1 G／2 DG／3 XG], ×3]（同一次不重複；數值 🔢 暫定）=====
