@@ -759,8 +759,11 @@ function openBpets() {
     det = `<div style="background:#fff;border-radius:12px;padding:10px 12px;line-height:1.7;margin-top:8px">
       <div style="display:flex;gap:10px;align-items:center">${ico(b.kind)}<div><b style="font-size:16px">${esc(BPV.bpetName(b))}</b>　<small>Lv ${b.lv}・${BPV.STAGE_NAME[b.stage || 0]}・GRADE ${b.grade || '（Lv35 覺醒時決定）'}</small><br>
       <small>${b.lv < BPV.BPET_MAX_LV ? `經驗 ${b.exp} / ${BPV.bpetNeed(b)}` : '已滿級'}　親密度 ${b.close ?? 0}%　忠誠度 ${b.loyal || 0}</small></div></div>
-      <div><small>戰寵能力：傷害 ${S.dmg}・每 ${S.cd.toFixed(1)} 秒一次・射程 ${S.range} 公尺・HP ${S.hp}</small></div>
-      <div><small>召喚中加給你：<b>${BPV.bpetAuxText(b)}</b>（等級、GRADE、覺醒越高越多；親密度 100% 再 +10%）</small></div>
+      <div><small>戰寵能力（PC 原版 bpet_level）：攻擊 ${Math.round(S.atk)}（普攻每下約 ${S.dmg}）・防禦 ${S.def}・HP ${S.hp}</small></div>
+      <div><small>召喚中加給你（PC bpet_buff）：<b>${BPV.bpetAuxText(b) || '—'}</b>（等級、GRADE 越高越多；親密度 100% 再 +10%）</small></div>
+      <div style="margin-top:6px"><b>戰寵技能</b>　<small>技能點 ${BPV.spTotal(b) - BPV.spUsed(b)} / ${BPV.spTotal(b)}（每升一級拿技能點）・攻擊技能出征時自動施放、被動技能永久提升</small>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px">${BPV.skillsFor(b.kind).map(k => { const cur = b.skills?.[k.g] || 0, nx = k.lv[cur], err = BPV.learnCheck(b, k.g);
+          return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;opacity:${b.lv >= k.need ? 1 : 0.55}"><b style="min-width:76px">${k.name}</b><span style="min-width:44px">Lv ${cur}/${k.lv.length}</span><small style="flex:1">${esc(k.tip)}${k.need > 1 ? `（戰寵 Lv ${k.need}）` : ''}${[50, 60, 450].includes(k.g) ? '<b style="color:#b0702a">（割草版沒有 AP，學了沒效果）</b>' : /挑釁/.test(k.name) ? '<b style="color:#b0702a">（割草版怪物本來就會圍過來，沒效果）</b>' : ''}</small>${nx ? `<button class="btn" data-bl="${k.g}" ${err ? `disabled title="${esc(err)}"` : ''} style="padding:2px 8px">學（${nx[0]} 點）</button>` : ''}</div>`; }).join('')}</div></div>
       <div class="acts" style="margin-top:6px">${b.dead ? `<button class="btn primary" data-ba="revive">復活（${BPV.reviveCost(b)} 希幣）</button>` : on ? '<button class="btn" data-ba="seal">封印</button>' : `<button class="btn primary" data-ba="summon" ${lvOk ? '' : 'disabled'}>召喚（出征會跟著你）</button>`}
       ${A ? `<button class="btn" data-ba="awaken" ${b.lv >= A.lv && (c.natStone || 0) > 0 && c.gold >= A.gold ? '' : 'disabled'}>覺醒 → ${BPV.STAGE_NAME[(b.stage || 0) + 1]}（Lv ${A.lv}・${BPV.STONE.name} ×1・${A.gold} 希幣・成功率 ${Math.round(A.rate * 100)}%）</button>` : '<small>已經是終極形態期</small>'}</div></div>`; }
   const adopt = Object.entries(L).filter(([k]) => !list.some(x => x.kind === k)).map(([k, D]) => `<button class="btn" data-badopt="${k}" ${lvOk ? '' : 'disabled'}><img src="assets/items/${D.icon}.png" alt="" style="width:20px;height:20px;vertical-align:middle;image-rendering:pixelated"> ${D.name}</button>`).join(' ');
@@ -772,6 +775,7 @@ function openBpets() {
   const B = $('#dlgBody'), go = async (body, confirmMsg) => { if (confirmMsg && !(await askConfirm(confirmMsg))) return; try { const r = await call('POST', '/api/bpet', { charId: c.id, ...body }); showChar(r.char); refreshChar(); toast(r.msg); openBpets(); } catch (e) { toast(e.message); } };
   B.querySelectorAll('[data-bs]').forEach(x => x.onclick = () => { bpSel = +x.dataset.bs; openBpets(); });
   B.querySelectorAll('[data-badopt]').forEach(x => x.onclick = () => go({ act: 'adopt', kind: x.dataset.badopt }));
+  B.querySelectorAll('[data-bl]').forEach(x => x.onclick = () => go({ act: 'learn', id: b.id, g: +x.dataset.bl }));
   B.querySelectorAll('[data-ba]').forEach(x => x.onclick = () => { const a = x.dataset.ba;
     go({ act: a, id: b?.id }, a === 'awaken' ? `覺醒${BPV.bpetName(b)}？\n成功率 ${Math.round(BPV.AWAKEN[b.stage || 0].rate * 100)}%，不管成功或失敗，屬性自然石和希幣都會用掉（戰寵不會消失）。` : a === 'seal' ? '封印戰寵？照 PC，封印後親密度會歸 0。' : null); });
 }

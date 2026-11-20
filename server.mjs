@@ -18,7 +18,7 @@ import { towerFloor, towerSeg, towerScore, towerPoints, towerOpen, CURSES, TOWER
 import { parseGm } from './src/1_data/gm.js';
 import { fameLevel, runFame, earnedTitles, titleOf, FAME_GEAR } from './src/1_data/fame.js';
 import { cleanDiff, diffLoot, lootBonus, stageBaseLv } from './src/1_data/difficulty.js';
-import { BPETS, BPET_REQ_LV, AWAKEN, STONE as NAT_STONE, rollGrade, bpetName, addBpetExp, bpetExpFrom, bpetTime, bpetDie, reviveCost } from './src/1_data/bpets.js'; // 戰寵（11/20 照 PC）
+import { BPETS, BPET_REQ_LV, AWAKEN, STONE as NAT_STONE, rollGrade, bpetName, addBpetExp, bpetExpFrom, bpetTime, bpetDie, reviveCost, learnCheck, BPET_SKILLS } from './src/1_data/bpets.js'; // 戰寵（11/20 照 PC）
 import { PC_PETS, PET_MAX, EGGS, FEED_EXP, addPetExp, petNeed, petStage9, petName, HUNGER_PER_SEC, FEED_HUNGER, PLAY_HUNGER, EVOLVE_SECS, WANT_SLOTS, EVO_CAT, evolveResult, migratePets } from './src/1_data/pets.js';
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from './src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from './src/1_data/talents.js';
@@ -300,7 +300,7 @@ const api = {
   },
   // 出征結算：存紀錄、加經驗、升級
   'POST /api/runs': async (req, res, _, uid) => {
-    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0, combos = 0, party = 1, bpetXp = 0, bpetDead = false } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
+    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0, combos = 0, party = 1, bpetKills = 0, bpetDead = false } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
     const stB = stageBaseLv(STAGES.find(x => x.key === stage)), DL = isTowerKey(stage) ? diffLoot(null) : diffLoot(cleanDiff(diff, stB), stB); // 項目 41：難度只影響寶箱裝備品質，經驗金幣不變
     const isTower = stage === 'tower';
     const c = db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+charId, uid);
@@ -368,9 +368,9 @@ const api = {
       if (ap.hunger >= 100) { petStarve = true; ap.exp = (ap.exp || 0) - Math.round(petNeed(ap.lv, PC_PETS[ap.pc]?.tier) * 0.2);
         if (ap.exp < 0) { if (petStage9(ap.lv) === 1 && ap.lv === 1) { petDied = petName(ap); d.pets = d.pets.filter(x => x !== ap); d.pet = null; } else if (ap.lv > 1) { ap.lv--; ap.exp = 0; } else ap.exp = 0; } }
       else { petUp = addPetExp(ap, Math.floor(gain * 0.3)); if (petStage9(ap.lv) === 9) ap.s9 = (ap.s9 || 0) + secs; } }
-    // 戰寵（照 PC）：戰寵自己殺的怪才給經驗（client 回報 bpetXp，不超過本局經驗）；親密度照出征時間；死掉＝經驗懲罰＋親密度歸 0
+    // 戰寵（照 PC）：戰寵自己殺的怪才給經驗（本局經驗 × 戰寵擊殺比例 × 10% × 角色等級/250）；親密度照出征時間；死掉＝經驗懲罰 30%＋親密度歸 0
     let bpetRes = null; { const bp = (d.bpets || []).find(b => b.id === d.bpet && !b.dead);
-      if (bp) { bpetTime(bp, Date.now(), secs); const up = addBpetExp(bp, bpetExpFrom(Math.max(0, Math.min(+bpetXp || 0, gain)), c.base_lv, bp)); if (bpetDead) bpetDie(bp);
+      if (bp) { bpetTime(bp, Date.now(), secs); const up = addBpetExp(bp, bpetExpFrom(gain, (+bpetKills || 0) / Math.max(1, +kills || 0), c.base_lv, bp)); if (bpetDead) bpetDie(bp);
         bpetRes = { name: bpetName(bp), lv: bp.lv, up, dead: !!bp.dead, close: bp.close }; } }
     // 11/19 使用者企劃 指令 3：每打完一套 A→S→D 連續技，身上鑲著的技能寶石各 +20 融合經驗，滿 100 升一級（N → G → DG → XG）
     d.cbTotal = (d.cbTotal || 0) + Math.max(0, Math.min(30, combos | 0)); // 項目 52 連續技熟練度（局外縮減門檻）
@@ -942,6 +942,7 @@ const api = {
     try {
       switch (cmd) {
         case 'lv': { const v = int(0, 1, 99); db.prepare('UPDATE characters SET base_lv=?, exp=0 WHERE id=?').run(v, c.id); { const sh = pointsShould(v, d); if (sh > (d.points || 0)) { d.points = sh; saveD(); } } msg = `Base Lv → ${v}`; break; }
+        case 'bpet': { const b = (d.bpets || []).find(x => x.id === d.bpet) || (d.bpets || [])[0]; if (!b) throw new Error('沒有戰寵'); b.lv = int(0, 1, 100); b.exp = 0; if (args[1]) b.grade = String(args[1]).toUpperCase(); saveD(); msg = `戰寵 Lv → ${b.lv}${b.grade ? ' ' + b.grade : ''}`; break; } // 戰寵等級（測試用）
         case 'job': { const max = jobMaxOf(d), v = int(0, 1, max); d.jobExp = 0; saveD(); db.prepare('UPDATE characters SET job_lv=? WHERE id=?').run(v, c.id); msg = `Job Lv → ${v}`; break; }
         case 'gold': { const v = int(0, -1e9, 1e9); db.prepare('UPDATE characters SET gold=MAX(0, gold+?) WHERE id=?').run(v, c.id); msg = `金幣 ${v >= 0 ? '+' : ''}${v}`; break; }
         case 'points': { const v = int(0, -999, 999); d.points = Math.max(0, (d.points || 0) + v); saveD(); msg = `素質點 → ${d.points}`; break; }
@@ -1000,14 +1001,14 @@ const api = {
   // ===== 戰寵（照 PC 戰寵資訊；src/1_data/bpets.js）=====
   // act：adopt（領養，Base Lv 70，每種一隻）／summon（召喚＝裝備，一次一隻）／seal（封印）／stone（買屬性自然石）／awaken（覺醒）／revive（復活）
   'POST /api/bpet': async (req, res, _, uid) => {
-    const { charId, act, kind, id } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const { charId, act, kind, id, g } = await body(req); req.__g = g; const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}'); d.bpets ??= []; let gold = 0, msg = '';
     const b = d.bpets.find(x => x.id === +id);
     if (act === 'adopt') {
       if (!BPETS[kind]) return send(res, 400, { error: '沒有這種戰寵' });
       if (c.base_lv < BPET_REQ_LV) return send(res, 400, { error: `戰寵要 Base Lv ${BPET_REQ_LV}（PC 需求等級 70）` });
       if (d.bpets.some(x => x.kind === kind)) return send(res, 400, { error: '這種戰寵已經有了' });
-      d.bpets.push({ id: Date.now(), kind, lv: 1, exp: 0, stage: 0, grade: null, close: 0, loyal: 0, seen: Date.now() }); msg = `領養了${BPETS[kind].name}`;
+      d.bpets.push({ id: Date.now(), kind, lv: 1, exp: 0, stage: 0, grade: null, close: 0, loyal: 0, seen: Date.now(), skills: {} }); msg = `領養了${BPETS[kind].name}`;
     } else if (act === 'summon') {
       if (!b) return send(res, 400, { error: '找不到戰寵' }); if (b.dead) return send(res, 400, { error: '戰寵死掉了，要先復活' });
       if (c.base_lv < BPET_REQ_LV) return send(res, 400, { error: `戰寵要 Base Lv ${BPET_REQ_LV}` });
@@ -1024,6 +1025,9 @@ const api = {
       if (!(d.natStone > 0)) return send(res, 400, { error: `要 1 個${NAT_STONE.name}` }); gold = A.gold; if ((c.gold ?? 0) < gold) return send(res, 400, { error: `希幣不夠（要 ${gold}）` });
       d.natStone--; const ok = Math.random() < A.rate;
       if (ok) { b.stage = (b.stage || 0) + 1; if (!b.grade) b.grade = rollGrade(); msg = `覺醒成功！${bpetName(b)}（GRADE ${b.grade}）`; } else msg = '覺醒失敗（戰寵沒事，階段不變；材料已用掉）';
+    } else if (act === 'learn') { // 戰寵技能：用每級拿到的技能點學（bpet_skill.xml）
+      if (!b) return send(res, 400, { error: '找不到戰寵' }); const g = +req.__g; const err = learnCheck(b, g); if (err) return send(res, 400, { error: err });
+      b.skills ??= {}; b.skills[g] = (b.skills[g] || 0) + 1; msg = `學會了 ${BPET_SKILLS[g].name} Lv ${b.skills[g]}`;
     } else if (act === 'revive') {
       if (!b?.dead) return send(res, 400, { error: '這隻戰寵沒有死' }); gold = reviveCost(b); if ((c.gold ?? 0) < gold) return send(res, 400, { error: `希幣不夠（要 ${gold}）` });
       b.dead = false; msg = `${bpetName(b)}復活了`;
