@@ -23,7 +23,8 @@ import * as ATT from '../src/1_data/attendance.js';
 import { rankBuffOf } from '../src/1_data/rank-buff.js';
 import { gapExp } from '../src/1_data/level-gap.js';
 import { POLY } from '../src/1_data/polymorph.js';
-import { huntExtra } from '../src/1_data/hunt.js'; // PC 狩獵系統 // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
+import { huntExtra } from '../src/1_data/hunt.js';
+import * as ML from '../src/1_data/mainline.js'; // 主線獎勵：時間寶箱、巡邏 // PC 狩獵系統 // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../src/1_data/fishing.js';
 import { itemFromPc, wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
 
@@ -227,7 +228,7 @@ function auth(req) {
   if (!s || s.expires < Date.now()) return null;
   return s.account_id;
 }
-const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0, pwRank: pwRankOf(c.id), poly: d.poly || null }; };
+const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0, pwRank: pwRankOf(c.id), poly: d.poly || null, bestSecs: d.bestSecs || {}, msGot: d.msGot || {}, patrol: patrolView(d, c) }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
 const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, setk: r.setk || null, clk: r.clk ? JSON.parse(r.clk) : null, clkp: r.clkp ? JSON.parse(r.clkp) : null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
@@ -238,6 +239,12 @@ function attGet(uid) {
   const day = ATT.twDay(); if (A.day !== day) { A.day = day; A.secs = 0; A.claimed = []; A.charId = 0; A.last = 0; }
   A.claimed ??= []; A.secs ??= 0; return A;
 }
+// 主線巡邏：d.patrol＝{ t 上次領取時間, day, quick 今天快速巡邏次數 }；第一次看到就從現在開始算
+function patrolView(d, c) {
+  const P = d.patrol || {}, n = ML.clearedCount(d.cleared), secs = P.t ? Math.min(ML.PATROL_CAP, (Date.now() - P.t) / 1000) : 0, y = ML.patrolYield(secs, n);
+  return { secs: Math.floor(secs), n, ...y, exp: patrolExp(y.hours, d, c), quick: P.day === ATT.twDay() ? P.quick || 0 : 0 };
+}
+function patrolExp(h, d, c) { const n = ML.clearedCount(d.cleared), st = STAGES[Math.max(0, n - 1)]; return Math.floor(h * runExp(60, stageBaseLv(st), c.base_lv)); }
 // PC 戰鬥力排名：每天 0 點（台灣）統計一次「同職業」戰鬥力名次（meta 'pwrank'）；前 50 名有 BUFF（rank-buff.js）
 let PWR = null;
 function pwRankOf(cid) {
@@ -386,6 +393,7 @@ const api = {
     while (job < JM && jexp >= jobNeed(job)) { jexp -= jobNeed(job); job++; jobUps++; }
     if (job >= JM) jexp = 0;
     d.jobExp = jexp;
+    if (!isTower && STAGES[si]) { d.bestSecs ??= {}; d.bestSecs[S.key] = Math.max(d.bestSecs[S.key] || 0, Math.max(0, Math.min(stageTime(S) + 60, +secs | 0))); } // 主線時間寶箱：這張地圖最久活多久
     let newStage = null; d.cleared ??= [];
     const firstClear = bonus && !d.cleared.includes(S.key);
     if (bonus && !d.cleared.includes(S.key)) { d.cleared.push(S.key); newStage = STAGES[si + 1]?.name || null; }
@@ -1122,6 +1130,34 @@ const api = {
     const p = { id: Date.now(), pc: E.id, lv: 1, exp: 0 }; d.pets.push(p);
     db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(E.price, JSON.stringify(d), c.id);
     send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
+  // ===== 主線獎勵（docs/企劃_主線獎勵.md）：時間階段寶箱（每張地圖 3 個，單次）、巡邏＋快速巡邏 =====
+  'POST /api/milestone': async (req, res, _, uid) => {
+    const { charId, stage, m } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const si = STAGES.findIndex(x => x.key === stage), S = STAGES[si], i = m | 0; if (!S || i < 0 || i > 2) return send(res, 400, { error: '沒有這個寶箱' });
+    const d = JSON.parse(c.data || '{}'); d.msGot ??= {}; const got = d.msGot[S.key] ??= [0, 0, 0];
+    if (got[i]) return send(res, 400, { error: '這個寶箱領過了' });
+    const need = ML.msTimes(S)[i]; if ((d.bestSecs?.[S.key] || 0) < need) return send(res, 400, { error: `要在${S.name}活過 ${need / 60} 分鐘` });
+    got[i] = 1; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    const R = ML.msReward(si, i), items = R.gear != null ? [{ ...rollItem(Math.random, 0, null, Math.max(1, stageBaseLv(S)), c.job), rarity: R.gear }] : [];
+    sendMail(c.id, { sender: '主線獎勵', title: `${S.name}・存活 ${need / 60} 分鐘寶箱`, body: `恭喜在${S.name}撐過 ${need / 60} 分鐘！`, gold: R.gold, mats: R.mats, items });
+    send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
+  'POST /api/patrol': async (req, res, _, uid) => {
+    const { charId, act } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'), now = Date.now(), day = ATT.twDay(); d.patrol ??= {}; const P = d.patrol;
+    if (!P.t || act === 'start') { if (!P.t) P.t = now; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); return send(res, 200, fullChar(ownChar(uid, c.id))); } // 第一次＝開始巡邏
+    let secs, cost = 0;
+    if (act === 'quick') { if (P.day !== day) { P.day = day; P.quick = 0; } const q = P.quick || 0; if (q >= ML.PATROL_QUICK.length) return send(res, 400, { error: '今天的快速巡邏用完了（每天 3 次）' });
+      cost = ML.PATROL_QUICK[q]; if ((c.gold ?? 0) < cost) return send(res, 400, { error: `金幣不夠（要 ${cost}）` }); P.quick = q + 1; secs = ML.PATROL_QUICK_SECS; }
+    else { secs = Math.min(ML.PATROL_CAP, (now - P.t) / 1000); if (secs < 60) return send(res, 400, { error: '巡邏不到 1 分鐘，還沒有收穫' }); P.t = now; }
+    const n = ML.clearedCount(d.cleared), y = ML.patrolYield(secs, n), exp = patrolExp(y.hours, d, c), nGear = act === 'quick' && n >= 4 ? 4 : y.gear;
+    d.mats ??= {}; if (y.ore1) d.mats.ore1 = (d.mats.ore1 || 0) + y.ore1;
+    let base = c.base_lv, e = c.exp + exp; while (e >= needExp(base) && base < BASE_MAX) { e -= needExp(base); base++; } if (base >= BASE_MAX) e = 0;
+    db.prepare('UPDATE characters SET base_lv=?, exp=?, gold=gold+?, data=? WHERE id=?').run(base, e, y.gold - cost, JSON.stringify(d), c.id);
+    const lvMon = stageBaseLv(STAGES[Math.max(0, n - 1)]), items = Array.from({ length: nGear }, () => ({ ...rollItem(Math.random, 0, null, lvMon, c.job), rarity: ML.patrolGear(n) }));
+    if (items.length) sendMail(c.id, { sender: '巡邏隊', title: `${act === 'quick' ? '快速巡邏' : '巡邏'}帶回 ${items.length} 件裝備`, body: '巡邏途中撿到的裝備。', items });
+    send(res, 200, { got: { hours: +y.hours.toFixed(2), gold: y.gold, ore1: y.ore1, exp, gear: items.length, cost, ups: base - c.base_lv }, char: fullChar(ownChar(uid, c.id)) });
   },
   // ===== PC 變身系統（2u id=67、polymorph.scr）：喝藥水 → 下一次出征整局變身；恢復原狀藥水解除 =====
   'POST /api/poly': async (req, res, _, uid) => {
