@@ -77,6 +77,7 @@ export function createPartyGame(G) {
       case 'kill': { if (host) break; const e = byNid.get(d.id); byNid.delete(d.id); G.guestKill(e, d, d.by === me); break; }
       case 'pick': { if (!G.removeGem(d.gid)) break; const P = G.P(); if (!P.down && !P.dead) { const x = NET.share(d.xp, false); if (x > 0) G.gainXp(x); } break; }
       case 'rev': if (d.to === me) revived(); break;
+      case 'sw': { const r = NET.remotes.get(from); const A = r?.g?.userData.actor; if (A && !r.down && !r.dead) { if (d.f != null && !r.mv) r.ry = -d.f + Math.PI / 2; A.attack(1.6, d.m); } break; }
       case 'end': if (!NET.over) { NET.end(!!d?.win); G.gameOver(!!d?.win, false, d?.reason === 'leader' ? '隊長離開了，這局結束' : null); } break;
       case 'drop': { const r = NET.remotes.get(from); if (r) r.gone = true; break; }
       case 'rejoin': fullResend = 1; break;
@@ -128,6 +129,8 @@ export function createPartyGame(G) {
     }
   };
   NET.conn = conn; NET._THREE = G.THREE;
+  // 隊友攻擊動作：自己出招（rig.swing）就廣播，最多每 0.25 秒一次；對方畫面上的隊友播同一個原版動作
+  if (G.rig) { const sw = G.rig.swing; let lastSw = 0; G.rig.swing = (face, motion = null) => { sw(face, motion); const now = performance.now(); if (now - lastSw > 250) { lastSw = now; send('sw', { f: face == null ? null : +face.toFixed(2), m: motion }); } }; }
   conn.on('err', o => { if (o.fatal) G.showBanner(`<small>組隊</small><b>${o.msg}</b>`, 3000, true); });
   return NET;
 }

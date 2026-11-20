@@ -1229,7 +1229,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { cancelAnimationFrame(raf); bgm.pause(); if (NET) NET.bg = setInterval(() => { const now = performance.now(); const dt = Math.min(0.1, (now - last) / 1000); last = now; if (state === 'play') update(dt); }, 100); } // 組隊：切到背景也要繼續跑（隊長還要生怪、廣播）
   else { clearInterval(NET?.bg); last = performance.now(); raf = requestAnimationFrame(loop); if (state === 'play' && !muted) bgm.play().catch(() => {}); }
 });
-NET = createPartyGame({ CHAR, THREE, scene, camera, player, P: () => P, t: () => t, setT: v => { t = v; }, state: () => state, enemies: () => enemies || [],
+NET = createPartyGame({ CHAR, THREE, scene, camera, player, rig, P: () => P, t: () => t, setT: v => { t = v; }, state: () => state, enemies: () => enemies || [],
   spawnMirror, guestKill, removeGem, gainXp, netDamage, hitPlayer, showBanner, gameOver, actorPlay: k => rig.actor?.play(k), moving: () => input.read().ml > 0.05, groundAt: (x, z) => MAP.heightAt(x, z) });
 if (NET) { document.getElementById('start')?.classList.remove('on'); start(); } // 組隊：不用按開始，進來就打
 if (NET) window.__party = { NET, player, setT: v => { t = v; }, forceWin: () => { finalDown = true; }, P: () => P, enemies: () => enemies, state: () => state, t: () => t, kills: () => kills, gems: () => gems, chests: () => [chests, bossChests] }; // 測試用
