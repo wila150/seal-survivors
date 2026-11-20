@@ -170,6 +170,26 @@
   #sideMenu.closed .sd-g{opacity:0;transform:scale(.6);pointer-events:none}
   .sd-b{position:relative;width:46px;height:46px;border-radius:12px;border:2px solid #fff8;background:linear-gradient(#2b3a5c,#121a2c);box-shadow:0 2px 6px #0008;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
   .sd-b:hover{border-color:#ffd36b}
+  /* PC Quick Menu（官方 2025/08/14 便利性提升）：圓形圖示 */
+  .sd-b.qm{border:0;background:none;box-shadow:none;border-radius:50%;width:50px;height:54px;align-items:flex-start}
+  .qm-ic{display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;font-style:normal;flex:none}
+  .qm-ic img{width:46px;height:46px;display:block}
+  .qm-ic.fr{border:3px solid #6b4a3a;background:radial-gradient(circle at 40% 35%,#fff,#f1ece6 70%,#d8cfc4);box-shadow:0 2px 5px #0007;box-sizing:border-box}
+  .qm-ic.fr img{width:30px;height:30px;object-fit:contain}
+  .sd-b.qm:hover .qm-ic{filter:brightness(1.12)}
+  #escQm{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));border:3px solid #6b4a3a;border-radius:14px;background:linear-gradient(#fffaf3,#e9dfd2);padding:6px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;box-shadow:0 4px 10px #0007}
+  #escQm b{font:900 15px/1.1 sans-serif;color:#1aa3c8;text-shadow:0 1px 0 #fff}#escQm span{font-size:12px;font-weight:800;color:#6b4a3a}
+  .qmw{display:grid;grid-template-columns:92px minmax(0,1fr) 124px;gap:8px;min-height:300px}
+  .qmw .cats{display:flex;flex-direction:column;gap:6px;background:#a99a91;border-radius:10px;padding:8px}
+  .qmw .cats button{border:2px solid #d9cbbd;border-radius:8px;background:#f6e9dc;padding:6px 0;font-weight:800;color:#5a4334;cursor:pointer}
+  .qmw .cats button.on{border-color:#d7e07a;box-shadow:0 0 0 2px #f4ffb0 inset}
+  .qmw .pool,.qmw .slots{background:#efe9e3;border:2px solid #b8a99d;border-radius:12px;padding:8px;display:grid;gap:8px;align-content:start}
+  .qmw .pool{grid-template-columns:repeat(auto-fill,minmax(58px,1fr))}
+  .qmw .slots{grid-template-columns:repeat(2,50px);justify-content:center}
+  .qmw .it{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;font-size:11px;font-weight:700;color:#5a4334;background:none;border:0;padding:0}
+  .qmw .it.used{opacity:.4;filter:grayscale(1)}
+  .qmw .sl{width:46px;height:46px;border-radius:50%;border:2px solid #d5cbc2;background:#e9e3dc;color:#c7bcb2;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+  @media (max-width:640px){.qmw{grid-template-columns:minmax(0,1fr) 116px}.qmw .cats{grid-column:1/-1;flex-direction:row;flex-wrap:wrap}.qmw .cats button{flex:1 1 0;min-width:52px}}
   .sd-b span{position:absolute;left:50%;bottom:-3px;transform:translateX(-50%);font-size:10px;font-weight:900;color:#fff;white-space:nowrap;text-shadow:0 0 2px #000,0 1px 0 #000}
   .sd-ic{font-style:normal;font-size:22px;line-height:1;margin-bottom:8px}
   .sd-ic.img{width:34px;height:30px;background:center/contain no-repeat}
@@ -194,7 +214,7 @@
 <div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Lv 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">EXP<div class="bar"><i id="meExp"></i></div><span id="xpPct">0%</span></div></div></div>
 <div id="place" class="chip">希望之城<small>中央廣場</small></div>
 <!-- PC 原版主選單按鈕列（assets/ui/btn_*：tools/build-ui.mjs 從客戶端 mainbutton_all.tex 切）；原版沒有的功能用同色系文字鈕 -->
-<div id="escMenu" hidden><div class="esc-ring">
+<div id="escMenu" hidden><button id="escQm" title="快速選單（自訂左邊側邊欄）"><b>Quick Menu</b><span>快速選單</span></button><div class="esc-ring">
   <div class="esc-core">菜單</div>
   <button class="esc-b" data-esc="resume" style="--a:-90deg"><svg viewBox="0 0 48 48"><ellipse cx="24" cy="40" rx="13" ry="4" fill="#1aa3c8"/><rect x="22.5" y="18" width="3" height="21" rx="1.5" fill="#8a96a8"/><circle cx="24" cy="15" r="10" fill="#e8322b"/><circle cx="20.5" cy="11.5" r="3.2" fill="#ff9a8f"/></svg><span>繼續遊戲</span></button>
   <button class="esc-b" data-esc="settings" style="--a:-18deg"><svg viewBox="0 0 48 48"><g fill="#1aa3c8"><path d="M24 6l3 5 6-2 1 6 6 1-2 6 5 3-5 3 2 6-6 1-1 6-6-2-3 5-3-5-6 2-1-6-6-1 2-6-5-3 5-3-2-6 6-1 1-6 6 2z"/></g><circle cx="24" cy="24" r="7" fill="#fff"/><circle cx="36" cy="36" r="6" fill="#16c0b0"/><circle cx="36" cy="36" r="2.5" fill="#fff"/></svg><span>設置</span></button>
@@ -204,14 +224,13 @@
 </div></div>
 <div id="menuShade"></div>
 <div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pcb keys d-only" id="keysBtn" title="快捷鍵">快捷鍵</button><button class="pcb friend d-only" id="friendBtn" title="好友名單">好友</button><button class="pcb qparty d-only" id="partyBtn" title="快速組隊（組隊搜尋）">組隊</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb power d-only" id="setBtn" title="設定">設定</button></div>
-<div id="sideMenu"><button id="sideToggle" title="收起／展開">➜</button><div class="sd-g">
+<div id="sideMenu"><button id="sideToggle" title="收起／展開">➜</button><div class="sd-g" id="qmBar"></div><div class="sd-g m-only"><button class="sd-b qm" id="setBtnM" title="菜單（設定）"><i class="qm-ic"><img src="assets/ui/qm/gear.png" alt=""></i><span>菜單</span></button></div><div hidden id="sdHidden">
   <button class="sd-b" id="stoneMenuBtn" title="石頭鑲嵌（強化／分解）"><i class="sd-ic img" style="background-image:url(assets/ui/sys/stone.png)"></i><span>鑲嵌</span></button>
   <button class="sd-b" id="gemBtn" title="技能寶石"><i class="sd-ic img" style="background-image:url(assets/ui/sys/gem.png)"></i><span>寶石</span></button>
   <button class="sd-b" id="fishBtn" title="釣魚（要在水池邊）"><i class="sd-ic img" style="background-image:url(assets/items/264.png)"></i><span>釣魚</span></button>
   <button class="sd-b m-only" id="partyBtnM" title="快速組隊"><i class="sd-ic img" style="background-image:url(assets/ui/btn_qparty_0.png)"></i><span>組隊</span></button>
   <button class="sd-b m-only" id="friendBtnM" title="好友名單"><i class="sd-ic img" style="background-image:url(assets/ui/btn_friend_0.png)"></i><span>好友</span></button>
   <button class="sd-b" id="charsBtn" title="換角色"><i class="sd-ic">👥</i><span>換角色</span></button>
-  <button class="sd-b m-only" id="setBtnM" title="菜單（設定）"><i class="sd-ic">⚙️</i><span>菜單</span></button>
 </div></div>
 <button class="btn primary chip" id="talk"></button><button class="btn primary chip" id="fishHere">🎣 釣魚</button>
 <div id="tmmBox" title="主城地圖（點 MAP 放大，放大後點地圖可以直接走過去）"><canvas id="tmm" width="196" height="196"></canvas><button id="tmmMap">MAP</button></div>
@@ -326,6 +345,63 @@ let TNET = null; moduleDone.then(() => { TNET = createTownNet({ THREE, scene, ca
 $('#partyBtn').onclick = () => openParty();
 // 石頭鑲嵌收進選單（原本左上角的三顆石頭按鈕藏起來，功能一樣）
 $('#stoneMenuBtn').onclick = () => $('#stoneBtn').click();
+// PC Quick Menu（官方 2025/08/14「便利性提升」：Esc 選單右下角快速選單，挑最多 10 個圖示放到左邊側邊欄；以帳號為單位）
+// 圖示：官方公告圖裁下的 10 個圓形圖示（assets/ui/qm，已經有外框）；其他用 PC 原版按鈕／系統／道具圖＋圓框
+const QM_CATS = ['活動', '設定', '社群', '角色', '目錄'];
+const QM = {
+  exp:     { n: '傳送', c: '活動', i: 'qm/pin', f: 0, run: () => openExpedition() },
+  rank:    { n: '排行榜', c: '活動', i: 'qm/trophy', f: 0, run: () => openRank() },
+  tower:   { n: '賢者之塔', c: '活動', i: 'sys/blueprint', f: 0, run: () => openTower() },
+  fish:    { n: '釣魚', c: '活動', i: '../items/264', f: 1, run: () => $('#fishBtn').click() },
+  auction: { n: '拍賣所', c: '活動', i: 'qm/mall', f: 0, run: () => openAuction('browse') },
+  shop:    { n: '商人', c: '活動', i: 'qm/shop', f: 0, run: () => openMerchant('sell') },
+  settings:{ n: '設定', c: '設定', i: 'qm/gear', f: 0, run: () => openSettings() },
+  keys:    { n: '快捷鍵', c: '設定', i: 'btn_quick_0', f: 1, run: () => document.querySelector('[data-esc="keys"]').click() },
+  help:    { n: '說明', c: '設定', i: 'btn_help_0', f: 1, run: () => $('#helpBtn').click() },
+  chars:   { n: '換角色', c: '設定', i: 'btn_power_0', f: 1, run: () => $('#charsBtn').click() },
+  friend:  { n: '好友', c: '社群', i: 'btn_friend_0', f: 1, run: () => { ptyFr = null; openFriends(); } },
+  party:   { n: '組隊', c: '社群', i: 'sys/party', f: 0, run: () => openParty() },
+  mail:    { n: '信箱', c: '社群', i: 'sys/mail', f: 0, run: () => openMail() },
+  status:  { n: '狀態', c: '角色', i: 'qm/sword', f: 0, run: () => $('#statBtn').click() },
+  bag:     { n: '背包', c: '角色', i: 'btn_bag_0', f: 1, run: () => $('#bagBtn').click() },
+  skill:   { n: '技能', c: '角色', i: 'btn_skill_0', f: 1, run: () => $('#skillBtn').click() },
+  talent:  { n: '天賦', c: '角色', i: 'sys/rank', f: 0, run: () => $('#talentBtn').click() },
+  gem:     { n: '寶石', c: '角色', i: 'sys/gem', f: 0, run: () => $('#gemBtn').click() },
+  stone:   { n: '鑲嵌', c: '角色', i: 'sys/stone', f: 0, run: () => $('#stoneBtn').click() },
+  pet:     { n: '寵物', c: '角色', i: 'qm/heart', f: 0, run: () => openPets() },
+  bpet:    { n: '戰寵', c: '角色', i: 'sys/bpetcare', f: 0, run: () => openBpets() },
+  mount:   { n: '坐騎', c: '角色', i: '../items/3146', f: 1, run: () => openMount() },
+  stash:   { n: '倉庫', c: '目錄', i: 'btn_bank_0', f: 1, run: () => openStash() },
+  library: { n: '圖書館', c: '目錄', i: 'qm/search', f: 0, run: () => { bSel = 7; openBestiary(); } },
+};
+const QM_MAX = 10, QM_DEF = matchMedia('(pointer:coarse)').matches ? ['stone', 'gem', 'fish', 'party', 'friend', 'chars'] : ['stone', 'gem', 'fish', 'chars'];
+const qmKey = () => { let u = 'me'; try { u = localStorage.getItem('ss_user') || u; } catch {} return 'ss_qm_' + u; }; // 以帳號為單位（PC 同）
+const qmLoad = () => { try { const a = JSON.parse(localStorage.getItem(qmKey()) || 'null'); if (Array.isArray(a)) return a.filter(k => QM[k]).slice(0, QM_MAX); } catch {} return QM_DEF.slice(); };
+const qmIc = k => `<i class="qm-ic ${QM[k].f ? 'fr' : ''}"><img src="assets/ui/${QM[k].i}.png" alt=""></i>`;
+function qmRender() {
+  const bar = $('#qmBar'); bar.innerHTML = qmLoad().map(k => `<button class="sd-b qm" data-qm="${k}" title="${QM[k].n}">${qmIc(k)}<span>${QM[k].n}</span></button>`).join('');
+  bar.querySelectorAll('[data-qm]').forEach(b => b.onclick = () => QM[b.dataset.qm].run());
+}
+function openQuickMenu() {
+  let cat = '活動', sel = qmLoad();
+  const draw = () => {
+    openDlg('Quick Menu 快速選單', `<div class="qmw"><div class="cats">${QM_CATS.map(c => `<button class="${c === cat ? 'on' : ''}" data-qc="${c}">${c}</button>`).join('')}</div>
+      <div class="pool">${Object.entries(QM).filter(([, v]) => v.c === cat).map(([k, v]) => `<button class="it ${sel.includes(k) ? 'used' : ''}" data-qa="${k}">${qmIc(k)}${v.n}</button>`).join('')}</div>
+      <div class="slots">${Array.from({ length: QM_MAX }, (_, i) => { const r = i % 5, col = i < 5 ? 0 : 1, k = sel[i]; return `<button class="sl" style="grid-row:${r + 1};grid-column:${col + 1}" data-qs="${i}" title="${k ? QM[k].n + '（點一下解除）' : ''}">${k ? qmIc(k) : i + 1}</button>`; }).join('')}</div></div>
+      <p style="text-align:center;font-size:12px;color:#6b5a4e;margin:8px 0">快速選單以帳號為單位套用。左鍵點圖示登錄／解除，儲存後會顯示在左邊側邊欄。</p>
+      <div style="display:flex;gap:10px;justify-content:center"><button class="btn primary" id="qmReset">初始化</button><button class="btn primary" id="qmCancel">取消</button><button class="btn" id="qmSave">儲存</button></div>`, [], true);
+    const b = $('#dlgBody');
+    b.querySelectorAll('[data-qc]').forEach(x => x.onclick = () => { cat = x.dataset.qc; draw(); });
+    b.querySelectorAll('[data-qa]').forEach(x => x.onclick = () => { const k = x.dataset.qa; if (sel.includes(k)) sel = sel.filter(y => y !== k); else if (sel.length < QM_MAX) sel.push(k); else return toast(`最多 ${QM_MAX} 個`); draw(); });
+    $('#qmReset').onclick = () => { sel = QM_DEF.slice(); draw(); };
+    $('#qmCancel').onclick = () => closeDlg();
+    $('#qmSave').onclick = () => { try { localStorage.setItem(qmKey(), JSON.stringify(sel)); } catch {} qmRender(); closeDlg(); toast('快速選單已儲存'); };
+    b.querySelectorAll('[data-qs]').forEach(x => x.onclick = () => { const i = +x.dataset.qs; if (sel[i]) { sel.splice(i, 1); draw(); } });
+  };
+  draw();
+}
+qmRender();
+$('#escQm').onclick = () => { escMenu(false); openQuickMenu(); };
 // 左邊系統圖示欄：藍色箭頭收起／展開（記住狀態）；手機的組隊／好友／菜單在這一欄
 { let closed = false; try { closed = localStorage.getItem('ss_side_closed') === '1'; } catch {} $('#sideMenu').classList.toggle('closed', closed);
   $('#sideToggle').onclick = () => { closed = !closed; $('#sideMenu').classList.toggle('closed', closed); try { localStorage.setItem('ss_side_closed', closed ? '1' : '0'); } catch {} }; }
