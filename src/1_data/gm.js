@@ -16,7 +16,7 @@ export const GM_CMDS = [
   ['物品', '/item weapon 4 7', '給裝備：部位（weapon／armor／acc）品質（0 普通～4 傳說）精煉（0～10）'],
   ['物品', '/mat ore1 10', '給道具：ore1／ore2／god／alu／reset／fixTicket／chargeTicket／dust／crystal／rainbow'],
   ['物品', '/gem 0 3', '給技能寶石：級別（0 N～3 XG）數量'],
-  ['物品', '/stone red 6', '設定鑲嵌石階段（red／orange／yellow，0～12，每階照原版機率抽屬性）'],
+  ['物品', '/stone red 6', '設定鑲嵌石階段（red／orange／yellow／green，0～12，每階照原版機率抽屬性）'],
   ['物品', '/bagclear', '清空背包裡沒穿的裝備'],
   ['系統／出征', '/mail 測試信 500', '寄一封系統信給自己（附金幣）'],
   ['系統／出征', '/welcome', '重新寄開服見面禮'],

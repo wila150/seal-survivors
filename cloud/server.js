@@ -988,7 +988,7 @@ const api = {
         case 'mat': { const k = args[0], v = int(1, 1, 99999), ok = [...Object.keys(ORES), 'dust', 'crystal', 'rainbow']; if (!ok.includes(k)) throw new Error('道具：' + ok.join('／'));
           d.mats ??= {}; d.mats[k] = (d.mats[k] || 0) + v; saveD(); msg = `${k} +${v}（持有 ${d.mats[k]}）`; break; }
         case 'gem': { const g = int(0, 0, 3), cnt = args[1] == null ? 1 : int(1, 1, 50); d.gems ??= []; for (let i = 0; i < cnt && d.gems.length < GEM_MAX; i++) d.gems.push(newGem(g)); saveD(); msg = `技能寶石 ${GRADES[g]}級 ×${cnt}`; break; }
-        case 'stone': { const k = args[0]; if (!STONES[k]) throw new Error('石頭：red／orange／yellow'); const lv = int(1, 0, STONE_MAX);
+        case 'stone': { const k = args[0]; if (!STONES[k]) throw new Error('石頭：red／orange／yellow／green'); const lv = int(1, 0, STONE_MAX);
           d.stones ??= {}; const st = d.stones[k] = stoneOf(d.stones, k); st.lv = lv; st.attrs = Array.from({ length: lv }, (_, i) => rollAttr(k, i + 1)); saveD(); msg = `${STONES[k].name} → +${lv}`; break; }
         case 'bagclear': { const r = db.prepare('DELETE FROM items WHERE char_id=? AND equipped=0').run(c.id); msg = `清掉 ${r.changes} 件沒穿的裝備`; break; }
         case 'mail': { sendMail(c.id, { sender: 'GM', title: args[0] || '測試信', body: 'GM 指令寄的測試信', gold: args[1] ? int(1, 0, 1e9) : 0 }); msg = '寄出一封信'; break; }

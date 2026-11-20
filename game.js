@@ -533,7 +533,8 @@ function reset() {
   { const S = stoneEffects(CHAR.stones);
     P.might *= (1 + (S.atk || 0)) * (1 + (S.dmgUp || 0)); P.magic += S.magic || 0; P.armor += S.armor || 0; P.hasteV += (S.haste || 0) * 100;
     P.speed *= 1 + (S.speed || 0); P.crit += S.crit || 0; P.dr = Math.min(0.5, S.dmgDown || 0);
-    if (S.hp) { P.maxHp = Math.round(P.maxHp * (1 + S.hp)); P.hp = P.maxHp; } }
+    if (S.hp) { P.maxHp = Math.round(P.maxHp * (1 + S.hp)); P.hp = P.maxHp; }
+    if (S.dmgDungeon && (TOWER || NET)) P.might *= 1 + S.dmgDungeon; } // 綠色石頭稀有屬性：[副本]增加傷害＝賢者之塔／組隊副本
   // 項目 30：出戰寵物的被動加成
   if (PET) { const pb = petBonus(PET); P.might *= 1 + (pb.atk || 0); P.skd = (P.skd || 0) + (pb.skd || 0); P.armor = (P.armor || 0) + (pb.armor || 0); } // 寵物 v3：PC 攻擊／魔攻／防禦
   // 戰寵輔助屬性（召喚中；src/1_data/bpets.js）
@@ -761,11 +762,21 @@ const bossFx = BS.fx;
 function skillName(k) { return k === 'pet' ? (PET ? '🐾 ' + petName(PET) : '寵物') : SKD.skills[k]?.name || (k === 'musou' ? SKD.jobs[CHAR.job]?.musou.name : k === 'combo' ? '連續技 A→S→D' : k === 'mount' ? '坐騎衝鋒' : k); }
 // 每級固定加成（項目 15；數值在 skills.json status.perLevel）
 // ===== 項目 37：菁英寶箱（花金幣開，開出局內道具；圖示＝服務端 item.scr 原版道具圖示）=====
+// 11/20 使用者：「撿寶箱有些 buff 東西太少」「算單場 +% 數，不要有限制幾秒的」→ 13 種（圖示＝服務端 item.scr 原版道具），效果整局有效、同一種可以一直疊 🔢
 const RUN_ITEMS = [
-  { name: '紅藥水（大）', kind: '藥水', icon: 99, desc: '回復 40% HP', use: () => { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.4); } },
-  { name: '力量藥劑', kind: '藥劑', icon: 1352, desc: '60 秒內傷害 +20%', use: () => { P.tmp.dmg = 60; } },
-  { name: '希爾特的祝福', kind: '祝福', icon: 67, desc: '60 秒內移動速度 +20%、急速 +30', use: () => { P.tmp.speed = 60; P.tmp.haste = 60; } },
+  { name: '紅藥水（大）', kind: '藥水', icon: 99, now: 1, desc: '立刻回復 50% HP', use: () => { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.5); } },
+  { name: '熱血紅藥水', kind: '藥水', icon: 248, now: 1, desc: 'HP 回滿＋3 秒無敵', use: () => { P.hp = P.maxHp; P.inv = Math.max(P.inv, 3); } },
+  { name: '高級力量藥水', kind: '藥水', icon: 1397, desc: '這局傷害 +8%', use: () => { P.might *= 1.08; } },
+  { name: '高級魔法藥水', kind: '藥水', icon: 1398, desc: '這局技能傷害 +10%', use: () => { P.skd = (P.skd || 0) + 0.1; } },
+  { name: '高級防禦力藥水', kind: '藥水', icon: 1399, desc: '這局護甲 +3', use: () => { P.armor += 3; } },
+  { name: '高級命中藥水', kind: '藥水', icon: 1400, desc: '這局爆擊率 +3%', use: () => { P.crit += 0.03; } },
+  { name: '高級閃避藥水', kind: '藥水', icon: 1401, desc: '這局受到傷害 −4%（最多 −50%）', use: () => { P.dr = Math.min(0.5, (P.dr || 0) + 0.04); } },
+  { name: '高級攻速藥水', kind: '藥水', icon: 1777, desc: '這局急速 +10（冷卻縮短）', use: () => { P.hasteV += 10; } },
+  { name: '哈代爾的祝福', kind: '祝福', icon: 67, desc: '這局移動速度 +6%', use: () => { P.speed *= 1.06; } },
   { name: '料理・麵包', kind: '料理', icon: 83, desc: '這局最大 HP +10%，並回復同樣的量', use: () => { const a = Math.round(P.maxHp * 0.1); P.maxHp += a; P.hp += a; } },
+  { name: '金魚麵包', kind: '料理', icon: 851, desc: '這局每秒回復 0.5% 最大 HP', use: () => { P.regen += P.maxHp * 0.005; } },
+  { name: '受祝福的金符咒', kind: '符咒', icon: 1351, desc: '這局經驗 +10%', use: () => { P.expMul = (P.expMul || 1) + 0.1; } },
+  { name: '天使的祝福', kind: '祝福', icon: 1352, desc: '這局經驗吸取範圍 +25%', use: () => { P.magnet *= 1.25; } },
 ];
 let goldSpent = 0;
 const eliteCost = () => 30 * ((TOWER ? 2 : STAGE_IDX) + 1); // 暫定：第 1 張圖 30 金幣、每張 +30
@@ -782,7 +793,7 @@ async function openEliteChest(c, i) {
   const close = () => { ov.classList.remove('on'); ov.querySelector('h1').textContent = '升級！'; document.getElementById('chestSkip')?.remove(); if (state === 'chest') { state = 'play'; last = performance.now(); } };
   pick.forEach((it, n) => { const el = document.createElement('div'); el.className = 'card p';
     el.innerHTML = `<span class="num">${n + 1}</span><span class="rb">${it.kind}</span><img src="assets/items/${it.icon}.png" alt="" style="object-fit:contain;image-rendering:pixelated;padding:14px;box-sizing:border-box"><b>${it.name}</b><span class="kind">${it.kind}</span><hr><small>${it.desc}</small>`;
-    el.onclick = () => { goldSpent += cost; it.use(); play('level', 0.5, 0); close(); showBanner(`<small>菁英寶箱（−${cost} 金幣）</small><b>${it.name}</b><span>${it.desc}</span>`, 1400); };
+    el.onclick = () => { goldSpent += cost; it.use(); P.chestN ??= {}; const cnt = P.chestN[it.name] = (P.chestN[it.name] || 0) + 1; play('level', 0.5, 0); close(); showBanner(`<small>菁英寶箱（−${cost} 金幣）</small><b>${it.name}${cnt > 1 ? ` ×${cnt}` : ''}</b><span>${it.desc}</span>`, 1400); };
     box.appendChild(el); });
   const skip = document.createElement('button'); skip.id = 'chestSkip'; skip.className = 'btn'; skip.textContent = '不要（不花金幣）'; skip.style.cssText = 'pointer-events:auto;margin-top:10px'; skip.onclick = close; ov.appendChild(skip);
   ov.classList.add('on');
@@ -1245,7 +1256,7 @@ const RUN_KEY = 'ss_run_' + (CHAR.id || 'guest');
 function snapshotRun() {
   if (NET || TOWER || !P || !CHAR.id || !['play', 'level', 'pause'].includes(state) || t < 5) return;
   const snap = { stage: STAGE_IDX, stageKey: STAGE.key, stageName: STAGE.name, t, kills, lv: P.lv, xp: P.xp, need: P.need, hp: P.hp / P.maxHp, chests, bossChests, bossIdx: spawner.bossIdx, px: player.position.x, pz: player.position.z,
-    skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), skmods: Object.fromEntries(Object.entries(SM.skills).filter(([, w]) => w.mods).map(([k, w]) => [k, w.mods])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], spent: goldSpent, events: EV.done, combos: CB.done || 0, saved: Date.now() };
+    skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), skmods: Object.fromEntries(Object.entries(SM.skills).filter(([, w]) => w.mods).map(([k, w]) => [k, w.mods])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], spent: goldSpent, events: EV.done, combos: CB.done || 0, chestN: { ...(P.chestN || {}) }, saved: Date.now() };
   try { localStorage.setItem(RUN_KEY, JSON.stringify(snap)); } catch {}
 }
 function clearRun() { try { localStorage.removeItem(RUN_KEY); } catch {} }
@@ -1261,6 +1272,7 @@ function resumeRun(snap) {
   for (const [k, lv] of Object.entries(snap.skills || {})) for (let i = 0; i < lv; i++) SM.add(k);
   for (const [k, m] of Object.entries(snap.skmods || {})) if (SM.skills[k]) SM.skills[k].mods = { ...m }; // 項目 36：強化卡
   for (const [k, n] of Object.entries(snap.passives || {})) for (let i = 0; i < n; i++) { PASSIVES[k]?.apply(); passives[k] = (passives[k] || 0) + 1; }
+  for (const [k, n] of Object.entries(snap.chestN || {})) { const it = RUN_ITEMS.find(x => x.name === k); if (it && !it.now) for (let i = 0; i < n; i++) it.use(); } P.chestN = { ...(snap.chestN || {}) }; // 菁英寶箱整局加成接回去
   P.hp = Math.max(1, Math.round(P.maxHp * (snap.hp ?? 1)));
   P.egem = snap.egem || {}; runBosses = snap.bosses || []; goldSpent = snap.spent || 0; EV.done = snap.events || 0; EV.next = t + 20; CB.done = snap.combos || 0;
   drawSkillbar(); showBanner(`<small>繼續上一局</small><b>${STAGE.name}</b><span>${String(t / 60 | 0).padStart(2, '0')}:${String(t % 60 | 0).padStart(2, '0')}・Lv ${P.lv}</span>`, 1600);

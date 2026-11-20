@@ -62,7 +62,7 @@ export function openGems(ctx, tab = 'equip', mode = 'gem') {
         <div style="margin-top:8px"><button class="btn primary" id="gmBreak" ${brk.size ? '' : 'disabled'}>分解 ${brk.size} 件</button></div>`;
     } else if (tab === 'stone') {
       const M = c.mats || {};
-      h += `<p><small>三顆石頭各自 +0～+12 強化合成，成功就多 1 條屬性（會疊加，直接加到角色）；+3／+6／+9／+12 可能出稀有屬性。成功失敗材料都會消失。
+      h += `<p><small>四顆石頭（紅／朱黃／黃／綠）各自 +0～+12 強化合成，成功就多 1 條屬性（會疊加，直接加到角色）；+3／+6／+9／+12 可能出稀有屬性。成功失敗材料都會消失。
         材料：分解裝備（找廣場的寶石收藏家 扎羅）。</small><br>持有：閃亮結晶 <b>${M.crystal || 0}</b>　七彩粉末 <b>${M.rainbow || 0}</b>　閃亮粉末 ${M.dust || 0}　固定券 ${M.fixTicket || 0}　充值券 ${M.chargeTicket || 0}</p>`;
       for (const k of STONE_ORDER) {
         const S = STONES[k], st = c.stones?.[k] || { lv: 0, attrs: [], changes: 50 }, up = STONE_UP[st.lv], i = STONE_ORDER.indexOf(k);
