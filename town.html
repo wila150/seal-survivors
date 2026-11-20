@@ -227,6 +227,7 @@ import * as THREE from 'three';
 import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES, seatOf, MOUNT_H, NOVICE, JOB1_AT, FIRST_JOBS, LIFE_LV } from './src/1_data/jobs.js';
 import { renderLook } from './src/2_core/look-ui.js';
 import { createTownNet } from './src/2_core/town-net.js';
+import { partyBuffs } from './src/1_data/party-buff.js'; // 組隊 BUFF（claude-13 11/20）
 import { PARTY_MAX, partyOK, newCode, cleanCode, savedCode, saveCode, saveRun, inviteLink, PartyConn } from './src/2_core/party.js';
 import { sealModel, sealProp, sealActor, sealMob, sealMount, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
@@ -1089,7 +1090,8 @@ function openPartyRoom() {
       <td>${m.charId === R.leader ? '隊長' : m.ready ? '<b style="color:#2e7d32">✓ 準備</b>' : '未準備'}${lead && m.charId !== ptyMe() ? ` <button class="btn" data-plead="${m.charId}">給隊長</button><button class="btn" data-pkick="${m.charId}">踢出</button>` : ''}</td></tr>`).join('')}
       ${Array.from({ length: Math.max(0, R.max - R.members.length) }, () => '<tr class="empty"><td></td><td colspan="4"><small>空位：給朋友代碼／邀請連結，或從「好友」邀請</small></td></tr>').join('')}</tbody></table>
       <div class="sec"><h4>地圖</h4>${S ? `<b>${S.name}</b>　<small>怪物 Lv${R.setup.diff?.monLv ?? S.lv}　${n} 人：怪物數量 ×${(1 + 0.5 * (n - 1)).toFixed(1)}・血量 ×${(1 + 0.6 * (n - 1)).toFixed(1)}・攻擊 ×${(1 + 0.25 * (n - 1)).toFixed(2)}・經驗 +${10 * (n - 1)}%</small>` : '<small>隊長還沒選地圖</small>'}
-        ${lead ? `<button class="btn" id="ptyPick" style="margin-left:8px">${S ? '換地圖' : '選地圖'}</button>` : ''}</div>`;
+        ${lead ? `<button class="btn" id="ptyPick" style="margin-left:8px">${S ? '換地圖' : '選地圖'}</button>` : ''}</div>
+      ${(() => { const L = partyBuffs(R.members.map(m => m.job)); return `<div class="sec"><h4>組隊 BUFF</h4>${L.length ? L.map(b => `<div><b>${esc(b.name)}</b>（${esc(b.job)}）<small>${esc(b.text)}</small></div>`).join('') : `<small>${n < 2 ? '2 人以上才有：隊上每種職業給全隊一種增益，隊友越多越強' : '隊上的職業沒有組隊 BUFF（初心者沒有，一轉後才有）'}</small>`}</div>`; })()}`;
   }
   const meReady = R?.members.find(m => m.charId === ptyMe())?.ready;
   openDlg(PTY_T_IN, h, lead ? [['出發', () => PTY.send({ t: 'start' }), true], ['離開隊伍', ptyLeave]] : [[meReady ? '取消準備' : '準備', () => PTY.send({ t: 'ready', v: !meReady }), true], ['離開隊伍', ptyLeave]], true);
