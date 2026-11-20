@@ -844,13 +844,13 @@ function openRebirth() {
 
 // ===== 項目 19：排行榜（六個分頁、職業篩選、前三名金銀銅、自己的角色藍框、每 30 秒更新）=====
 let rTab = 'power', rJob = '', rTimer = 0;
-const RANK_TABS = [['power', '戰力'], ['base', 'Base 等級'], ['job', 'Job 等級'], ['stage', '關卡進度'], ['kills', '擊殺數'], ['tower', '無盡塔']];
+const RANK_TABS = [['power', '戰力'], ['base', 'Base 等級'], ['job', 'Job 等級'], ['stage', '關卡進度'], ['kills', '擊殺數'], ['tower', '無盡塔'], ['party', '組隊通關']];
 async function openRank(quiet = false) {
   clearTimeout(rTimer);
   let r; try { r = await call('GET', `/api/rank?tab=${rTab}&job=${encodeURIComponent(rJob)}`); } catch (e) { return toast(e.message); }
   if (quiet && !dlgOpen) return; // 背景更新時視窗已關就不再打開
   const fmt = s => `${String(s / 60 | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-  const col = { power: ['戰力', x => x.power], base: ['Base', x => `Lv ${x.baseLv}`], job: ['Job', x => `Lv ${x.jobLv}`], stage: ['通關', x => `${x.stages} 張・最久 ${fmt(x.best)}`], kills: ['總擊殺', x => x.kills], tower: ['本月最佳', x => `${x.towerScore.toLocaleString()} 分・第 ${x.towerFloor} 層`] }[rTab];
+  const col = { power: ['戰力', x => x.power], base: ['Base', x => `Lv ${x.baseLv}`], job: ['Job', x => `Lv ${x.jobLv}`], stage: ['通關', x => `${x.stages} 張・最久 ${fmt(x.best)}`], kills: ['總擊殺', x => x.kills], tower: ['本月最佳', x => `${x.towerScore.toLocaleString()} 分・第 ${x.towerFloor} 層`], party: ['組隊通關', x => `${x.partyClears} 次`] }[rTab];
   const medal = n => ['🥇', '🥈', '🥉'][n - 1] || n;
   // PC 原版 RANKING 視窗（interface/ranking_win.tex）：梯形分頁、米色欄位列、深淺相間的列
   const row = x => `<tr class="${x.mine ? 'me' : ''}${x.rank <= 3 ? ' top' : ''}"><td>${medal(x.rank)}</td><td>${esc(x.name)}</td><td>${esc(x.jobName)}</td><td>${col[1](x)}</td></tr>`;

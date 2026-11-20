@@ -998,7 +998,7 @@ function update(dt) {
     if (e.dead || e.netX != null) continue; const p = e.mesh.position; // netX＝組隊隊員畫面上的鏡像怪（party-game.js 移動）
     const tp = e.evT || (NET ? NET.targetFor(p) : pp); tmp.subVectors(tp, p).setY(0); const d = tmp.length(); // 項目 53：商隊附近的怪改追咕咕
     statusTick(e, dt);
-    if (e.ai) { BS.think(e, dt, pp, d); continue; }
+    if (e.ai) { BS.think(e, dt, NET ? tp : pp, d); continue; } // 組隊：首領追最近的隊員
     const spd = e.stunT > 0 ? 0 : e.speed * (e.slowT > 0 ? 1 - e.slowK : 1);
     if (d > 0.001) tmp.multiplyScalar((e.thief ? -1 : 1) * spd / d); // 黃金大盜：往反方向逃
     const cx = Math.floor(p.x / 1.2), cz = Math.floor(p.z / 1.2);

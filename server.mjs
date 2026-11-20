@@ -162,7 +162,7 @@ const MAIL_MAX = 100;
 const isTowerKey = k => k === 'tower';
 const RARITY_N = ['普通', '精良', '稀有', '史詩', '傳說'];
 // 項目 19：戰力＝穿著裝備的數值換算成分數（權重暫定）
-const RANK_TABS = ['power', 'base', 'job', 'stage', 'kills', 'tower'];
+const RANK_TABS = ['power', 'base', 'job', 'stage', 'kills', 'tower', 'party']; // party＝組隊通關次數（組隊副本 v1.1 決定 6）
 const POWER_W = { atk: 1000, crit: 1000, haste: 800, speed: 500, magnet: 100, hp: 2, armor: 20 };
 const powerOf = items => Math.round(Object.entries(totalBonus(items)).reduce((t, [k, v]) => t + v * (POWER_W[k] || 0), 0));
 function sendMail(cid, { sender = '系統', title, body = '', gold = 0, items = [], mats = {} }) {
@@ -356,6 +356,7 @@ const api = {
     let newStage = null; d.cleared ??= [];
     const firstClear = bonus && !d.cleared.includes(S.key);
     if (bonus && !d.cleared.includes(S.key)) { d.cleared.push(S.key); newStage = STAGES[si + 1]?.name || null; }
+    if (bonus && (party | 0) > 1) d.partyClears = (d.partyClears || 0) + 1; // 組隊通關次數（排行榜「組隊通關」）
     // 項目 47：名聲（首領、首次通關、塔樓層）＋首領擊殺次數＋稱號；首領名單只收這張地圖的首領、數量依時間夾上限
     const mvpNames = new Set(STAGES.map(x => x.bosses.at(-1)[1])), okBoss = new Set((isTower ? STAGES.flatMap(x => x.bosses) : S.bosses).map(b => b[1]));
     const bl = (Array.isArray(bosses) ? bosses : []).filter(n => typeof n === 'string' && okBoss.has(n)).slice(0, isTower ? Math.floor(floor / 5) + 1 : Math.min(5, Math.floor(secs / 120) + 1));
@@ -1214,10 +1215,11 @@ const api = {
       const d = JSON.parse(c.data || '{}'), eq = db.prepare('SELECT * FROM items WHERE char_id=? AND equipped=1').all(c.id).map(itemView);
       const tw = tab === 'tower' ? db.prepare('SELECT floor, score FROM towers WHERE char_id=? AND month=? ORDER BY score DESC LIMIT 1').get(c.id, monthKey()) : null;
       return { id: c.id, name: c.name, job: c.job, towerFloor: tw?.floor || 0, towerScore: tw?.score || 0, jobName: (d.job2 && branchOf(T, c.job, d.job2)?.name) || c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp,
-        power: powerOf(eq), stages: (d.cleared || []).length, best: kills[c.id]?.s || 0, kills: kills[c.id]?.k || 0, mine: c.account_id === uid };
+        power: powerOf(eq), partyClears: d.partyClears || 0, stages: (d.cleared || []).length, best: kills[c.id]?.s || 0, kills: kills[c.id]?.k || 0, mine: c.account_id === uid };
     });
-    const key = { power: r => [r.power, r.baseLv], base: r => [r.baseLv, r.exp], job: r => [r.jobLv, r.baseLv], stage: r => [r.stages, r.best], kills: r => [r.kills, r.baseLv], tower: r => [r.towerScore, r.towerFloor] }[tab];
+    const key = { power: r => [r.power, r.baseLv], base: r => [r.baseLv, r.exp], job: r => [r.jobLv, r.baseLv], stage: r => [r.stages, r.best], kills: r => [r.kills, r.baseLv], tower: r => [r.towerScore, r.towerFloor], party: r => [r.partyClears, r.baseLv] }[tab];
     if (tab === 'tower') rows = rows.filter(r => r.towerScore > 0);
+    if (tab === 'party') rows = rows.filter(r => r.partyClears > 0);
     rows.sort((a, b) => { const x = key(a), y = key(b); return y[0] - x[0] || y[1] - x[1] || a.id - b.id; });
     rows.forEach((r, i) => r.rank = i + 1);
     send(res, 200, { tab, month: monthKey(), rows: rows.slice(0, 50), mine: rows.filter(r => r.mine && r.rank > 50), total: rows.length, at: Date.now() });
