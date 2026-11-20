@@ -15,7 +15,10 @@ import { stoneEffects } from './src/1_data/stones.js';
 import { titleOf } from './src/1_data/fame.js';
 import { applyRankBuff } from './src/1_data/rank-buff.js';
 import { gapDrop } from './src/1_data/level-gap.js';
-import { applyPoly } from './src/1_data/polymorph.js'; // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF
+import { applyPoly } from './src/1_data/polymorph.js';
+import { createHunt } from './src/1_data/hunt.js'; // PC 狩獵系統
+let HUNT = null;
+function huntKill() { const m = HUNT?.kill() || 1; if (m > 1) { dmgNum(player.position, 0, false, 2, true, `狩獵 ×${m}`); play('level', 0.3, 0); } } // 加倍那隻的經驗在伺服器算（hunt.js huntExtra） // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF
 import { PC_PETS, petName, petBonus, petStage9 } from './src/1_data/pets.js';
 import { BPETS, BPET_REQ_LV, bpetStats, bpetAux, bpetName, bpetActives } from './src/1_data/bpets.js'; // 戰寵（11/20 照 PC）
 import { cleanDiff, diffMods, stageBaseLv } from './src/1_data/difficulty.js';
@@ -561,7 +564,7 @@ function reset() {
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
   chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; winAt = null; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
-  enemies = []; gems = []; t = 0; kills = 0; spawner.reset();
+  enemies = []; gems = []; t = 0; kills = 0; spawner.reset(); HUNT = createHunt((NET?.jobs?.length || 1) > 1); // PC 狩獵：每局重新開始
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
   if (TOWER) { floor = 1; document.getElementById('stageName').textContent = `${TOWER_NAME}　第 1 層`; for (const [k, v] of Object.entries(TSET?.boost || {})) for (let i = 0; i <= v && v > 0; i++) SM.add(k); } // 塔點數：選好的技能起始等級＝1＋點數
@@ -662,7 +665,7 @@ function spawnMirror(s) { // 隊員：照隊長的生怪資料做一隻鏡像（
   return e;
 }
 function guestKill(e, d, mine) { // 隊員：隊長說這隻倒了
-  const pos = { x: d.x, z: d.z }; dropGem(pos, d.xp, 'k' + d.id); if (mine) kills++;
+  const pos = { x: d.x, z: d.z }; dropGem(pos, d.xp, 'k' + d.id); if (mine) { kills++; huntKill(); }
   if (!e || e.dead) return; e.dead = true; dropCoin(pos); cbOnKill(e); mobSound(e, 'dd');
   if (e.netBoss) { runBosses.push(e.type); dropChest(pos, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); } // 首領寶箱每個人各一個（結算時各自開）
   else if (e.elite) { if (Math.random() < (0.4 + (P.pbLoot || 0)) * GAP_DROP) dropChest(pos, false); dropChest({ x: pos.x + 1.2, z: pos.z }, false, true); }
@@ -728,7 +731,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   if (from) { e.kb.subVectors(e.mesh.position, from).setY(0).normalize().multiplyScalar(e.boss ? 0.3 : e.elite ? 2 : 6); }
   play('hit', 0.25, 60);
   if (e.hp <= 0 && !e.dead) {
-    e.dead = true; if (e.lastSrc === 'bpet') bpet.kills++; /* 戰寵自己殺的才算戰寵經驗 */ if (!NET || (e.by ?? NET.me) === NET.me) kills++; dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
+    e.dead = true; if (e.lastSrc === 'bpet') bpet.kills++; /* 戰寵自己殺的才算戰寵經驗 */ if (!NET || (e.by ?? NET.me) === NET.me) { kills++; huntKill(); } dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
     if (e.mvp) finalDown = true;
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
     else if (e.elite) { if (Math.random() < (0.4 + (P.pbLoot || 0)) * GAP_DROP) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
@@ -1168,7 +1171,7 @@ function render() {
   drawSkillCd(); // 技能冷卻遮罩
   hud.xp.style.width = (P.xp / P.need * 100) + '%';
   hud.hp.style.width = Math.max(0, P.hp / P.maxHp * 100) + '%';
-  hud.lv.textContent = 'Lv ' + P.lv; hud.kills.textContent = '💀 ' + kills; hud.gold.textContent = `💰 ${goldHave()}　📦 ${chests}/${LOOT_CAP}${bossChests ? `　👑${bossChests}` : ''}`; hud.gold.classList.toggle('full', chests >= LOOT_CAP);
+  hud.lv.textContent = 'Lv ' + P.lv; { const kh = `💀 ${kills}　<span title="狩獵系統（PC）：殺滿這階段的數量，下一隻經驗加倍"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${HUNT?.party ? '#3a7bd5' : '#e74c3c'};margin-right:3px"></i>狩獵 ${HUNT ? (HUNT.ready ? `<b style="color:#e67e22">×${HUNT.T[HUNT.i][1]} 準備</b>` : `${HUNT.i + 1} 階 ${HUNT.n}/${HUNT.T[HUNT.i][0]}`) : ''}</span>`; if (kh !== hud.killsH) { hud.killsH = kh; hud.kills.innerHTML = kh; } } hud.gold.textContent = `💰 ${goldHave()}　📦 ${chests}/${LOOT_CAP}${bossChests ? `　👑${bossChests}` : ''}`; hud.gold.classList.toggle('full', chests >= LOOT_CAP);
   hud.hpTxt.textContent = `${Math.max(0, Math.ceil(P.hp))} / ${Math.round(P.maxHp)}`; hud.xpPct.textContent = (P.xp / P.need * 100).toFixed(1) + '%';
   hud.time.textContent = `${String(t / 60 | 0).padStart(2, '0')}:${String(t % 60 | 0).padStart(2, '0')}`;
   if (boss) bossEl.querySelector('i').style.width = Math.max(0, boss.hp / boss.maxHp * 100) + '%';
