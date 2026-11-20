@@ -26,7 +26,10 @@ export function createTownNet({ THREE, scene, camera, player, CHAR, token, groun
       if (o.t === 'all') for (const x of o.list) add(x.m, x.p);
       else if (o.t === 'join') add(o.m, null);
       else if (o.t === 'leave') remove(o.id);
-      else if (o.t === 'p') { const r = others.get(o.id); if (!r) return; r.tx = o.x; r.tz = o.z; r.ry = o.ry; r.mv = o.mv; if (!r.seen) { r.x = o.x; r.z = o.z; r.seen = true; } } };
+      else if (o.t === 'p') { const r = others.get(o.id); if (!r) return; const now = performance.now();
+        // 11/20 使用者：「看對方移動卡卡的」→ 記下速度，兩次封包之間照速度往前推（不是走到就停），再慢慢修正誤差
+        if (r.seen && r.at) { const dtS = Math.max(0.03, (now - r.at) / 1000); r.vx = (o.x - r.tx) / dtS; r.vz = (o.z - r.tz) / dtS; if (Math.hypot(r.vx, r.vz) > 20) r.vx = r.vz = 0; }
+        r.tx = o.x; r.tz = o.z; r.at = now; r.ry = o.ry; r.mv = o.mv; if (!o.mv) r.vx = r.vz = 0; if (!r.seen) { r.x = o.x; r.z = o.z; r.seen = true; } } };
     ws.onclose = e => { ws = null; clearAll(); if (want && !document.hidden && e.code !== 4001 && tries++ < 6) setTimeout(connect, 1500 * tries); };
   }
   function drop() { want = false; try { ws?.close(1000); } catch {} ws = null; clearAll(); }
@@ -43,9 +46,11 @@ export function createTownNet({ THREE, scene, camera, player, CHAR, token, groun
       const now = performance.now(), mv = moving();
       if (mv) { lastAct = now; if (!want) { want = true; connect(); } }
       else if (want && now - lastAct > IDLE) drop(); // 5 分鐘沒動作就離線，一動就回來
-      if ((sendAcc += dt) >= 0.25) { sendAcc = 0; sendPos(false); }
+      if ((sendAcc += dt) >= (mv ? 0.1 : 0.25)) { sendAcc = 0; sendPos(false); } // 走動中每秒 10 次（沒動不送）
       for (const o of others.values()) {
-        o.x += (o.tx - o.x) * Math.min(1, dt * 8); o.z += (o.tz - o.z) * Math.min(1, dt * 8);
+        const ahead = o.mv && o.at ? Math.min(0.25, (now - o.at) / 1000) : 0; // 預測：照速度往前推最多 0.25 秒
+        const gx = o.tx + (o.vx || 0) * ahead, gz = o.tz + (o.vz || 0) * ahead, ex = gx - o.x, ez = gz - o.z, err = Math.hypot(ex, ez);
+        if (err > 6) { o.x = gx; o.z = gz; } else { const k = Math.min(1, dt * 12); o.x += ex * k; o.z += ez * k; }
         if (!o.g) continue; o.g.visible = o.seen; o.g.position.set(o.x, modelY(o.x, o.z), o.z);
         let d = o.ry - o.g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); o.g.rotation.y += d * Math.min(1, dt * 10);
         o.g.userData.actor?.update(dt, !!o.mv);
