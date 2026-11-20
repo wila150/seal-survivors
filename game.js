@@ -5,7 +5,7 @@ import { personaBonus } from './src/1_data/persona.js';
 import { setBonus } from './src/1_data/tower.js';
 import { askConfirm } from './src/2_core/ask.js';
 import * as THREE from 'three';
-import { JOBS, defaultStats, MOUNT } from './src/1_data/jobs.js';
+import { JOBS, defaultStats, MOUNT, JOB_CRIT } from './src/1_data/jobs.js';
 import { sealModel, sealMob, sealModelData } from './src/2_core/seal-model.js';
 import { RARITY, itemName, itemIcon } from './src/1_data/items.js';
 import { STAGES, bossTimes, earlyMul } from './src/1_data/stages.js';
@@ -497,7 +497,7 @@ function reset() {
   const hp = Math.round(JOB.hp + ST.vit * 6 + (B.hp || 0));
   // 項目 35：PC 6 項素質（敏捷＝爆擊＋迴避、精神＝冷卻、體力＝HP＋減傷、感覺＝爆擊微幅；移速不再吃素質）
   // 項目 34：威力 近戰＝力量 3%／點；遠程（獵人）＝力量 1%＋敏捷 3%（PC 沒有 DEX → 用敏捷）；魔法＝智力 3%
-  P = { hp, maxHp: hp, speed: JOB.speed, might: 1, phys: 1 + (CHAR.job === '獵人' ? ST.str * 0.01 + ST.agi * 0.03 : ST.str * 0.03), magic: 1 + ST.int * 0.03, crit: ST.agi * 0.01 + ST.luk * 0.003,
+  P = { hp, maxHp: hp, speed: JOB.speed, might: 1, phys: 1 + (CHAR.job === '獵人' ? ST.str * 0.01 + ST.agi * 0.03 : ST.str * 0.03), magic: 1 + ST.int * 0.03, crit: (JOB_CRIT[CHAR.job] || 2.5) / 100 + ST.agi * 0.01 + ST.luk * 0.003, /* 11/20 加 PC 職業必殺率 */
         dodge: Math.min(0.4, ST.agi * 0.005), vitDr: Math.min(0.3, ST.vit * 0.003),
         armor: JOB.armor + (B.armor || 0), regen: JOB.regen || 0, magnet: (CHAR.job === '初心者' ? 3 : 2.5) * (1 + (B.magnet || 0)), hasteV: (ST.wis || 1) + (B.haste || 0) * 100, lv: 1, xp: 0, need: CHAR.job === '初心者' ? 6 : 5, inv: 0, face: 0 };
   // 項目 34 遞減收益：急速值 → 冷卻倍率＝1／(1＋急速／100)（急速 100＝冷卻剩 50%；精神 1 點＝急速 1、裝備／天賦／石頭／稱號的冷卻 % 換成急速值）

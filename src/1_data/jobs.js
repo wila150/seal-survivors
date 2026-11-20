@@ -98,3 +98,5 @@ export function validateStats(s) {
   return Object.keys(s).length === Object.keys(STATS).length && used <= FREE_POINTS;
 }
 export const defaultStats = () => Object.fromEntries(Object.keys(STATS).map(k => [k, 1]));
+// 職業必殺率（%；2u id=169 遊戲公式：必殺率＝角色必殺／怪物必殺抵抗 × 職業必殺率）→ 割草版當基礎爆擊率加上去
+export const JOB_CRIT = { 劍士: 3.5, 騎士: 3.5, 法師: 3.5, 祭司: 2.5, 小丑: 3.5, 鐵匠: 2, 獵人: 5, 初心者: 2.5 };
