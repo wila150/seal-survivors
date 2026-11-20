@@ -23,7 +23,8 @@ export const FUSE_NEED = 3, FUSE_UP = 0.74;           // PC：同級 26%／高�
 export const SLOT_LV = [33, 50, 67, 83, 99];
 export const SLOT_COST = [3500, 7500, 14500, 24500, 50000];
 export const GEM_MAX = 200;                            // 寶石袋上限
-export const GEM_ICON = 'skill1.png';                  // 圖示暫用技能圖示表（原版寶石圖還沒轉）
+// 寶石圖示＝PC 原版（2u id=56 的道具圖，assets/gems/<屬性>_<級別>.png：N 三角 → XG 寶石）
+export const gemIcon = g => `assets/gems/${g.attr}_${g.grade}.png`;
 
 let seq = 0;
 export const newGem = (grade, attr, rand = Math.random) => ({
