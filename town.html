@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#d8c7a0"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>希望OL 倖存者 主城</title>
 <link rel="icon" type="image/png" sizes="64x64" href="assets/ui/favicon-64.png"><link rel="icon" type="image/png" sizes="32x32" href="assets/ui/favicon-32.png"><link rel="apple-touch-icon" href="assets/ui/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest">
 <style>
@@ -153,6 +153,25 @@
   #stoneBtn{position:fixed;left:max(12px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 96px);z-index:6;width:46px;height:46px;border-radius:12px;border:2px solid #fff8;background:linear-gradient(#2b3a5c,#121a2c);box-shadow:0 2px 6px #0008;display:flex;align-items:center;justify-content:center;gap:2px;padding:0;cursor:pointer}
   #stoneBtn i{width:10px;height:14px;border-radius:50% 50% 45% 45%;box-shadow:inset 0 2px 2px #fff8,0 0 4px #0008}
   #stoneBtn:hover{border-color:#ffd36b}
+  /* 11/20 使用者：「手機底下按鈕太擠 → 改在右側或左側用拖拉式選單」「電腦版可以出現在右上（類似 RO 手遊右邊）」「石頭鑲嵌出現在左側怪怪的，整理一起」
+     電腦：選單改成右上（小地圖下面）兩欄圖示；手機：右邊緣「選單」把手，點或往左滑拉出抽屜；石頭鑲嵌收進選單 */
+  #stoneBtn{display:none!important}
+  .pct.stone{display:inline-flex;align-items:center;gap:2px}.pct.stone i{width:7px;height:10px;border-radius:50% 50% 45% 45%;box-shadow:inset 0 1px 1px #fff8}
+  #menuHandle,#menuShade{display:none}
+  @media (pointer:fine) and (min-width:900px){
+    #menu{left:auto;right:max(12px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 268px);bottom:auto;transform:none;display:grid;grid-template-columns:repeat(2,auto);gap:4px;padding:8px;border-radius:16px;max-height:calc(100vh - 290px);overflow:auto}
+    #menu .pct{width:100%}
+    #gmBtn{top:calc(220px + env(safe-area-inset-top))!important}
+  }
+  @media (max-width:640px),(pointer:coarse) and (max-width:1024px){
+    #menu{left:auto;right:0;top:0;bottom:0;transform:translateX(105%);width:min(76vw,290px);max-width:none;display:grid;grid-template-columns:repeat(3,1fr);align-content:center;justify-items:center;gap:10px 4px;padding:calc(env(safe-area-inset-top) + 16px) calc(env(safe-area-inset-right) + 10px) calc(env(safe-area-inset-bottom) + 16px) 10px;border-radius:18px 0 0 18px;transition:transform .22s ease;z-index:30;flex-wrap:nowrap}
+    #menu.open{transform:none}
+    #menu{background:linear-gradient(#f4f7ff,#dfe7fa)!important;backdrop-filter:blur(6px)}
+    #menu .pcb{width:54px;height:54px}#menu .pcb.power{width:40px;height:40px}#menu .pct{height:40px;font-size:13px;padding:0 8px;min-width:64px}
+    #menuHandle{display:block;position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:29;width:28px;padding:10px 0;border:2px solid #fff;border-right:0;border-radius:12px 0 0 12px;background:linear-gradient(#4d86e8,#2a5bbf);color:#fff;font-weight:900;font-size:13px;line-height:1.25;box-shadow:-2px 2px 8px #0005}
+    #menuShade{position:fixed;inset:0;z-index:28;background:#0004}#menuShade.on{display:block}
+  }
+
 </style>
 <link rel="stylesheet" href="src/2_core/pc-ui.css">
 <link rel="stylesheet" href="src/2_core/ui-theme.css">
@@ -172,7 +191,8 @@
   <button class="esc-b" data-esc="chars" style="--a:126deg"><svg viewBox="0 0 48 48"><path d="M40 12c-14 0-22 6-24 17l-5-5-3 3 10 11 11-9-3-3-6 5c2-8 8-13 20-13z" fill="#1aa3c8"/><rect x="8" y="38" width="12" height="3" rx="1.5" fill="#1aa3c8"/></svg><span>返回選角</span></button>
   <button class="esc-b" data-esc="keys" style="--a:198deg"><svg viewBox="0 0 48 48"><path d="M6 22l22-12 16 10-22 13z" fill="#1aa3c8"/><path d="M6 22v6l16 11 22-13v-6L22 33z" fill="#127a96"/><g fill="#7fe0f5"><rect x="15" y="17" width="5" height="3" transform="rotate(-28 17 18)"/><rect x="22" y="13" width="5" height="3" transform="rotate(-28 24 14)"/><rect x="20" y="21" width="5" height="3" transform="rotate(-28 22 22)"/><rect x="27" y="17" width="5" height="3" transform="rotate(-28 29 18)"/><rect x="26" y="25" width="9" height="3" transform="rotate(-28 30 26)"/></g></svg><span>快捷鍵</span></button>
 </div></div>
-<div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pct" id="fishBtn" title="釣魚（要在水池邊）">釣魚</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pcb qparty" id="partyBtn" title="快速組隊（組隊搜尋）">組隊</button><button class="pcb friend" id="friendBtn" title="好友名單">好友</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
+<button id="menuHandle" aria-label="選單">‹<br>選<br>單</button><div id="menuShade"></div>
+<div id="menu"><button class="pcb status" id="statBtn" title="狀態（角色）">狀態</button><button class="pcb bag" id="bagBtn" title="背包（I）">背包</button><button class="pcb skill" id="skillBtn" title="技能">技能</button><button class="pct" id="talentBtn">天賦</button><button class="pct" id="gemBtn">寶石</button><button class="pct" id="fishBtn" title="釣魚（要在水池邊）">釣魚</button><button class="pcb map" id="mapBtn" title="傳送（遠征）">傳送</button><button class="pcb help" id="helpBtn" title="說明（新手指南）">說明</button><button class="pcb qparty" id="partyBtn" title="快速組隊（組隊搜尋）">組隊</button><button class="pcb friend" id="friendBtn" title="好友名單">好友</button><button class="pct stone" id="stoneMenuBtn" title="石頭鑲嵌（強化／分解）"><i style="background:#e8453c"></i><i style="background:#f0a030"></i><i style="background:#f5d442"></i>鑲嵌</button><button class="pct" id="charsBtn">換角色</button><button class="pcb power" id="setBtn" title="設定">設定</button></div>
 <button class="btn primary chip" id="talk"></button>
 <div id="tmmBox" title="主城地圖（點 MAP 放大，放大後點地圖可以直接走過去）"><canvas id="tmm" width="196" height="196"></canvas><button id="tmmMap">MAP</button></div>
 <button id="gmBtn" title="GM 指令（本機或 GM 帳號）" style="display:none;position:fixed;right:12px;top:calc(220px + env(safe-area-inset-top));z-index:5;border:2px solid #fff;border-radius:10px;background:linear-gradient(#ffb55a,#e07a1c);color:#fff;font-weight:900;padding:6px 12px;box-shadow:0 2px 8px #0005;cursor:pointer">GM</button>
@@ -275,6 +295,17 @@ document.querySelectorAll('[data-esc]').forEach(b => b.onclick = async () => {
 });
 $('#mapBtn').onclick = () => openExpedition(); // PC「傳送」＝遠征
 $('#partyBtn').onclick = () => openParty();
+// 石頭鑲嵌收進選單（原本左上角的三顆石頭按鈕藏起來，功能一樣）
+$('#stoneMenuBtn').onclick = () => $('#stoneBtn').click();
+// 手機抽屜選單：點把手或從右邊緣往左滑拉出來；點外面、往右滑、或按了裡面的按鈕就收起來
+const drawer = on => { $('#menu').classList.toggle('open', on); $('#menuShade').classList.toggle('on', on); };
+$('#menuHandle').onclick = () => drawer(true); $('#menuShade').onclick = () => drawer(false);
+$('#menu').addEventListener('click', e => { if (e.target.closest('button') && $('#menu').classList.contains('open')) setTimeout(() => drawer(false), 60); });
+{ let sx = null, sy = 0, from = '';
+  addEventListener('touchstart', e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; from = $('#menu').classList.contains('open') ? 'in' : sx > innerWidth - 28 ? 'edge' : ''; }, { passive: true });
+  addEventListener('touchmove', e => { if (sx == null || !from) return; const t = e.touches[0], dx = t.clientX - sx; if (Math.abs(t.clientY - sy) > 60) { sx = null; return; }
+    if (from === 'edge' && dx < -40) { drawer(true); sx = null; } else if (from === 'in' && dx > 50) { drawer(false); sx = null; } }, { passive: true });
+  addEventListener('touchend', () => { sx = null; }, { passive: true }); }
 $('#friendBtn').onclick = () => openFriends();
 // 組隊：回到主城自動接回原本的隊伍（大廳 → 遊戲 → 大廳同一支）；邀請連結 index.html?join=代碼 → 選好角色進主城後自動加入
 moduleDone.then(() => {
