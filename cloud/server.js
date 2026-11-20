@@ -15,7 +15,6 @@ import { towerFloor, towerSeg, towerScore, towerPoints, towerOpen, CURSES, TOWER
 import { parseGm } from '../src/1_data/gm.js';
 import { fameLevel, runFame, earnedTitles, titleOf, FAME_GEAR } from '../src/1_data/fame.js';
 import { cleanDiff, diffLoot, lootBonus, stageBaseLv } from '../src/1_data/difficulty.js';
-import { BPETS, BPET_REQ_LV, AWAKEN, STONE as NAT_STONE, rollGrade, bpetName, addBpetExp, bpetExpFrom, bpetTime, bpetDie, reviveCost } from '../src/1_data/bpets.js'; // 戰寵（11/20 照 PC）
 import { PC_PETS, PET_MAX, EGGS, FEED_EXP, addPetExp, petNeed, petStage9, petName, HUNGER_PER_SEC, FEED_HUNGER, PLAY_HUNGER, EVOLVE_SECS, WANT_SLOTS, EVO_CAT, evolveResult, migratePets } from '../src/1_data/pets.js';
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from '../src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../src/1_data/talents.js';
@@ -206,7 +205,7 @@ function auth(req) {
   if (!s || s.expires < Date.now()) return null;
   return s.account_id;
 }
-const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0 }; };
+const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0 }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
 const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, setk: r.setk || null, clk: r.clk ? JSON.parse(r.clk) : null, clkp: r.clkp ? JSON.parse(r.clkp) : null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
@@ -297,7 +296,7 @@ const api = {
   },
   // 出征結算：存紀錄、加經驗、升級
   'POST /api/runs': async (req, res, _, uid) => {
-    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0, combos = 0, party = 1, bpetXp = 0, bpetDead = false } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
+    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0, combos = 0, party = 1 } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
     const stB = stageBaseLv(STAGES.find(x => x.key === stage)), DL = isTowerKey(stage) ? diffLoot(null) : diffLoot(cleanDiff(diff, stB), stB); // 項目 41：難度只影響寶箱裝備品質，經驗金幣不變
     const isTower = stage === 'tower';
     const c = db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+charId, uid);
@@ -365,10 +364,6 @@ const api = {
       if (ap.hunger >= 100) { petStarve = true; ap.exp = (ap.exp || 0) - Math.round(petNeed(ap.lv, PC_PETS[ap.pc]?.tier) * 0.2);
         if (ap.exp < 0) { if (petStage9(ap.lv) === 1 && ap.lv === 1) { petDied = petName(ap); d.pets = d.pets.filter(x => x !== ap); d.pet = null; } else if (ap.lv > 1) { ap.lv--; ap.exp = 0; } else ap.exp = 0; } }
       else { petUp = addPetExp(ap, Math.floor(gain * 0.3)); if (petStage9(ap.lv) === 9) ap.s9 = (ap.s9 || 0) + secs; } }
-    // 戰寵（照 PC）：戰寵自己殺的怪才給經驗（client 回報 bpetXp，不超過本局經驗）；親密度照出征時間；死掉＝經驗懲罰＋親密度歸 0
-    let bpetRes = null; { const bp = (d.bpets || []).find(b => b.id === d.bpet && !b.dead);
-      if (bp) { bpetTime(bp, Date.now(), secs); const up = addBpetExp(bp, bpetExpFrom(Math.max(0, Math.min(+bpetXp || 0, gain)), c.base_lv, bp)); if (bpetDead) bpetDie(bp);
-        bpetRes = { name: bpetName(bp), lv: bp.lv, up, dead: !!bp.dead, close: bp.close }; } }
     // 11/19 使用者企劃 指令 3：每打完一套 A→S→D 連續技，身上鑲著的技能寶石各 +20 融合經驗，滿 100 升一級（N → G → DG → XG）
     d.cbTotal = (d.cbTotal || 0) + Math.max(0, Math.min(30, combos | 0)); // 項目 52 連續技熟練度（局外縮減門檻）
     const gemUps = []; { const n = Math.max(0, Math.min(30, combos | 0)); if (n) for (const sl of d.gemSlots || []) { const g = sl && (d.gems || []).find(x => x.id === sl.gem); if (!g) continue;
@@ -382,7 +377,7 @@ const api = {
     if (isTower) { const before = towerBest(c.id), score = towerScore(floor, kills, curse);
       db.prepare('INSERT INTO towers (char_id, month, floor, score, curse, kills, created) VALUES (?,?,?,?,?,?,?)').run(c.id, monthKey(), floor, score, curse, kills, Date.now());
       tower = { floor, score, newBest: score > before.score, newFloor: floor > before.floor, points: towerPoints(Math.max(floor, before.floor)) }; }
-    send(res, 200, { gain, bonus, baseLv: base, exp, need: needExp(base), levelUps: ups, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, petStarve, petDied, bpet: bpetRes, pet: ap && !petDied ? { name: petName(ap), hunger: Math.round(ap.hunger), lv: ap.lv, up: petUp } : null, petEgg: null, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, souls, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
+    send(res, 200, { gain, bonus, baseLv: base, exp, need: needExp(base), levelUps: ups, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, petStarve, petDied, pet: ap && !petDied ? { name: petName(ap), hunger: Math.round(ap.hunger), lv: ap.lv, up: petUp } : null, petEgg: null, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, souls, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
   },
   // ===== 背包、商店、強化、素質 =====
   'POST /api/equip': async (req, res, _, uid) => {
@@ -994,40 +989,6 @@ const api = {
   },
   // ===== 項目 30：寵物飼育員 =====
   // ===== 寵物 v3 照 PC（官方 wiki 49＋服務端 item.txt 類別 22；src/1_data/pets.js）=====
-  // ===== 戰寵（照 PC 戰寵資訊；src/1_data/bpets.js）=====
-  // act：adopt（領養，Base Lv 70，每種一隻）／summon（召喚＝裝備，一次一隻）／seal（封印）／stone（買屬性自然石）／awaken（覺醒）／revive（復活）
-  'POST /api/bpet': async (req, res, _, uid) => {
-    const { charId, act, kind, id } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
-    const d = JSON.parse(c.data || '{}'); d.bpets ??= []; let gold = 0, msg = '';
-    const b = d.bpets.find(x => x.id === +id);
-    if (act === 'adopt') {
-      if (!BPETS[kind]) return send(res, 400, { error: '沒有這種戰寵' });
-      if (c.base_lv < BPET_REQ_LV) return send(res, 400, { error: `戰寵要 Base Lv ${BPET_REQ_LV}（PC 需求等級 70）` });
-      if (d.bpets.some(x => x.kind === kind)) return send(res, 400, { error: '這種戰寵已經有了' });
-      d.bpets.push({ id: Date.now(), kind, lv: 1, exp: 0, stage: 0, grade: null, close: 0, loyal: 0, seen: Date.now() }); msg = `領養了${BPETS[kind].name}`;
-    } else if (act === 'summon') {
-      if (!b) return send(res, 400, { error: '找不到戰寵' }); if (b.dead) return send(res, 400, { error: '戰寵死掉了，要先復活' });
-      if (c.base_lv < BPET_REQ_LV) return send(res, 400, { error: `戰寵要 Base Lv ${BPET_REQ_LV}` });
-      const old = d.bpets.find(x => x.id === d.bpet); if (old && old !== b) old.close = 0; // PC：封印＝親密度歸 0
-      d.bpet = b.id; b.seen = Date.now(); msg = `召喚了${bpetName(b)}`;
-    } else if (act === 'seal') {
-      const old = d.bpets.find(x => x.id === d.bpet); if (old) old.close = 0; d.bpet = null; msg = '封印了戰寵（親密度歸 0）';
-    } else if (act === 'stone') {
-      gold = NAT_STONE.price; if ((c.gold ?? 0) < gold) return send(res, 400, { error: `希幣不夠（要 ${gold}）` });
-      d.natStone = (d.natStone || 0) + 1; msg = `買了${NAT_STONE.name}`;
-    } else if (act === 'awaken') {
-      if (!b) return send(res, 400, { error: '找不到戰寵' }); const A = AWAKEN[b.stage || 0];
-      if (!A) return send(res, 400, { error: '已經是終極形態期了' }); if (b.lv < A.lv) return send(res, 400, { error: `要 Lv ${A.lv} 才能覺醒` });
-      if (!(d.natStone > 0)) return send(res, 400, { error: `要 1 個${NAT_STONE.name}` }); gold = A.gold; if ((c.gold ?? 0) < gold) return send(res, 400, { error: `希幣不夠（要 ${gold}）` });
-      d.natStone--; const ok = Math.random() < A.rate;
-      if (ok) { b.stage = (b.stage || 0) + 1; if (!b.grade) b.grade = rollGrade(); msg = `覺醒成功！${bpetName(b)}（GRADE ${b.grade}）`; } else msg = '覺醒失敗（戰寵沒事，階段不變；材料已用掉）';
-    } else if (act === 'revive') {
-      if (!b?.dead) return send(res, 400, { error: '這隻戰寵沒有死' }); gold = reviveCost(b); if ((c.gold ?? 0) < gold) return send(res, 400, { error: `希幣不夠（要 ${gold}）` });
-      b.dead = false; msg = `${bpetName(b)}復活了`;
-    } else return send(res, 400, { error: '不明的操作' });
-    db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(gold, JSON.stringify(d), c.id);
-    send(res, 200, { msg, char: fullChar(ownChar(uid, c.id)) });
-  },
   'POST /api/petbuy': async (req, res, _, uid) => {
     const { charId, egg } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const E = EGGS.find(x => x.id === +egg); if (!E) return send(res, 400, { error: '沒有這種寵物蛋' });
