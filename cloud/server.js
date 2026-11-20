@@ -19,7 +19,8 @@ import { BPETS, BPET_REQ_LV, AWAKEN, STONE as NAT_STONE, rollGrade, bpetName, ad
 import { PC_PETS, PET_MAX, EGGS, FEED_EXP, addPetExp, petNeed, petStage9, petName, HUNGER_PER_SEC, FEED_HUNGER, PLAY_HUNGER, EVOLVE_SECS, WANT_SLOTS, EVO_CAT, evolveResult, migratePets } from '../src/1_data/pets.js';
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from '../src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../src/1_data/talents.js';
-import * as ATT from '../src/1_data/attendance.js'; // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
+import * as ATT from '../src/1_data/attendance.js';
+import { rankBuffOf } from '../src/1_data/rank-buff.js'; // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../src/1_data/fishing.js';
 import { itemFromPc, wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
 
@@ -223,7 +224,7 @@ function auth(req) {
   if (!s || s.expires < Date.now()) return null;
   return s.account_id;
 }
-const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0 }; };
+const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0, pwRank: pwRankOf(c.id) }; };
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
 const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, setk: r.setk || null, clk: r.clk ? JSON.parse(r.clk) : null, clkp: r.clkp ? JSON.parse(r.clkp) : null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
@@ -233,6 +234,18 @@ function attGet(uid) {
   const r = db.prepare('SELECT v FROM meta WHERE k=?').get('att:' + uid); let A = {}; try { A = JSON.parse(r?.v || '{}'); } catch {}
   const day = ATT.twDay(); if (A.day !== day) { A.day = day; A.secs = 0; A.claimed = []; A.charId = 0; A.last = 0; }
   A.claimed ??= []; A.secs ??= 0; return A;
+}
+// PC 戰鬥力排名：每天 0 點（台灣）統計一次「同職業」戰鬥力名次（meta 'pwrank'）；前 50 名有 BUFF（rank-buff.js）
+let PWR = null;
+function pwRankOf(cid) {
+  const day = ATT.twDay();
+  if (PWR?.day !== day) { try { PWR = JSON.parse(metaGet('pwrank') || 'null'); } catch { PWR = null; }
+    if (PWR?.day !== day) {
+      const byJob = {}; for (const c of db.prepare('SELECT id, job, base_lv FROM characters').all()) (byJob[c.job] ??= []).push({ id: c.id, lv: c.base_lv, p: powerOf(db.prepare('SELECT * FROM items WHERE char_id=? AND equipped=1').all(c.id).map(itemView)) });
+      const map = {}; for (const L of Object.values(byJob)) { L.sort((a, b) => b.p - a.p || b.lv - a.lv || a.id - b.id); L.slice(0, 50).forEach((x, i) => { if (x.p > 0) map[x.id] = i + 1; }); }
+      PWR = { day, map }; metaSet('pwrank', JSON.stringify(PWR));
+    } }
+  return PWR.map[cid] || 0;
 }
 const attPut = (uid, A) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run('att:' + uid, JSON.stringify(A));
 const attView = uid => { const A = attGet(uid), day = ATT.twDay(); return { day, secs: A.secs, claimed: A.claimed, onlineChar: A.charId || 0, signN: A.signN || 0, signedToday: A.signDay === day }; };
