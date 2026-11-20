@@ -19,6 +19,7 @@ import { BPETS, BPET_REQ_LV, AWAKEN, STONE as NAT_STONE, rollGrade, bpetName, ad
 import { PC_PETS, PET_MAX, EGGS, FEED_EXP, addPetExp, petNeed, petStage9, petName, HUNGER_PER_SEC, FEED_HUNGER, PLAY_HUNGER, EVOLVE_SECS, WANT_SLOTS, EVO_CAT, evolveResult, migratePets } from '../src/1_data/pets.js';
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from '../src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../src/1_data/talents.js';
+import * as ATT from '../src/1_data/attendance.js'; // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../src/1_data/fishing.js';
 import { itemFromPc, wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
 
@@ -227,6 +228,14 @@ const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >
 const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, setk: r.setk || null, clk: r.clk ? JSON.parse(r.clk) : null, clkp: r.clkp ? JSON.parse(r.clkp) : null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
 const ownChar = (uid, cid) => db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+cid, uid);
+// PC 在線與簽到：帳號層級的資料（meta 表 'att:<帳號 id>'）；每天 0 點（台灣時間）在線時間與領取紀錄重算
+function attGet(uid) {
+  const r = db.prepare('SELECT v FROM meta WHERE k=?').get('att:' + uid); let A = {}; try { A = JSON.parse(r?.v || '{}'); } catch {}
+  const day = ATT.twDay(); if (A.day !== day) { A.day = day; A.secs = 0; A.claimed = []; A.charId = 0; A.last = 0; }
+  A.claimed ??= []; A.secs ??= 0; return A;
+}
+const attPut = (uid, A) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run('att:' + uid, JSON.stringify(A));
+const attView = uid => { const A = attGet(uid), day = ATT.twDay(); return { day, secs: A.secs, claimed: A.claimed, onlineChar: A.charId || 0, signN: A.signN || 0, signedToday: A.signDay === day }; };
 const ownItem = (uid, iid) => db.prepare('SELECT i.* FROM items i JOIN characters c ON c.id=i.char_id WHERE i.id=? AND c.account_id=?').get(+iid, uid);
 // it.refine／it.ident 會保留（拍賣成交、取回、過期退回都走這裡；以前取回／成交會把精煉歸零，11/18 修正）
 function giveItem(cid, it, bound = false) {
@@ -1097,9 +1106,43 @@ const api = {
     db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(E.price, JSON.stringify(d), c.id);
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
+  // ===== PC 在線與簽到（2u id=72；以帳號為單位：存在 meta 'att:<帳號>'）=====
+  'GET /api/attend': async (req, res, _, uid) => send(res, 200, attView(uid)),
+  'POST /api/attend': async (req, res, _, uid) => {
+    const { charId, act, idx } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const A = attGet(uid), day = ATT.twDay(), now = Date.now();
+    if (act === 'tick') { // 在線心跳（主城／出征每分鐘一次；兩次之間最多算 90 秒）
+      if (A.last && now - A.last > 0) A.secs = Math.min(ATT.ONLINE_CAP, A.secs + Math.min(ATT.TICK_MAX, Math.round((now - A.last) / 1000)));
+      A.last = now; attPut(uid, A); return send(res, 200, attView(uid));
+    }
+    if (act === 'check') { // 每日簽到：28 天一輪
+      if (A.signDay === day) return send(res, 400, { error: '今天已經簽到過了' });
+      const n = (A.signN || 0) % ATT.ATTEND.length, R = ATT.ATTEND[n], M = ATT.rewardMail([[R[0], R[1]], [R[2], R[3]]]);
+      A.signDay = day; A.signN = n + 1; attPut(uid, A);
+      sendMail(c.id, { sender: '簽到系統', title: `第 ${n + 1} 天簽到獎勵`, body: `簽到成功！${[ATT.rewardText(R[0], R[1]), R[2] ? ATT.rewardText(R[2], R[3]) : ''].filter(Boolean).join('、')}`, gold: M.gold, mats: M.mats });
+      return send(res, 200, { ...attView(uid), got: n + 1 });
+    }
+    if (act === 'claim') { // 在線獎勵：同帳號每天只能一個角色領
+      const i = idx | 0, R = ATT.ONLINE[i]; if (!R) return send(res, 400, { error: '沒有這個獎勵' });
+      if (A.claimed.includes(i)) return send(res, 400, { error: '這個獎勵今天領過了' });
+      if (A.secs < R[0]) return send(res, 400, { error: `在線 ${R[0] / 60} 分鐘才能領` });
+      if (A.charId && A.charId !== c.id) return send(res, 400, { error: '今天已經用另一個角色領過在線獎勵（同一個帳號每天只能一個角色領）' });
+      A.claimed.push(i); A.charId = c.id; attPut(uid, A); const M = ATT.rewardMail([[R[1], R[2]]]);
+      sendMail(c.id, { sender: '在線系統', title: `在線 ${R[0] / 60} 分鐘獎勵`, body: `謝謝你今天的陪伴！${ATT.rewardText(R[1], R[2])}`, gold: M.gold, mats: M.mats });
+      return send(res, 200, attView(uid));
+    }
+    send(res, 400, { error: '不認得的動作' });
+  },
   'POST /api/petfeed': async (req, res, _, uid) => {
-    const { charId, petId, itemIds } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const { charId, petId, itemIds, food } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}'); migratePets(d); const p = (d.pets || []).find(x => x.id === petId); if (!p) return send(res, 404, { error: '找不到寵物' });
+    if (food != null) { // PC 寵物食品（item.scr 類別 3：奶粉／嬰兒副食品／咕咕大力丸／馬卡龍，第 43 欄＝經驗）：一次餵 1 個
+      const fx = ATT.PET_FOOD[food]; if (!fx) return send(res, 400, { error: '這不是寵物食品' }); d.mats ??= {};
+      if (!(d.mats[food] > 0)) return send(res, 400, { error: `沒有「${ORES[food].name}」` });
+      d.mats[food]--; p.hunger = Math.max(0, (p.hunger || 0) - FEED_HUNGER); const ups = d.pet === p.id ? addPetExp(p, fx) : 0;
+      db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+      return send(res, 200, { exp: d.pet === p.id ? fx : 0, ups, pet: p, char: fullChar(ownChar(uid, c.id)) });
+    }
     if (!Array.isArray(itemIds) || !itemIds.length || itemIds.length > BAG_MAX) return send(res, 400, { error: '清單不對' });
     const its = itemIds.map(id => db.prepare('SELECT * FROM items WHERE id=? AND char_id=?').get(+id, c.id));
     if (its.some(i => !i)) return send(res, 404, { error: '找不到裝備' }); if (its.some(i => i.equipped)) return send(res, 400, { error: '穿著的裝備不能餵' }); if (its.some(i => i.locked)) return send(res, 400, { error: '有鎖定的裝備' });
