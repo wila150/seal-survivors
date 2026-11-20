@@ -20,7 +20,8 @@ import { PC_PETS, PET_MAX, EGGS, FEED_EXP, addPetExp, petNeed, petStage9, petNam
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from '../src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../src/1_data/talents.js';
 import * as ATT from '../src/1_data/attendance.js';
-import { rankBuffOf } from '../src/1_data/rank-buff.js'; // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
+import { rankBuffOf } from '../src/1_data/rank-buff.js';
+import { gapExp } from '../src/1_data/level-gap.js'; // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../src/1_data/fishing.js';
 import { itemFromPc, wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
 
@@ -194,9 +195,9 @@ const stashView = uid => ({ ...stashInfo(uid), pages: STASH_PAGES, size: STASH_S
 const MAX_SLOTS = 15;
 // 項目 33（11/19「照建議」＋最高原則照 PC）：Base 升級經驗＝服務端 level.scr 原版表，上限 Lv 99
 const needExp = lv => PC_NEED[Math.min(lv, BASE_MAX) - 1] || PC_NEED.at(-1);
-// 每隻怪的經驗＝PC 一般野外怪該等級的經驗 × EXP_SCALE（割草一局殺的怪比 PC 多很多，取 1/10）；怪物等級比你低，每差 1 級經驗減半
+// 每隻怪的經驗＝PC 一般野外怪該等級的經驗 × EXP_SCALE（割草一局殺的怪比 PC 多很多，取 1/10）× PC 等差掉寶率的經驗百分比（level-gap.js，11/21 取代原本自訂的「每差 1 級減半」）
 const EXP_SCALE = 0.1;
-const runExp = (kills, monLv, baseLv) => Math.floor(kills * (PC_CURVE.exp[Math.max(1, Math.min(PC_CURVE.max, monLv)) - 1] || 1) * EXP_SCALE * Math.pow(0.5, Math.max(0, baseLv - monLv)));
+const runExp = (kills, monLv, baseLv) => Math.floor(kills * (PC_CURVE.exp[Math.max(1, Math.min(PC_CURVE.max, monLv)) - 1] || 1) * EXP_SCALE * gapExp(baseLv - monLv));
 // 項目 25／27：Job 經驗＝本局 Base 經驗；曲線平緩（使用者 11/18 選「Job 50＋平緩曲線」：約 100 局到 Job 50）
 // 一轉上限 Job Lv 50（滿 50 才能二轉）；二轉後接著升到 100（51 以後的點數給二轉樹）。數值暫定，之後後端調
 const jobNeed = lv => (400 + 80 * lv) * (lv >= JOB2_MAX ? 8 : 1); // 項目 40：三轉 Job 經驗 ×8（企劃「Job 經驗 ÷8」）
