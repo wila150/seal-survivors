@@ -479,8 +479,8 @@ function aimClick(e) { gplane.constant = -TMAP.heightAt(player.position.x, playe
 renderer.domElement.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') { if (e.button === 0) { click.held = true; aimClick(e); } return; } });
 addEventListener('pointermove', e => { if (click.held && e.pointerType === 'mouse') aimClick(e); });
 addEventListener('pointerup', () => { click.held = false; });
-renderer.domElement.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; joy.on = true; joy.ox = e.clientX; joy.oy = e.clientY; joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px'; joyEl.style.display = 'block'; });
-addEventListener('pointermove', e => { if (!joy.on) return; let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy; const d = Math.hypot(dx, dy), m = 45; if (d > m) { dx *= m / d; dy *= m / d; } joy.dx = dx / m; joy.dy = dy / m; joyEl.firstChild.style.transform = `translate(${dx}px,${dy}px)`; });
+renderer.domElement.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; if (view.touchCam) return joyEnd(); joy.on = true; joy.ox = e.clientX; joy.oy = e.clientY; joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px'; joyEl.style.display = 'block'; });
+addEventListener('pointermove', e => { if (view.touchCam) { if (joy.on) joyEnd(); return; } if (!joy.on) return; let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy; const d = Math.hypot(dx, dy), m = 45; if (d > m) { dx *= m / d; dy *= m / d; } joy.dx = dx / m; joy.dy = dy / m; joyEl.firstChild.style.transform = `translate(${dx}px,${dy}px)`; });
 const joyEnd = () => { joy.on = false; joy.dx = joy.dy = 0; joyEl.style.display = 'none'; joyEl.firstChild.style.transform = ''; };
 addEventListener('pointerup', joyEnd); addEventListener('pointercancel', joyEnd);
 

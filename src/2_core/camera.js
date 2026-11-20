@@ -8,7 +8,7 @@ export function fitCamera(camera, w, h) { camera.aspect = w / h; camera.updatePr
 // 視角：V 鍵或按鈕切換（斜角 ↔ 背後），滑鼠滾輪連續縮放（11/20 使用者「照建議做」：照 PC——鏡頭跟在角色背後、滾輪拉遠拉近、右鍵轉；
 // 拿掉固定的「遠景」檔，想看遠一點用滾輪拉到最遠就有（範圍放大到 0.5～2.2），縮放會記住）
 export const VIEWS = [{ name: '斜角', h: 18, back: 14 }, { name: '背後（PC）', h: 7.5, back: 13 }];
-export const view = { i: 0, zoom: 1, yaw: 0, pitch: 1 }; // pitch：鏡頭高度倍率（右鍵上下拖）
+export const view = { i: 0, zoom: 1, yaw: 0, pitch: 1, touchCam: false }; // pitch：鏡頭高度倍率（右鍵上下拖）
 export function cycleView() { view.i = (view.i + 1) % VIEWS.length; try { localStorage.setItem('ss_view2', view.i); } catch {} return VIEWS[view.i].name; }
 try { const o = localStorage.getItem('ss_view2') ?? (localStorage.getItem('ss_view') === '2' ? '1' : '0'); view.i = +o % VIEWS.length; view.zoom = Math.min(2.2, Math.max(0.5, +(localStorage.getItem('ss_zoom') || 1) || 1)); } catch {}
 let zSave = 0;
@@ -25,9 +25,21 @@ export function enableOrbit(dom) {
   addEventListener('mouseup', e => { if (e.button === 2 || e.button === 1) on = false; });
   const keys = {}; addEventListener('keydown', e => { if (e.target.closest?.('input,textarea')) return; keys[e.code] = true; }); addEventListener('keyup', e => keys[e.code] = false);
   const rel = () => { on = false; for (const k in keys) keys[k] = false; }; addEventListener('blur', rel); document.addEventListener('visibilitychange', () => document.hidden && rel()); // 切出視窗不會一直轉
+  // 11/20 使用者：「手機應該要兩指去控制各種角度，跟 PC 右鍵操作一樣」→ 兩指：一起左右拖＝轉向、上下拖＝俯角、捏合＝縮放
+  // 用 window 捕獲階段先收到觸控，搖桿那邊看 view.touchCam 就讓位（第二根手指放下時搖桿收掉，手指全放開才恢復）
+  const tp = new Map(); let mid = null, dist = 0;
+  const two = () => { const [a, b] = [...tp.values()]; return { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, d: Math.hypot(a[0] - b[0], a[1] - b[1]) }; };
+  addEventListener('pointerdown', e => { if (e.pointerType !== 'touch' || (e.target !== dom && tp.size === 0)) return; tp.set(e.pointerId, [e.clientX, e.clientY]);
+    if (tp.size === 2) { view.touchCam = true; const t = two(); mid = t; dist = t.d; } }, true);
+  addEventListener('pointermove', e => { if (!tp.has(e.pointerId)) return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size < 2 || !mid) return;
+    const t = two(); view.yaw -= (t.x - mid.x) * 0.01; view.pitch = Math.min(1.7, Math.max(0.35, view.pitch - (t.y - mid.y) * 0.005));
+    if (dist > 20 && t.d > 20) { view.zoom = Math.min(2.2, Math.max(0.5, view.zoom * dist / t.d)); clearTimeout(zSave); zSave = setTimeout(() => { try { localStorage.setItem('ss_zoom', view.zoom.toFixed(2)); } catch {} }, 400); }
+    mid = t; dist = t.d; }, true);
+  const tEnd = e => { if (!tp.delete(e.pointerId)) return; if (tp.size < 2) mid = null; if (tp.size === 0) view.touchCam = false; };
+  addEventListener('pointerup', tEnd, true); addEventListener('pointercancel', tEnd, true);
   let last = performance.now();
   (function spin(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; if (keys.KeyQ) view.yaw += dt * 2; if (keys.KeyE) view.yaw -= dt * 2; requestAnimationFrame(spin); })(last);
-  return () => on; // 是否正在轉視角
+  return () => on || view.touchCam; // 是否正在轉視角
 }
 
 // fx.shake：震動強度，每幀遞減；groundY＝玩家腳下地面高度（原版地圖有起伏）

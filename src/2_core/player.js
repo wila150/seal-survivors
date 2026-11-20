@@ -26,10 +26,12 @@ export function createInput(dom, joyEl, opts = {}) {
     marker.position.set(click.x, 0.06, click.z); marker.visible = true; }
   dom.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse' && opts.camera) { if (e.button !== 0) return; click.held = true; aim(e); return; }
+    if (view.touchCam) { joyEnd(); return; } // 兩指＝轉鏡頭，不是搖桿
     joy.on = true; joy.ox = e.clientX; joy.oy = e.clientY; joy.dx = joy.dy = 0; joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px'; joyEl.style.display = 'block';
   });
   addEventListener('pointermove', e => {
     if (click.held && e.pointerType === 'mouse') { if (!(e.buttons & 1)) { click.held = false; return; } aim(e); return; } // 左鍵已經放開（放開事件被右鍵選單吃掉）→ 不再跟著滑鼠
+    if (view.touchCam) { if (joy.on) joyEnd(); return; }
     if (!joy.on) return; let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy; const d = Math.hypot(dx, dy), m = 45; if (d > m) { dx *= m / d; dy *= m / d; } joy.dx = dx / m; joy.dy = dy / m; joyEl.firstChild.style.transform = `translate(${dx}px,${dy}px)`;
   });
   const joyEnd = () => { click.held = false; joy.on = false; joy.dx = joy.dy = 0; joyEl.style.display = 'none'; joyEl.firstChild.style.transform = ''; };
