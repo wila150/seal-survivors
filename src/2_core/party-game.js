@@ -9,7 +9,7 @@ import { sealActor } from './seal-model.js';
 import { playerModelId, playerAnimSet, playerLook } from '../1_data/jobs.js';
 
 export const PARTY_MUL = n => ({ count: 1 + 0.5 * (n - 1), hp: 1 + 0.6 * (n - 1), dmg: 1 + 0.25 * (n - 1), exp: 1 + 0.1 * (n - 1) }); // v1.1：人越多怪越多、越硬、越痛
-const SEND_MS = 100, DOWN_SECS = 30, REVIVE_SECS = 3, REVIVE_R = 2.2, SHARE_R = 15;
+const SEND_MS = 100, DOWN_SECS = 30, REVIVE_SECS = 3, REVIVE_R = 3.5, SHARE_R = 15;
 
 export function createPartyGame(G) {
   if (!new URLSearchParams(location.search).has('party')) return null;
@@ -93,9 +93,10 @@ export function createPartyGame(G) {
     for (const r of NET.remotes.values()) {
       if (now - r.last > 8000) r.gone = true;
       r.x += (r.tx - r.x) * Math.min(1, dt * 10); r.z += (r.tz - r.z) * Math.min(1, dt * 10);
-      if (r.g) { r.g.position.set(r.x, G.groundAt(r.x, r.z), r.z); let dy = r.ry - r.g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.g.rotation.y += dy * Math.min(1, dt * 12); r.g.visible = !r.gone; const A = r.g.userData.actor;
+      if (r.g) { r.g.position.set(r.x, 0, r.z); /* 畫面會整個抬到地面高度（liftScene），模型放 0 */ let dy = r.ry - r.g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.g.rotation.y += dy * Math.min(1, dt * 12); r.g.visible = !r.gone; const A = r.g.userData.actor;
         if (A) { if ((r.down || r.dead) && A.current !== 'dd') A.play('dd'); else if (!r.down && !r.dead && A.current === 'dd') A.play('pi'); A.update(dt, !!r.mv && !r.down); } }
-      if (r.down && !P.down && !P.dead && Math.hypot(r.x - pp.x, r.z - pp.z) < REVIVE_R) { r.revT += dt; if (r.revT >= REVIVE_SECS) { r.revT = 0; send('rev', { to: r.id }); } } else r.revT = 0;
+      // 救人用對方「最新回報的位置」算距離（不是畫面上還在內插的位置）；範圍 3.5 公尺；倒地的人頭上倒數、自己畫面中間也提示
+      if (r.down && !P.down && !P.dead && Math.hypot(r.tx - pp.x, r.tz - pp.z) < REVIVE_R) { r.revT += dt; if (!r.revHint || now - r.revHint > 900) { r.revHint = now; G.showBanner(`<small>救援中</small><b>扶起 ${r.m.name}</b><span>站著別走 ${Math.max(0, REVIVE_SECS - r.revT).toFixed(1)} 秒</span>`, 1000); } if (r.revT >= REVIVE_SECS) { r.revT = 0; send('rev', { to: r.id }); setTimeout(() => send('rev', { to: r.id }), 300); } } else r.revT = 0;
     }
     // 隊員：鏡像的怪跟著隊長的位置走、碰到自己就受傷
     if (!host) for (const e of G.enemies()) { if (e.dead || e.netX == null) continue; const p = e.mesh.position, ox = p.x, oz = p.z;
@@ -118,7 +119,7 @@ export function createPartyGame(G) {
   NET.render = () => {
     const W = innerWidth, H = innerHeight, v = NET._pv ??= new G.THREE.Vector3();
     for (const r of NET.remotes.values()) {
-      v.set(r.x, 2.2, r.z).project(G.camera); const vis = !r.gone && v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
+      v.set(r.x, 2.2 + G.groundAt(r.x, r.z), r.z).project(G.camera); const vis = !r.gone && v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
       r.el.style.display = vis ? 'block' : 'none'; if (!vis) continue;
       r.el.style.transform = `translate(${(v.x + 1) / 2 * W}px,${(1 - v.y) / 2 * H}px) translate(-50%,-100%)`;
       r.el.querySelector('s').style.width = Math.max(0, Math.min(100, r.hp / (r.mhp || 1) * 100)) + '%';
@@ -126,7 +127,7 @@ export function createPartyGame(G) {
       r.el.classList.toggle('down', r.down || r.dead);
     }
   };
-  NET.conn = conn;
+  NET.conn = conn; NET._THREE = G.THREE;
   conn.on('err', o => { if (o.fatal) G.showBanner(`<small>組隊</small><b>${o.msg}</b>`, 3000, true); });
   return NET;
 }

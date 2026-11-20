@@ -388,10 +388,7 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .cmp-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 #dlg .cmp-row .btn { padding: 3px 10px; font-size: 12px; }
 /* 組隊副本：升級／菁英寶箱不暫停（v1.1 決定 A）→ 不蓋整個畫面、只有卡片能點；隊友名牌＋血條 */
-#levelup.nopause { background: none !important; pointer-events: none; justify-content: flex-start !important; padding-top: 70px; }
-#levelup.nopause > * { pointer-events: auto; }
-#levelup.nopause .card { transform: scale(.78); transform-origin: top center; margin: 0 -18px; }
-#levelup.nopause h1 { font-size: 30px; margin: 0; }
+/* 組隊升級不暫停：畫面維持原本的樣子（11/20 使用者：「原本那樣比較好看」），只是遊戲在背後繼續跑、10 秒自動選 */
 .pty-tag { position: absolute; left: 0; top: 0; text-align: center; font: 700 12px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; }
 .pty-tag b { display: block; color: #9fd8ff; }
 .pty-tag i { display: block; width: 54px; height: 6px; margin: 2px auto 0; background: #0008; border: 1px solid #fff8; border-radius: 3px; overflow: hidden; }
