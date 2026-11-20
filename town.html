@@ -222,6 +222,7 @@
 import * as THREE from 'three';
 import { JOBS, OUTFITS, playerModelId, playerAnimSet, playerLook, MOUNT, MOUNT_NAMES, seatOf, MOUNT_H, NOVICE, JOB1_AT, FIRST_JOBS, LIFE_LV } from './src/1_data/jobs.js';
 import { renderLook } from './src/2_core/look-ui.js';
+import { createTownNet } from './src/2_core/town-net.js';
 import { PARTY_MAX, partyOK, newCode, cleanCode, savedCode, saveCode, saveRun, inviteLink, PartyConn } from './src/2_core/party.js';
 import { sealModel, sealProp, sealActor, sealMob, sealMount, glowGear } from './src/2_core/seal-model.js';
 import { askConfirm, askText } from './src/2_core/ask.js';
@@ -312,6 +313,8 @@ document.querySelectorAll('[data-esc]').forEach(b => b.onclick = async () => {
     ${[['W A S D／方向鍵', '移動', '移動'], ['滑鼠左鍵點地面', '走過去', '—'], ['空白鍵／Enter', '跟 NPC 交談', '—'], ['I', '背包', '—'], ['R', '上／下坐騎', '上／下坐騎'], ['A S D', '—', '連續技（照能量球按）'], ['1 2 3', '—', '選升級卡片'], ['U', '—', '升級（累積模式）'], ['Esc', '菜單', '暫停'], ['P', '—', '暫停']].map(r => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table>`, [], true);
 });
 $('#mapBtn').onclick = () => openExpedition(); // PC「傳送」＝遠征
+// 主城同步：看得到其他在希望之城的玩家（雲端版才有）
+let TNET = null; moduleDone.then(() => { TNET = createTownNet({ THREE, scene, camera, player, CHAR, token, groundAt: (x, z) => TMAP.heightAt(x, z), modelY: () => 0, moving: () => townMoving, riding: () => townRiding }); });
 $('#partyBtn').onclick = () => openParty();
 // 石頭鑲嵌收進選單（原本左上角的三顆石頭按鈕藏起來，功能一樣）
 $('#stoneMenuBtn').onclick = () => $('#stoneBtn').click();
@@ -1762,7 +1765,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   for (const A of npcActors) A.update(dt);
   const uiLock = dlgOpen && !DLG_MULTI; // 電腦開著視窗也能走（PC 一樣）；手機開視窗時不動
-  if (uiLock) { pActor?.update(dt, false); townMoving = false; if (townRiding) { townMount?.userData.actor?.move(false); townMount?.userData.actor?.update(dt); } }
+  if (uiLock) { pActor?.update(dt, false); townMoving = false; TNET?.tick(dt); if (townRiding) { townMount?.userData.actor?.move(false); townMount?.userData.actor?.update(dt); } }
   if (!uiLock) {
     let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.dx;
     let mz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + joy.dy;
@@ -1771,6 +1774,7 @@ function loop(now) {
     else if (click.on) { const dx = click.x - player.position.x, dz = click.z - player.position.z, d = Math.hypot(dx, dz); if (d < 0.35) click.on = false; else { mx = dx / d; mz = dz / d; } }
     const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
     pActor?.update(dt, ml > 0.05); townMoving = ml > 0.05;
+    TNET?.tick(dt); // 主城看得到其他玩家
     if (townRiding) { const ma = townMount?.userData.actor; ma?.move(townMoving); ma?.update(dt); if (ma) { const y = seatOf(JOBS[CHAR.job].mount)[0] + (ma.bob || 0); for (const ch of player.children) if (ch !== townMount) ch.position.y = y; } } // 坐騎跟著播站／走（跳／浮的人物一起動）
     if (ml > 0.05) {
       const p = player.position; if (!walkMove(TMAP, p, p.x + mx * 7 * dt, p.z + mz * 7 * dt)) click.on = false; { let d = Math.atan2(mx, mz) - player.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); player.rotation.y += d * Math.min(1, dt * 14); } // 平滑轉身
@@ -1787,6 +1791,7 @@ function loop(now) {
     camera.position.set(p.x + sy * 12 * z, gy + 14 * z * view.pitch, p.z + cy * 12 * z); camera.lookAt(p.x, gy + 0.6, p.z);
     sun.position.set(p.x - 14, gy + 26, p.z + 10); sun.target.position.set(p.x, gy, p.z); sun.target.updateMatrixWorld(); }
   { const restore = liftScene(scene, TMAP.heightAt); renderer.render(scene, camera); restore(); } // 畫面抬到地面高度
+  TNET?.render();
   // 名牌
   const place = (obj, el, h) => { v.copy(obj.position); v.y += h + TMAP.heightAt(obj.position.x, obj.position.z); v.project(camera); el.style.display = v.z < 1 ? 'block' : 'none'; el.style.left = (v.x * 0.5 + 0.5) * innerWidth + 'px'; el.style.top = (-v.y * 0.5 + 0.5) * innerHeight + 'px'; };
   for (const n of NPCS) { place(n.obj, n.el, 2.6); n.el.classList.toggle('near', n === nearNpc); }

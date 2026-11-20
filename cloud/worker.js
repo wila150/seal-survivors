@@ -3,6 +3,7 @@
 // 部署：cd cloud && npx wrangler deploy（之前先 node tools/build-cloud.mjs）
 import { DurableObject } from 'cloudflare:workers';
 export { Party } from './party.js';
+export { Town } from './town.js';
 
 const ALLOW = /^https:\/\/wila150\.github\.io$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const cors = origin => ({ 'access-control-allow-origin': ALLOW.test(origin || '') ? origin : 'https://wila150.github.io', 'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS', 'access-control-allow-headers': 'content-type, authorization', 'access-control-max-age': '86400', vary: 'origin' });
@@ -24,6 +25,14 @@ export default {
     const u = new URL(request.url);
     let r;
     // 組隊房間：/party/<6 碼代碼>?token=&charId=&create=1（瀏覽器 WebSocket 不能帶 header，token 放網址）
+    // 主城同步：/town?token=&charId=（看得到其他在主城的玩家）
+    if (u.pathname === '/town') {
+      if (request.headers.get('upgrade') !== 'websocket') return new Response('websocket only', { status: 426 });
+      const who = await env.GAME.get(env.GAME.idFromName('main')).fetch(new Request(`https://x/api/partyme?charId=${encodeURIComponent(u.searchParams.get('charId') || '')}`, { headers: { authorization: 'Bearer ' + (u.searchParams.get('token') || '') } }));
+      if (!who.ok) return new Response('unauthorized', { status: 401 });
+      const h = new Headers(request.headers); h.set('x-member', encodeURIComponent(JSON.stringify(await who.json())));
+      return env.TOWN.get(env.TOWN.idFromName('town-1')).fetch(new Request(request.url, { headers: h }));
+    }
     const pm = u.pathname.match(/^\/party\/([A-Z0-9]{6})$/);
     if (pm) {
       if (request.headers.get('upgrade') !== 'websocket') return new Response('websocket only', { status: 426 });

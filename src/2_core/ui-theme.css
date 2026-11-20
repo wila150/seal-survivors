@@ -398,3 +398,5 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 .pty-tag s { display: block; height: 100%; width: 100%; background: linear-gradient(#7dff7d, #2fae3a); }
 .pty-tag em { display: block; font-style: normal; color: #ffd36b; }
 .pty-tag.down s { background: #c0392b; }
+/* 主城其他玩家的名牌 */
+.town-tag { position: absolute; left: 0; top: 0; font: 700 12px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; white-space: nowrap; }

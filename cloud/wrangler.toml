@@ -12,6 +12,11 @@ class_name = "Game"
 name = "PARTY"
 class_name = "Party"
 
+# 主城同步（cloud/town.js）
+[[durable_objects.bindings]]
+name = "TOWN"
+class_name = "Town"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Game"]
@@ -19,6 +24,10 @@ new_sqlite_classes = ["Game"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["Party"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["Town"]
 
 # GM 帳號（逗號分隔）：這些帳號登入後大廳有 GM 按鈕，雲端也能下 GM 指令
 [vars]
