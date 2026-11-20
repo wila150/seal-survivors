@@ -27,6 +27,7 @@ import { createInput, createPlayer, magnetGems } from './src/2_core/player.js';
 import { BOSS_TITLES, createSpawner, createBossSystem, submitRun } from './src/2_core/game-manager.js';
 import { createWatchdog } from './src/4_diagnostics/watchdog.js';
 import { createPartyGame } from './src/2_core/party-game.js';
+import { setBgmVol } from './src/2_core/bgm-vol.js';
 import { partyBuffs } from './src/1_data/party-buff.js'; // 組隊 BUFF（PC：依職業給全隊增益）
 import { loadSealMap, buildSealMap, liftScene, zoneAt, zoneName, walkMove, drawSealMinimap, addWalkSurfaces } from './src/2_core/seal-map.js';
 const SKD = await loadSkills();
@@ -889,7 +890,7 @@ let passives = {}, dmgStats = {}, dmgTimer = 0;
 const opts = { nums: true, meter: true, shake: true, autoPick: false };
 onSettings(G => {
   opts.nums = G.nums; opts.meter = G.meter; opts.shake = G.shake; opts.autoPick = G.autoPick;
-  bgm.volume = 0.5 * G.master * G.bgm; applyHud(['hud']);
+  setBgmVol(bgm, 0.5 * G.master * G.bgm, AC); applyHud(['hud']); // iPhone 不吃 audio.volume → bgm-vol.js 走 GainNode
   if (AQ.q !== G.quality) { AQ.q = G.quality; AQ.lvl = 0; AQ.low = 0; } // 自己改畫質 → 自動降級重設
   if (renderer.getPixelRatio() !== pixelRatio() && !AQ.lvl) { renderer.setPixelRatio(pixelRatio()); resize(); }
   if (typeof drawMeter === 'function' && P) drawMeter();

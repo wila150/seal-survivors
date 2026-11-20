@@ -248,9 +248,10 @@ import { STAGES, stageUnlocked, stageGate, gearScore, stageTime, bossTimes, GS_R
 import { MONSTER_MODELS } from './src/1_data/monsters.js';
 import { createWatchdog } from './src/4_diagnostics/watchdog.js';
 import { openSettings, onSettings } from './src/2_core/settings.js';
+import { setBgmVol } from './src/2_core/bgm-vol.js';
 // 主城背景音樂（客戶端 bgm/05.mp3）：瀏覽器擋自動播放 → 第一次點畫面／按鍵才開始；音量跟設定走
 const townBgm = new Audio('assets/bgm/05.mp3'); townBgm.loop = true;
-onSettings(G => { townBgm.volume = Math.min(1, 0.45 * G.master * G.bgm); });
+onSettings(G => setBgmVol(townBgm, 0.45 * G.master * G.bgm)); // iPhone 不吃 audio.volume → bgm-vol.js 走 GainNode
 const startBgm = () => townBgm.play().catch(() => {}); startBgm(); addEventListener('pointerdown', startBgm, { once: true }); addEventListener('keydown', startBgm, { once: true });
 import { openTalents } from './src/2_core/talent-ui.js';
 import { openGems } from './src/2_core/gem-ui.js';
