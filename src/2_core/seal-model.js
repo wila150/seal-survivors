@@ -202,15 +202,19 @@ export async function sealActor(modelName, setKey, height = 1.7, gear = [], opts
     runScale = 1.25 * speedRatio; if (curKey === 'rn' && cur) cur.timeScale = runScale;
     if (moving && busy > 0) { busy = 0; curKey = ''; } // 開始移動就中斷攻擊動作
     if (busy > 0) { busy -= dt; if (busy <= 0) { curKey = ''; play(resume, 0.25); } }
-    else if (curKey !== 'dd') play(riding && clips.rpi ? (moving ? 'rrn' : 'rpi') : (moving ? 'rn' : 'pi'));
+    else if (curKey !== 'dd') play(riding && clips.rpi ? (moving ? 'rrn' : 'rpi') : (moving ? 'rn' : pose && clips[pose] ? pose : 'pi'));
     mixer.update(dt);
   }
+  // 11/20 釣魚動作：setPose('fw'／'ff') 站著時改播這個（等魚／拉魚），null 回到站姿；playOnce('fg'／'fx') 播一次（釣到／失敗）再回去
+  let pose = null;
+  const setPose = k => { if (k === pose) return; pose = k; if (busy <= 0) curKey = ''; };
+  const playOnce = k => { const clip = clips[k]; if (!clip || moving || riding) return; const a = mixer.clipAction(clip); a.reset(); a.setLoop(THREE.LoopOnce); a.timeScale = 1; a.play(); if (cur && cur !== a) cur.crossFadeTo(a, 0.15, false); cur = a; curKey = k; busy = clip.duration - 0.2; resume = pose && clips[pose] ? pose : 'pi'; };
   play('pi', 0);
   group.userData.texReady = Promise.all(texWait);
   // 騎坐騎：站／跑改播 PC 騎馬坐姿（rpi／rrn＝客戶端 GRHMpi／GRHMrn）
   let riding = false;
   const setRiding = on => { if (!!on === riding) return; riding = !!on; busy = 0; curKey = ''; };
-  group.userData.actor = { play, attack, update, mixer, setRiding, get riding() { return riding; }, get busy() { return busy > 0; }, get current() { return curKey; } };
+  group.userData.actor = { play, attack, update, mixer, setRiding, setPose, playOnce, get riding() { return riding; }, get busy() { return busy > 0; }, get current() { return curKey; } };
   return group;
 }
 

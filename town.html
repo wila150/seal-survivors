@@ -1409,7 +1409,7 @@ function openBaitPick(pick, cap = Infinity) {
   openDlg('選魚餌', `<p><small>魚餌越貴釣到的越好。${cap < Infinity ? `這支釣竿只能用價格 ${cap} 以下的魚餌。` : ''}背包裡的裝備也能當魚餌（用掉就沒了）。</small></p><div class="bag">${L.map((b, i) => `<div class="cell ${b.pc > cap ? 'off' : ''}" data-bi="${i}" title="${esc(b.name)}（價格 ${b.pc}）"><img src="${b.img || `assets/items/${b.icon}.png`}" alt="">${b.n > 1 ? `<b>${b.n}</b>` : ''}<small class="bp">${b.pc}</small></div>`).join('') || '<small>沒有魚餌，去找釣魚老人買</small>'}</div>`, [], false);
   $('#dlgBody').querySelectorAll('[data-bi]').forEach(c => c.onclick = () => { const b = L[+c.dataset.bi]; if (b.pc > cap) return toast(`超過釣竿上限 ${cap}`); closeBox(dlgBoxes().find(x => x.dataset.k === dlgKey('選魚餌'))); pick(b.key); });
 }
-function stopFish() { clearTimeout(fishAuto); clearInterval(fishTickT); fishAuto = null; }
+function stopFish() { clearTimeout(fishAuto); clearInterval(fishTickT); fishAuto = null; pActor?.setPose?.(null); }
 let fishTickT = null;
 function startFish() {
   const F = CHAR.fishing || {}; if (!F.rod) return drawFishWin('還沒有釣竿（找釣魚老人買）'); if (!baitNow()) return drawFishWin('點魚餌格放魚餌');
@@ -1417,11 +1417,12 @@ function startFish() {
   const cast = () => { fishEnd = Date.now() + AUTO_SECS * 1000; fishAuto = setTimeout(async () => {
     if (!nearPond()) { stopFish(); return drawFishWin('離開水邊，停止釣魚'); }
     try { const r = await call('POST', '/api/fish', { charId: CHAR.id, bait: fishBait, mode: 'auto' }); showChar(r.char);
+      if (r.got) pActor?.playOnce?.('fg'); // 照 PC：釣到時舉竿
       if (r.got) toast(`${r.got.rare ? '✨ ' : ''}釣到了 ${r.got.name}！${r.exp ? `（經驗 +${r.exp}）` : ''}`); else if (r.exp) toast(`經驗 +${r.exp}`);
       if (!baitNow()) { stopFish(); return drawFishWin('魚餌用完了'); }
       drawFishWin(r.got ? `釣到 ${r.got.name}` : ''); cast();
     } catch (e) { stopFish(); drawFishWin(e.message); } }, AUTO_SECS * 1000); };
-  fishAuto = 1; cast(); clearInterval(fishTickT); fishTickT = setInterval(() => fishWin.style.display !== 'none' && fishAuto && drawFishWin(), 1000); drawFishWin();
+  fishAuto = 1; pActor?.setPose?.('fw'); cast(); // 照 PC：角色播等魚上鉤的釣魚動作 clearInterval(fishTickT); fishTickT = setInterval(() => fishWin.style.display !== 'none' && fishAuto && drawFishWin(), 1000); drawFishWin();
 }
 // ===== 手動釣魚（釣魚台）：照 2u——第一階段點擊確認魚餌位置；第二階段 ←→ 控制魚、滾輪（手機按「收線」）扣魚血；危險區或扣血時能量上升，滿了失敗，魚血 0 成功 =====
 // 手動釣魚：從釣魚視窗選「手動釣魚」→ 開始；照 PC 一樣要站在水邊、有釣竿、魚餌價格不超過釣竿上限
@@ -1452,13 +1453,14 @@ function runPier(bait, cap, after) {
   const maxHp = Math.round(120 + Math.sqrt(pc) * 22), dmg = 6 + rod * 3; // 魚血（大魚餌＝大魚）、每格滾輪扣血（釣竿越好越多）
   let ph = 1, hx = RX0 + 20, hv = 260 + tier * 30, tries = 3, fx = 0, fv = 0, turn = 0, hp = maxHp, en = 0, steer = 0, end = false, last = performance.now(), shake = 0, flash = 0;
   msg('第一階段：魚鉤在河裡來回移動，在「魚兒聚集點」上按左鍵（手機點河面）');
-  const done = async ok => { if (end) return; end = true; msg(ok ? '釣到了！' : '能量爆表，魚跑掉了…');
+  pActor?.setPose?.('fw'); // 角色釣魚動作：第一階段等魚、第二階段拉魚、最後釣到／失敗
+  const done = async ok => { if (end) return; end = true; msg(ok ? '釣到了！' : '能量爆表，魚跑掉了…'); pActor?.setPose?.(null); pActor?.playOnce?.(ok ? 'fg' : 'fx');
     try { const r = await call('POST', '/api/fish', { charId: CHAR.id, bait, mode: 'manual', ok }); showChar(r.char); toast(ok && r.got ? `${r.got.rare ? '✨ ' : ''}釣到了 ${r.got.name}！${r.exp ? `（經驗 +${r.exp}）` : ''}` : '魚跑掉了（魚餌用掉了）'); } catch (e) { toast(e.message); }
     setTimeout(close, 1100); };
-  const close = () => { cancelAnimationFrame(raf); removeEventListener('keydown', kd, true); removeEventListener('keyup', ku, true); removeEventListener('wheel', wh, { capture: true }); ov.remove(); document.body.classList.remove('fishing'); after?.(); };
+  const close = () => { cancelAnimationFrame(raf); removeEventListener('keydown', kd, true); removeEventListener('keyup', ku, true); removeEventListener('wheel', wh, { capture: true }); ov.remove(); document.body.classList.remove('fishing'); if (!end) pActor?.setPose?.(null); after?.(); };
   const reel = () => { if (ph !== 2 || end) return; hp = Math.max(0, hp - dmg); en += 0.012; shake = 0.12; if (hp <= 0) done(true); };
   const pick = () => { if (ph !== 1 || end) return;
-    if (hx >= spX - 6 && hx <= spX + spW + 6) { ph = 2; fx = hx; msg('第二階段：←→ 把魚拉離兩邊的危險區，滾動滑鼠滾輪（手機按「收線」）把魚的血扣光'); }
+    if (hx >= spX - 6 && hx <= spX + spW + 6) { ph = 2; fx = hx; pActor?.setPose?.('ff'); msg('第二階段：←→ 把魚拉離兩邊的危險區，滾動滑鼠滾輪（手機按「收線」）把魚的血扣光'); }
     else if (--tries > 0) { flash = 0.5; msg(`沒有魚上鉤（還能再試 ${tries} 次）——要停在魚兒聚集點上`); }
     else done(false); };
   // 釣魚中鍵盤、滾輪只給釣魚台用（不會讓角色走動、鏡頭縮放）
