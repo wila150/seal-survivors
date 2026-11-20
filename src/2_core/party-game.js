@@ -46,8 +46,16 @@ export function createPartyGame(G) {
   NET.gemId = e => 'k' + e.nid;
   // ---- 隊員：送傷害 ----
   NET.hit = (e, amt) => { if (e.nid != null) hitQ.push([e.nid, Math.round(amt)]); };
-  // ---- 經驗寶石：撿到廣播 ----
-  NET.pick = g => { if (g.gid) send('pick', { gid: g.gid, x: +g.mesh.position.x.toFixed(1), z: +g.mesh.position.z.toFixed(1), xp: g.xp }); return exp === 'even' ? 0.6 : 1; };
+  // ---- 經驗寶石：撿到廣播；分經驗照 PC 冒險團公式（2u 遊戲公式 id=169「冒險團」）----
+  // 均分：每個人＝[經驗＋經驗×15%×(人數−1)]×(自己等級²／全隊等級²總和)
+  // 各自：撿到的人拿全部經驗；另外每個人拿「經驗×15%×(人數−1)×職業係數×(自己等級²／全隊等級²總和)」（職業係數：祭司 2、鐵匠 1.5、其他 1）
+  const lvShare = () => { const myLv = G.P().lv || 1; let sum = myLv * myLv; for (const r of NET.remotes.values()) if (!r.gone) sum += (r.lv || 1) ** 2; return myLv * myLv / sum; };
+  const liveN = () => 1 + [...NET.remotes.values()].filter(r => !r.gone).length;
+  const JOB_K = { 祭司: 2, 鐵匠: 1.5 }, jobK = JOB_K[G.CHAR.job] || 1;
+  NET.share = (xp, picker) => { const k = liveN() - 1, L = lvShare();
+    if (exp === 'even') return (xp + xp * 0.15 * k) * L;
+    return (picker ? xp : 0) + xp * 0.15 * k * jobK * L; };
+  NET.pick = g => { if (g.gid) send('pick', { gid: g.gid, xp: g.xp }); return NET.share(g.xp, true) / (g.xp || 1); };
   // ---- 倒地／扶起 ----
   NET.down = () => { const P = G.P(); if (P.down || P.dead) return; P.down = true; P.downT = DOWN_SECS; P.hp = 0; P.inv = 1e9; G.actorPlay('dd');
     G.showBanner(`<small>倒下了</small><b>等隊友來扶</b><span>${DOWN_SECS} 秒內隊友站在旁邊 ${REVIVE_SECS} 秒就能起來</span>`, 2500, true); send('me', meState()); };
@@ -67,8 +75,7 @@ export function createPartyGame(G) {
         const p = d.p || []; for (let i = 0; i < p.length; i += 4) { const e = byNid.get(p[i]); if (!e || e.dead) continue; e.netX = p[i + 1] / 10; e.netZ = p[i + 2] / 10; const hp = p[i + 3] / 1000 * e.maxHp; if (hp < e.hp || Math.abs(hp - e.hp) > e.maxHp * 0.05) e.hp = Math.max(1, hp); }
         break; }
       case 'kill': { if (host) break; const e = byNid.get(d.id); byNid.delete(d.id); G.guestKill(e, d, d.by === me); break; }
-      case 'pick': { const share = G.removeGem(d.gid); if (!share) break; const P = G.P(), dist = Math.hypot(G.player.position.x - d.x, G.player.position.z - d.z);
-        const k = exp === 'even' ? 0.6 : dist < SHARE_R ? 0.5 : 0; if (k && !P.down && !P.dead) G.gainXp(d.xp * k); break; }
+      case 'pick': { if (!G.removeGem(d.gid)) break; const P = G.P(); if (!P.down && !P.dead) { const x = NET.share(d.xp, false); if (x > 0) G.gainXp(x); } break; }
       case 'rev': if (d.to === me) revived(); break;
       case 'end': if (!NET.over) { NET.end(!!d?.win); G.gameOver(!!d?.win, false, d?.reason === 'leader' ? '隊長離開了，這局結束' : null); } break;
       case 'drop': { const r = NET.remotes.get(from); if (r) r.gone = true; break; }

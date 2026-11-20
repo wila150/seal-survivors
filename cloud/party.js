@@ -40,6 +40,7 @@ export class Party extends DurableObject {
     if (!create && count === 0 && !M.roster.includes(m.charId)) return fail('找不到這支隊伍（代碼打錯，或隊伍已經解散）');
     if (count >= Math.min(PARTY_MAX, M.lim || PARTY_MAX)) return fail(`隊伍滿了（最多 ${Math.min(PARTY_MAX, M.lim || PARTY_MAX)} 人）`);
     if (M.phase === 'game' && !M.roster.includes(m.charId)) return fail('這支隊伍正在打，等他們回主城再加入');
+    { const lvs = others.filter(w => w !== dup).map(w => w.deserializeAttachment().m.baseLv || 1); if (lvs.some(l => Math.abs(l - (m.baseLv || 1)) > 40)) return fail('等級差超過 40，不能組同一隊（照 PC 冒險團）'); }
     if (count === 0 && !M.roster.includes(m.charId)) { this.meta = { leader: m.charId, phase: 'lobby', setup: null, seed: 0, roster: [], left: {}, name: '', lim: PARTY_MAX, exp: 'own', code: '' }; }
     const R = this.meta; if (!R.roster.includes(m.charId)) R.roster.push(m.charId); delete R.left[m.charId];
     R.code = U.pathname.split('/').pop();

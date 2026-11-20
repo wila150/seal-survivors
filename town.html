@@ -1005,7 +1005,7 @@ function openCreateParty() {
     openDlg(PC_T, `<div class="pc-form"><label>隊伍名稱<input id="pcName" maxlength="20" placeholder="${esc(CHAR.name)}的隊伍"></label>
       <div><span>限制人員數</span>${[2, 3, 4].map(n => `<label class="ck"><input type="radio" name="pclim" value="${n}" ${lim === n ? 'checked' : ''}>${n}人</label>`).join('')}</div>
       <div><span>經驗值分配</span><label class="ck"><input type="radio" name="pcexp" value="even" ${exp === 'even' ? 'checked' : ''}>均等分配</label><label class="ck"><input type="radio" name="pcexp" value="own" ${exp === 'own' ? 'checked' : ''}>各自分配</label></div>
-      <small>均等分配：全隊不管距離，每顆經驗寶石大家都拿 60%。各自分配：誰撿到算誰的，附近 15 公尺內的隊友拿 50%。</small></div>`,
+      <small>照 PC 冒險團：每多 1 個隊友，經驗多 15%，照等級²分給大家。均等分配＝撿到的經驗全隊一起分；各自分配＝撿到的人拿全部，額外的 15% 照等級分（祭司 ×2、鐵匠 ×1.5）。等級差 40 以內才能同隊。</small></div>`,
       [['確認', () => { const name = $('#pcName').value.trim(); closeBox(dlgBoxes().find(b => b.dataset.k === dlgKey(PC_T))); ptyConnect(newCode(), { create: true, name, lim, exp }); openParty(); }, true]], false);
     const B = $('#dlgBody');
     B.querySelectorAll('[name=pclim]').forEach(r => r.onchange = () => { lim = +r.value; });
