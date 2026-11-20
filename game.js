@@ -25,6 +25,7 @@ import { openSettings, onSettings, getSettings, applyHud, pixelRatio } from './s
 import { createInput, createPlayer, magnetGems } from './src/2_core/player.js';
 import { BOSS_TITLES, createSpawner, createBossSystem, submitRun } from './src/2_core/game-manager.js';
 import { createWatchdog } from './src/4_diagnostics/watchdog.js';
+import { createPartyGame } from './src/2_core/party-game.js';
 import { loadSealMap, buildSealMap, liftScene, zoneAt, zoneName, walkMove, drawSealMinimap, addWalkSurfaces } from './src/2_core/seal-map.js';
 const SKD = await loadSkills();
 // 項目 26：局外天賦（主城天賦樹點的）→ 開局套到 P 與技能
@@ -384,6 +385,7 @@ document.getElementById('viewBtn')?.addEventListener('click', switchView);
 // ===== 遊戲狀態 =====
 let chestsArr = null, chests = 0, bossChests = 0, runBosses = []; // runBosses：這局打倒的首領名稱（項目 47 名聲）
 let state = 'start', boss = null, P, enemies, gems, t, kills;
+let NET = null; // 組隊副本（src/2_core/party-game.js）：隊長＝NET.host、隊員＝NET.guest；單人＝null
 let SM = null; // 技能管理器
 // 希望OL 怪物（名字照 monster.scr；模型載入失敗就用幾何形狀）
 const G = { ball: new THREE.SphereGeometry(0.5, 14, 10), box: new THREE.BoxGeometry(0.9, 0.9, 0.9), cone: new THREE.ConeGeometry(0.55, 1.1, 10),
@@ -543,7 +545,8 @@ function spawnEnemy(type, elite = false, asBoss = false) {
   // 生在玩家周圍一圈，但要在地圖裡（靠邊時換個方向）
   let a = Math.random() * Math.PI * 2;
   // 11/20「地圖死角」：要生在跟玩家同一塊走得到的地方（隔著牆的區域不算）
-  for (let k = 0; k < 24 && !MAP.reach(player.position.x + Math.cos(a) * r, player.position.z + Math.sin(a) * r, player.position.x, player.position.z); k++) a = Math.random() * Math.PI * 2;
+  const C0 = NET?.host ? NET.spawnCenter() : player.position; // 組隊：生在隨機一個活著的隊員旁邊
+  for (let k = 0; k < 24 && !MAP.reach(C0.x + Math.cos(a) * r, C0.z + Math.sin(a) * r, C0.x, C0.z); k++) a = Math.random() * Math.PI * 2;
   const sc = (T.scale || 1) * (elite ? 1.7 : 1);
   const s = TEMPLATES[type] ? sc / (T.scale || 1) * (isBoss ? (T.boss ? 2.3 : 2.6) : 1) : sc;
   // 同「種類＋精英＋首領」的模型共用一個池子
@@ -555,11 +558,12 @@ function spawnEnemy(type, elite = false, asBoss = false) {
     return m;
   });
   mesh.scale.setScalar(s); mesh.rotation.set(0, 0, 0); mesh.userData.actor?.reset();
-  mesh.position.set(player.position.x + Math.cos(a) * r, 0, player.position.z + Math.sin(a) * r);
+  mesh.position.set(C0.x + Math.cos(a) * r, 0, C0.z + Math.sin(a) * r);
   const early = TOWER ? 1 : earlyMul(STAGE, t, isBoss || asBoss); // 項目 31：T2／T3 開局 180 秒怪物先削弱，首領全力
   const hpMul = (TOWER ? towerHpMul(floor) * (CURSE.hp || 1) : (1 + t / 100) * DM.hp) * (elite ? 12 : 1) * (TOWER ? STAGES[towerSeg(floor)].hp : STAGE.hp) * (asBoss ? 45 : 1) * early;
   const e = { mesh, type, hp: T.hp * hpMul, maxHp: T.hp * hpMul, speed: T.speed * (0.9 + Math.random() * 0.2) * (CURSE.speed || 1) * DM.speed, dmg: T.dmg * (elite ? 1.5 : 1) * (TOWER ? (TSET?.penalty ? 1.3 : 1) * STAGES[towerSeg(floor)].dmg * towerDmgMul(floor) : STAGE.dmg * DM.dmg) * (asBoss ? 1.6 : 1) * early,
     xp: T.xp * (elite ? 10 : 1) * (asBoss ? 25 : 1) * (CURSE.xp || 1), flash: 0, r: 0.5 * sc, kb: new THREE.Vector3(), elite, boss: isBoss, fly: !!T.fly, baseY: 0, s0: mesh.scale.x, ph: Math.random() * 6 };
+  if (NET?.host) { e.hp *= NET.mul.hp; e.maxHp *= NET.mul.hp; e.dmg *= NET.mul.dmg; e.asBoss = asBoss; NET.onSpawn(e); } // 組隊：人越多怪越硬越痛
   enemies.push(e); return e;
 }
 const gemGeo = new THREE.OctahedronGeometry(0.22);
@@ -588,13 +592,37 @@ function dropChest(pos, isBoss, elite = false) {
   if (elite) m.traverse(o => { if (o.isMesh || o.isSprite) { o.material = o.material.clone(); o.material.color.setHex(0xc08cff); } });
   chestsArr.push({ mesh: m, isBoss, elite });
 }
-function dropGem(pos, xp) {
+function dropGem(pos, xp, gid = null) { // gid：組隊時每個人同一顆（撿到的人廣播）
   const k = xp >= 20 ? 2 : xp >= 3 ? 1 : 0;
   const mesh = gemPool.get('gem' + k, () => new THREE.Mesh(gemGeo, gemMat[k]));
   if (gemGeos[k] && mesh.geometry !== gemGeos[k]) { mesh.geometry = gemGeos[k]; mesh.material = gemMats[k]; } // 原版水晶模型載好了就換上
   mesh.position.set(pos.x, 0.35, pos.z);
-  gems.push({ mesh, xp, pull: false });
+  gems.push({ mesh, xp, pull: false, gid });
 }
+// ===== 組隊副本：給 party-game.js 用的接口 =====
+const NO_INPUT = { mx: 0, mz: 0, ml: 0 };
+function gainXp(x) { // 撿到經驗（自己撿、或隊友撿到分給你）
+  P.xp += x * (P.expMul || 1); // 初心者鼓舞：經驗 +10%
+  while (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = needFor(P.lv); levelBonus(); if (!finalDown) { if (DIFF.stack && !TOWER) pendLvAdd(); else levelUp(); } } // 項目 37：打倒最後的首領後不再跳升級卡
+}
+function removeGem(gid) { const i = gems.findIndex(g => g.gid === gid); if (i < 0) return false; gemPool.release(gems[i].mesh); gems.splice(i, 1); return true; }
+function spawnMirror(s) { // 隊員：照隊長的生怪資料做一隻鏡像（[編號, 種類, 精英, 小王, MVP, 血量上限, 攻擊, 首領]）
+  if (!ENEMY_TYPES[s[1]]) return null;
+  const e = spawnEnemy(s[1], !!s[2], !!s[3]); e.nid = s[0]; e.maxHp = e.hp = s[5]; e.dmg = s[6]; e.mvp = !!s[4]; e.netBoss = !!s[7] || !!s[3]; e.netX = e.mesh.position.x; e.netZ = e.mesh.position.z; e.netNew = true;
+  if (e.netBoss) { setBoss(e); showBanner(`<small>${e.mvp ? 'MVP' : '首領'}出現</small><b>${e.type}</b>`, 1500, true); }
+  return e;
+}
+function guestKill(e, d, mine) { // 隊員：隊長說這隻倒了
+  const pos = { x: d.x, z: d.z }; dropGem(pos, d.xp, 'k' + d.id); if (mine) kills++;
+  if (!e || e.dead) return; e.dead = true; dropCoin(pos); cbOnKill(e); mobSound(e, 'dd');
+  if (e.netBoss) { runBosses.push(e.type); dropChest(pos, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); } // 首領寶箱每個人各一個（結算時各自開）
+  else if (e.elite) { if (Math.random() < 0.4) dropChest(pos, false); dropChest({ x: pos.x + 1.2, z: pos.z }, false, true); }
+  if (e.mvp) finalDown = true;
+  if (e === boss) setBoss(null);
+  spawnFx('hit', e.mesh.position, { scale: 1.6, life: 0.25, grow: 1.5, color: 0xffffff });
+}
+function netDamage(e, amt, from) { e.by = from; hurt(e, amt, null, 'phys', '', { raw: true }); } // 隊長：隊員打的傷害（數字已經是隊員算好的）
+
 function spawnFx(texKey, pos, opts) { return fxPool.spawn(texKey, pos, opts); }
 
 // ===== 傷害 =====
@@ -634,7 +662,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   const em = em0 > 1 ? 1 + (em0 - 1) * 1.5 : em0; // 項目 57：提高相剋倍率（剋制的加成 ×1.5，例：1.2 → 1.3）
   const crit = weak || Math.random() < P.crit + (gm?.crit || 0) + (eg ? 0.03 * eg.lv : 0);
   // 項目 34：× 0.9～1.1 隨機；爆擊 ×1.6＋額外（技能寶石爆傷）
-  const amt = dmg * P.might * (kind === 'magic' ? P.magic : P.phys) * (crit ? 1.6 + (gm?.critDmg || 0) : 1) * (weak ? SKD.status.shatterMult : 1) * em * (0.9 + Math.random() * 0.2) * (P.tmp.dmg > 0 ? 1.2 : 1);
+  const amt = opts.raw ? dmg : dmg * P.might * (kind === 'magic' ? P.magic : P.phys) * (crit ? 1.6 + (gm?.critDmg || 0) : 1) * (weak ? SKD.status.shatterMult : 1) * em * (0.9 + Math.random() * 0.2) * (P.tmp.dmg > 0 ? 1.2 : 1);
   if (em >= 1.2 && elemCd < t) { elemCd = t + 0.5; dmgNum(e.mesh.position, 0, true, 2.4, false, '剋！'); } else if (em <= 0.5 && elemCd < t) { elemCd = t + 0.8; dmgNum(e.mesh.position, 0, false, 2.4, false, '抗'); }
   if (weak && Math.random() < 0.5) { spawnFx('ice', e.mesh.position, { scale: 1.8, life: 0.3, grow: 1.6, color: 0xbfe8ff }); shatterText(e.mesh.position); }
   // 上狀態（首領只吃一半）
@@ -644,11 +672,12 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   if (st.poison) { e.poison = { dps: st.poison[0], t: st.poison[1], tick: 0.5 }; }
   if (st.stun && !e.ai && Math.random() < st.stun[0]) e.stunT = st.stun[1];
   // 連擊無雙已取消（使用者 11/18：怪一多隨便就能達成）
-  e.hp -= amt; trackDmg(src, amt); dmgNum(e.mesh.position, amt, crit, e.hgt || 1.2); e.flash = crit ? 0.18 : 0.1; if (crit) { e.mesh.userData.actor?.act('ms'); mobSound(e, 'ms', 0.18, 150); }
+  if (NET?.guest && e.nid != null) NET.hit(e, amt); // 組隊隊員：傷害送給隊長，死不死隊長決定
+  e.hp -= amt; if (NET?.guest && e.nid != null) e.hp = Math.max(1, e.hp); trackDmg(src, amt); dmgNum(e.mesh.position, amt, crit, e.hgt || 1.2); e.flash = crit ? 0.18 : 0.1; if (crit) { e.mesh.userData.actor?.act('ms'); mobSound(e, 'ms', 0.18, 150); }
   if (from) { e.kb.subVectors(e.mesh.position, from).setY(0).normalize().multiplyScalar(e.boss ? 0.3 : e.elite ? 2 : 6); }
   play('hit', 0.25, 60);
   if (e.hp <= 0 && !e.dead) {
-    e.dead = true; kills++; dropGem(e.mesh.position, e.xp); dropCoin(e.mesh.position); cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
+    e.dead = true; if (!NET || (e.by ?? NET.me) === NET.me) kills++; dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
     if (e.mvp) finalDown = true;
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
     else if (e.elite) { if (Math.random() < 0.4) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
@@ -700,7 +729,7 @@ let goldSpent = 0;
 const eliteCost = () => 30 * ((TOWER ? 2 : STAGE_IDX) + 1); // 暫定：第 1 張圖 30 金幣、每張 +30
 // 11/20 使用者：「RO 的寶箱可以選擇你要加的 buff，我們給隨機 buff，我希望可以選擇」→ 打開後三選一（升級畫面同一套卡片），不要＝不花錢
 async function openEliteChest(c, i) {
-  state = 'chest'; const cost = eliteCost(), have = goldHave();
+  if (!NET) state = 'chest'; document.getElementById('levelup').classList.toggle('nopause', !!NET); /* 組隊：不暫停 */ const cost = eliteCost(), have = goldHave();
   scene.remove(c.mesh); chestsArr.splice(i, 1);
   if (have < cost) { showBanner(`<small>菁英寶箱</small><b>金幣不夠</b><span>要 ${cost} 金幣（剩 ${have}）</span>`, 1400); state = 'play'; last = performance.now(); return; }
   play('chest', 0.5, 0);
@@ -731,7 +760,8 @@ pendBtn.addEventListener('click', e => { e.stopPropagation(); pendOpen(); });
 addEventListener('keydown', e => { if (e.code === 'KeyU') pendOpen(); });
 function levelUp() {
   document.getElementById('combo')?.classList.remove('on');
-  state = 'level';
+  if (!NET) state = 'level'; // 組隊（v1.1 決定 A）：升級不暫停，10 秒沒選自動選第 1 張
+  document.getElementById('levelup').classList.toggle('nopause', !!NET);
   // 原版升級特效＋音效（客戶端 sfx/levelUP、levelup.wav）；沒有就用舊音效
   if (PCFX.play('levelup', 'cast', player.position, 0, { y: 0.3 })) play(PCFX.index.levelup?.sound?.cast || 'level', 0.6, 0); else play('level', 0.6, 0);
   const box = document.getElementById('cards'); box.innerHTML = ''; document.querySelector('#levelup h1').textContent = '升級！'; document.getElementById('chestSkip')?.remove();
@@ -771,11 +801,12 @@ function levelUp() {
       else if (c.kind === 's') SM.add(c.k);
       else if (c.kind === 'e') SM.enhance(c);
       else { PASSIVES[c.k].apply(); passives[c.k] = (passives[c.k] || 0) + 1; }
-      document.getElementById('levelup').classList.remove('on'); state = 'play'; last = performance.now(); drawSkillbar();
+      document.getElementById('levelup').classList.remove('on'); if (state === 'level') state = 'play'; last = performance.now(); drawSkillbar();
     };
     box.appendChild(el);
   });
   document.getElementById('levelup').classList.add('on');
+  if (NET) { const mine = box.firstElementChild; setTimeout(() => { if (mine?.isConnected && document.getElementById('levelup').classList.contains('on')) { mine.click(); showBanner('<small>組隊：10 秒沒選</small><b>自動選第 1 張</b>', 800); } }, 10000); }
   // 升級自動選卡（設定 → 顯示）：超武 > 已有技能升級 > 新技能 > 被動
   if (opts.autoPick) {
     const cards = [...box.querySelectorAll('.card')], rank = c => c.classList.contains('fus') ? 0 : c.classList.contains('up') ? 1 : c.classList.contains('w') ? 2 : 3;
@@ -858,6 +889,7 @@ function drawMinimap() {
 }
 // 暫停
 function setPause(on) {
+  if (NET) { if (state !== 'play') return; const pz = document.getElementById('pause'); pz.classList.toggle('on', on); pAsk(false); document.getElementById('pTown').style.display = 'none'; if (on) showBanner('<small>組隊中</small><b>遊戲不會暫停</b>', 900); return; } // 組隊：只開選單，不暫停
   if (on && state !== 'play') return;
   if (!on && state !== 'pause') return;
   state = on ? 'pause' : 'play'; last = performance.now();
@@ -870,8 +902,8 @@ document.getElementById('pResume').onclick = () => setPause(false);
 const pAsk = on => { document.getElementById('pQuitAsk').style.display = on ? 'flex' : 'none'; for (const id of ['pResume', 'pSettings', 'pTown', 'pQuit']) document.getElementById(id).style.display = on ? 'none' : ''; };
 document.getElementById('pQuit').onclick = () => pAsk(true);
 document.getElementById('pQuitNo').onclick = () => pAsk(false);
-document.getElementById('pQuitYes').onclick = () => { pAsk(false); document.getElementById('pause').classList.remove('on'); state = 'play'; gameOver(false, true); };
-addEventListener('keydown', e => { if (state === 'hitstop') return; if (e.code === 'Escape' || e.code === 'KeyP') setPause(state === 'play'); });
+document.getElementById('pQuitYes').onclick = () => { pAsk(false); document.getElementById('pause').classList.remove('on'); if (state === 'pause') state = 'play'; gameOver(false, true); };
+addEventListener('keydown', e => { if (state === 'hitstop') return; if (e.code === 'Escape' || e.code === 'KeyP') setPause(NET ? !document.getElementById('pause').classList.contains('on') : state === 'play'); });
 document.getElementById('pSettings').onclick = () => openSettings();
 
 // ===== 主迴圈 =====
@@ -894,7 +926,8 @@ function towerFloorUp() {
 function update(dt) {
   t += dt;
   // 移動（player.js）
-  rig.move(dt, input.read(), P); comboUpdate(dt); cbQUpdate(dt); eventsUpdate(dt);
+  rig.move(dt, P.down || P.dead ? NO_INPUT : input.read(), P); comboUpdate(dt); cbQUpdate(dt); if (!NET?.guest) eventsUpdate(dt); // 組隊：倒地不能動；地圖事件由隊長跑
+  NET?.tick(dt);
   autoMount(dt, input.read()); // 第八批 54 選配：趕路自動上馬 // 項目 52 連續技、53 地圖事件
   const pp = player.position;
   // 換區域：跳區域名
@@ -903,14 +936,14 @@ function update(dt) {
     showBanner(`<small>進入區域</small><b>${zoneName(STAGE, z)}</b><span>${mon}</span>`, 1300); drawMinimap(); } }
 
   // 生怪＋精英＋首領（game-manager.js）
-  spawner.tick(dt * (CURSE.spawn || 1), t, () => enemies.length, spawnEnemy, enterBoss);
+  if (!NET?.guest) spawner.tick(dt * (CURSE.spawn || 1) * (NET?.mul.count || 1), t, () => enemies.length, spawnEnemy, enterBoss); // 組隊：隊長生怪（人越多越多），隊員只畫隊長的怪
   if (!CURSE.noRegen) P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   for (const k in P.tmp) if (P.tmp[k] > 0) P.tmp[k] -= dt; // 局內道具倒數
   if (P.aid && (P.aidT = (P.aidT ?? 10) - dt) <= 0) { P.aidT = 10; const h = P.maxHp * 0.06 * P.aid; P.hp = Math.min(P.maxHp, P.hp + h); dmgNum(player.position, Math.round(h), false, 2, true, '+' + Math.round(h)); } // 緊急治療
   if (P.feignCd > 0) P.feignCd -= dt;
   if (dashCd > 0) { dashCd -= dt; const mb = document.getElementById('mountBtn'); if (mb) { mb.style.setProperty('--cd', Math.max(0, dashCd / DASH_CD)); mb.classList.toggle('ready', dashCd <= 0); } }
 
-  SM.update(dt, !rig.mounted); // 騎乘時不能攻擊
+  SM.update(dt, !rig.mounted && !P.down && !P.dead); // 騎乘時、倒地時不能攻擊
   petTick(dt); // 項目 30 寵物
   fxPool.update(dt); PCFX.update(dt);
 
@@ -924,8 +957,8 @@ function update(dt) {
   for (let i = 0; i < enemies.length; i++) { const e = enemies[i], A = e.mesh.userData.actor; if (!A || e.dead) continue; if (skip > 1 && (i + animFrame) % skip) continue;
     const dx = e.mesh.position.x - pp.x, dz = e.mesh.position.z - pp.z; if (dx * dx + dz * dz < 1600) A.update(dt * skip); }
   for (const e of enemies) {
-    if (e.dead) continue; const p = e.mesh.position;
-    tmp.subVectors(e.evT || pp, p).setY(0); const d = tmp.length(); // 項目 53：商隊附近的怪改追咕咕
+    if (e.dead || e.netX != null) continue; const p = e.mesh.position; // netX＝組隊隊員畫面上的鏡像怪（party-game.js 移動）
+    const tp = e.evT || (NET ? NET.targetFor(p) : pp); tmp.subVectors(tp, p).setY(0); const d = tmp.length(); // 項目 53：商隊附近的怪改追咕咕
     statusTick(e, dt);
     if (e.ai) { BS.think(e, dt, pp, d); continue; }
     const spd = e.stunT > 0 ? 0 : e.speed * (e.slowT > 0 ? 1 - e.slowK : 1);
@@ -937,13 +970,13 @@ function update(dt) {
     }
     { const nx = p.x + (tmp.x + e.kb.x) * dt, nz = p.z + (tmp.z + e.kb.z) * dt; if (e.fly) { p.x = nx; p.z = nz; } else walkMove(MAP, p, nx, nz); } // 飛的怪不管地形
     e.kb.multiplyScalar(Math.max(0, 1 - dt * 8));
-    e.mesh.rotation.y = Math.atan2(pp.x - p.x, pp.z - p.z);
+    e.mesh.rotation.y = Math.atan2(tp.x - p.x, tp.z - p.z);
     const A = e.mesh.userData.actor;
     if (A) { A.move(spd > 0.1); p.y = e.fly ? 0.8 + Math.sin(t * 6 + e.ph) * 0.2 : 0; } // 有原版走路動作就不用假跳
     else p.y = e.fly ? 0.8 + Math.sin(t * 6 + e.ph) * 0.2 : Math.abs(Math.sin(t * 7 + e.ph)) * 0.18; // 走路時一跳一跳
     e.flash -= dt; const sq = e.flash > 0 ? 1.18 : 1; e.mesh.scale.set(e.s0 * sq, e.s0 * (e.flash > 0 ? 0.85 : 1), e.s0 * sq);
-    if (d < e.r + 0.5) { hitPlayer(e.dmg); if (A && A.current !== 'f1') mobSound(e, 'f1', 0.2, 400); A?.act('f1'); }
-    if (d > 45 && !e.boss) { p.x = pp.x - (p.x - pp.x) * 0.5; p.z = pp.z - (p.z - pp.z) * 0.5; } // 跑太遠拉回來
+    if ((NET ? Math.hypot(pp.x - p.x, pp.z - p.z) : d) < e.r + 0.5) { hitPlayer(e.dmg); if (A && A.current !== 'f1') mobSound(e, 'f1', 0.2, 400); A?.act('f1'); }
+    if (d > 45 && !e.boss) { p.x = tp.x - (p.x - tp.x) * 0.5; p.z = tp.z - (p.z - tp.z) * 0.5; } // 跑太遠拉回來（組隊：拉回最近的隊員旁邊）
   }
   P.inv -= dt;
   BS.updateShots(dt);
@@ -957,8 +990,7 @@ function update(dt) {
   noviceWave(dt);
   const mg0 = P.magnet; if (rig.moving) P.magnet *= 1.3; // 移動中拾取範圍 ×1.3（鼓勵走位）
   magnetGems(gems, pp, P, dt, g => {
-    gemPool.release(g.mesh); P.xp += g.xp * (P.expMul || 1); play('gem', 0.2, 50); // 初心者鼓舞：經驗 +10%
-    if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = needFor(P.lv); levelBonus(); if (!finalDown) { if (DIFF.stack && !TOWER) pendLvAdd(); else levelUp(); } } // 項目 37：打倒最後的首領後不再跳升級卡（以前 MVP 倒下後 3 秒內升級會卡在選卡、通關不觸發）
+    gemPool.release(g.mesh); gainXp(g.xp * (NET && g.gid ? NET.pick(g) : 1)); play('gem', 0.2, 50); // 組隊：撿到的人廣播，照經驗值分配
   });
   magnetGems(coins, pp, P, dt, c => { scene.remove(c.mesh); play('gem', 0.25, 400); });
   P.magnet = mg0;
@@ -973,9 +1005,9 @@ function update(dt) {
     }
   }
 
-  if (P.hp <= 0) gameOver();
+  if (P.hp <= 0) { if (NET) NET.down(); else gameOver(); } // 組隊：倒地等隊友扶，不直接結束
   // 打倒 MVP 後 3 秒通關：以前只靠 setTimeout，剛好在升級卡／寶箱確認／連續技頓幀時就不會通關 → 每格都檢查，回到 play 就結算
-  if (finalDown && !TOWER && state === 'play') { winAt ??= t + 3; if (t >= winAt) gameOver(true); }
+  if (finalDown && !TOWER && state === 'play' && !NET?.guest) { winAt ??= t + 3; if (t >= winAt) gameOver(true); } // 組隊：隊長宣布通關
 }
 
 // ===== PC 原版左上 HUD（GageBar）：EXP＝局內經驗、HP、AP 槽＝到下一隻首領（塔＝下一層）的時間、XP 槽＝寶箱上限進度 =====
@@ -1016,6 +1048,7 @@ function drawSkillCd() {
 }
 let hudLast = 0;
 function render() {
+  NET?.render();
   const pp = player.position;
   if (!opts.shake) bossFx.shake = 0;
   const gy = groundY();
@@ -1076,13 +1109,14 @@ async function start() {
   for (const id of ['start', 'over']) document.getElementById(id).classList.remove('on');
   if (!muted) { bgm.currentTime = 0; bgm.play().catch(() => {}); }
 }
-function gameOver(win = false, quit = false) { // quit＝暫停選單「放棄並結算」（11/20 自測：沒死卻顯示「倒下了」）
-  clearRun();
+function gameOver(win = false, quit = false, why = null) { // quit＝暫停選單「放棄並結算」（11/20 自測：沒死卻顯示「倒下了」）；why＝組隊結束原因
+  if (state === 'over') return;
+  clearRun(); NET?.end(win); document.getElementById('pause').classList.remove('on'); document.getElementById('levelup').classList.remove('on');
   if (!win) rig.actor?.play('dd');
   state = 'over'; bgm.pause(); cleared = win;
   document.querySelector('#over h1').textContent = win ? '通關！' : quit ? '放棄並結算' : '倒下了';
   document.getElementById('result').innerHTML = TOWER ? `${TOWER_NAME}<br>到達第 <b>${floor}</b> 層（${CURSE.name}）<br>撐了 ${hud.time.textContent}　Lv ${P.lv}　擊殺 ${kills}`
-    : `${STAGE.name}<br>${win ? `打倒了 ${BOSSES[BOSSES.length - 1][1]}！<br>` : ''}撐了 ${hud.time.textContent}　Lv ${P.lv}　擊殺 ${kills}`;
+    : `${STAGE.name}${NET ? `（組隊 ${NET.n} 人）` : ''}<br>${why ? `${why}<br>` : ''}${win ? `打倒了 ${BOSSES[BOSSES.length - 1][1]}！<br>` : ''}撐了 ${hud.time.textContent}　Lv ${P.lv}　擊殺 ${kills}`;
   document.getElementById('over').classList.add('on');
   if (win) play('level', 0.7, 0);
   saveRun();
@@ -1095,7 +1129,7 @@ async function saveRun() {
   if (!token || !CHAR.id) return;
   out.textContent = '結算中…';
   try {
-    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done, combos: CB.done || 0 });
+    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done, combos: CB.done || 0, party: NET?.n || 1 });
     const F = j.fame; // 項目 47
     out.innerHTML = (F?.gain ? `🏅 名聲 +${F.gain}${F.up ? `　<b>名聲 Lv${F.lv}！</b>` : ''}${F.newTitles?.length ? `　新稱號：${F.newTitles.map(t => `【${t}】`).join('')}` : ''}${F.gear?.length ? `　名聲裝備已寄到信箱` : ''}<br>` : '') + (j.tower ? `<b>分數 ${j.tower.score.toLocaleString()}</b>${j.tower.newBest ? '　🏆 新紀錄！' : ''}${j.tower.newFloor ? `　最高樓層更新（塔點數 ${j.tower.points}）` : ''}<br>` : '') + (j.bonus ? `通關獎勵 ×1.5！　` : '') + `經驗 +${j.gain}　金幣 +${j.gold}${j.spent ? `（菁英寶箱 −${j.spent}）` : ''}${j.gemUps?.length ? `<br>💎 連續技融合：技能寶石升級 ${j.gemUps.map(g => ['N', 'G', 'DG', 'XG'][g]).join('、')}！` : ''}` + (j.levelUps ? `<br>角色升級！Lv ${j.baseLv}（素質點 +${j.levelUps * 3}）` : `　（${j.exp} / ${j.need}）`) + (j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}` : '') + (j.gems?.length ? `<br>拿到技能寶石 ${j.gems.length} 顆（主城「寶石」開放後裝備）` : '')
       + (j.newStage ? `<br>🔓 解鎖新地圖：${j.newStage}` : '') + (j.items.length ? `<div class="loot">${j.items.map(it => `<span class="${it.rarity >= 3 ? 'glow' : ''}" style="border-color:${RARITY[it.rarity].color};${it.rarity >= 3 ? `color:${RARITY[it.rarity].color}` : ''}"><img src="${itemIcon(it)}" alt=""><em style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</em></span>`).join('')}</div>` : '')
@@ -1110,15 +1144,19 @@ document.getElementById('again').onclick = start;
 
 // 切到背景就暫停、停止繪圖（不常駐）
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { cancelAnimationFrame(raf); bgm.pause(); }
-  else { last = performance.now(); raf = requestAnimationFrame(loop); if (state === 'play' && !muted) bgm.play().catch(() => {}); }
+  if (document.hidden) { cancelAnimationFrame(raf); bgm.pause(); if (NET) NET.bg = setInterval(() => { const now = performance.now(); const dt = Math.min(0.1, (now - last) / 1000); last = now; if (state === 'play') update(dt); }, 100); } // 組隊：切到背景也要繼續跑（隊長還要生怪、廣播）
+  else { clearInterval(NET?.bg); last = performance.now(); raf = requestAnimationFrame(loop); if (state === 'play' && !muted) bgm.play().catch(() => {}); }
 });
+NET = createPartyGame({ CHAR, THREE, scene, camera, player, P: () => P, t: () => t, setT: v => { t = v; }, state: () => state, enemies: () => enemies || [],
+  spawnMirror, guestKill, removeGem, gainXp, netDamage, hitPlayer, showBanner, gameOver, actorPlay: k => rig.actor?.play(k), moving: () => input.read().ml > 0.05, groundAt: (x, z) => MAP.heightAt(x, z) });
+if (NET) { document.getElementById('start')?.classList.remove('on'); start(); } // 組隊：不用按開始，進來就打
+if (NET) window.__party = { NET, player, setT: v => { t = v; }, P: () => P, enemies: () => enemies, state: () => state, t: () => t, kills: () => kills, gems: () => gems, chests: () => [chests, bossChests] }; // 測試用
 reset();
 // ===== 未完成的一局（企劃_工程交付 項目 13）=====
 // 出征中每 5 秒、切走或關頁時把進度存到瀏覽器；回主城時問要不要繼續，放棄就先結算已拿到的部分
 const RUN_KEY = 'ss_run_' + (CHAR.id || 'guest');
 function snapshotRun() {
-  if (TOWER || !P || !CHAR.id || !['play', 'level', 'pause'].includes(state) || t < 5) return;
+  if (NET || TOWER || !P || !CHAR.id || !['play', 'level', 'pause'].includes(state) || t < 5) return;
   const snap = { stage: STAGE_IDX, stageKey: STAGE.key, stageName: STAGE.name, t, kills, lv: P.lv, xp: P.xp, need: P.need, hp: P.hp / P.maxHp, chests, bossChests, bossIdx: spawner.bossIdx, px: player.position.x, pz: player.position.z,
     skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), skmods: Object.fromEntries(Object.entries(SM.skills).filter(([, w]) => w.mods).map(([k, w]) => [k, w.mods])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], spent: goldSpent, events: EV.done, combos: CB.done || 0, saved: Date.now() };
   try { localStorage.setItem(RUN_KEY, JSON.stringify(snap)); } catch {}

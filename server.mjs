@@ -299,7 +299,7 @@ const api = {
   },
   // 出征結算：存紀錄、加經驗、升級
   'POST /api/runs': async (req, res, _, uid) => {
-    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0, combos = 0 } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
+    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0, combos = 0, party = 1 } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
     const stB = stageBaseLv(STAGES.find(x => x.key === stage)), DL = isTowerKey(stage) ? diffLoot(null) : diffLoot(cleanDiff(diff, stB), stB); // 項目 41：難度只影響寶箱裝備品質，經驗金幣不變
     const isTower = stage === 'tower';
     const c = db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+charId, uid);
@@ -318,7 +318,7 @@ const api = {
     const mul = S.reward * (bonus ? 1.5 : 1);
     const monLvExp = isTower ? stageBaseLv(STAGES[si]) + towerFloor(secs) : cleanDiff(diff, stageBaseLv(S)).monLv; // 這局怪物等級（難度滑桿選的）
     // 項目 51：難度經驗加成（階梯式）：敵人數量、事件數量每多一階（×2、×3…）Base／Job 經驗 +12%；塔不套用
-    const DX = isTower ? null : cleanDiff(diff, stB), expBonus = DX ? 1 + 0.12 * ((DX.count - 1) + (DX.event - 1)) : 1;
+    const DX = isTower ? null : cleanDiff(diff, stB), expBonus = (DX ? 1 + 0.12 * ((DX.count - 1) + (DX.event - 1)) : 1) * (1 + 0.1 * (Math.max(1, Math.min(4, party | 0)) - 1)); // 組隊副本 v1.1：每多 1 個隊友經驗 +10%
     const jobGain = Math.floor((secs / 3 + kills / 4 + lv * 5) * mul * expBonus); // Job 經驗維持原本算法（第 25／27 項的 Job 曲線是照這個調的）
     const gain = Math.floor((runExp(Math.max(0, +kills | 0), monLvExp, c.base_lv) * mul + lv * 5 * mul) * expBonus); // 項目 33：Base 經驗照怪物等級（PC）
     let base = c.base_lv, exp = c.exp + gain, ups = 0;
@@ -1192,7 +1192,8 @@ const api = {
   'GET /api/partyme': async (req, res, _, uid) => {
     const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
     const v = charView(c);
-    send(res, 200, { charId: c.id, name: c.name, job: c.job, jobName: v.jobName, gender: c.gender, baseLv: c.base_lv, power: powerOf(itemsOf(c.id).filter(i => i.equipped)) });
+    const eq = itemsOf(c.id).filter(i => i.equipped), d = JSON.parse(c.data || '{}');
+    send(res, 200, { charId: c.id, name: c.name, job: c.job, jobName: v.jobName, gender: c.gender, baseLv: c.base_lv, power: powerOf(eq), hair: v.hair, hairColor: v.hairColor, outfit: v.outfit, costume: d.costume || null, items: eq.map(i => ({ slot: i.slot, base: i.base, pc: i.pc, look: i.look, equipped: true, gup: i.gup })) }); // 隊友畫面要畫你的外觀
   },
   'GET /api/friends': async (req, res, _, uid) => {
     const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
