@@ -280,7 +280,7 @@ function cbPress(k) {
   cbPromptEl.classList.remove('hit'); void cbPromptEl.offsetWidth; cbPromptEl.classList.add('hit');
   const chip = document.createElement('b'); chip.textContent = k; chip.className = 'on'; marq.appendChild(chip); while (marq.children.length > 12) marq.firstChild.remove();
   const ang = (P.face || 0) + [0, 1.05, -1.05, 0.5, -0.5, 1.57][CBQ.i % 6];
-  cbSlash(ang, CBQ.base * 2 * CBQ.mult * (1 + 0.12 * CBQ.i) * (perfect ? 1.3 : 1), false, CBQ.i);
+  cbSlash(ang, CBQ.base * 1.2 * CBQ.mult * (1 + 0.12 * CBQ.i) * (perfect ? 1.3 : 1), false, CBQ.i); // 11/20 使用者「連續技傷害超高」：每段 ×2 → ×1.2
   play('hit', 0.7, 200 + CBQ.i * 60); CBQ.i++;
   if (CBQ.i >= CBQ.max) cbFinish(true); else cbNext();
 }
@@ -302,7 +302,7 @@ function cbSlash(ang, dmg, last, idx) { // 一道劍氣：30 公尺帶狀範圍�
 }
 function cbFinish(complete, why = '') { // 終結技：三道劍氣（傷害照接到的段數）；D 階全部接完＝完全體屬性追加效果
   if (!CBQ.on) return; CBQ.on = false; cbPad.style.display = 'none'; ultBtn.style.visibility = '';
-  const n = CBQ.i, full = CBQ.full && complete, e = CBQ.e, dmg = CBQ.base * 4 * CBQ.mult * (1 + 0.12 * n) * (full ? 1.6 : 1);
+  const n = CBQ.i, full = CBQ.full && complete, e = CBQ.e, dmg = CBQ.base * 2.5 * CBQ.mult * (1 + 0.12 * n) * (full ? 1.3 : 1); // 11/20 終結技 ×4 → ×2.5、完全體 ×1.6 → ×1.3（整體約砍一半）
   if (state === 'over') return cbEnd();
   play('boom', 0.8, 0); let hits = 0;
   for (let j = 0; j < 3; j++) hits += cbSlash((P.face || 0) + j * Math.PI / 3, dmg, true, n + j);
