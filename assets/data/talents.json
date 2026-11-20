@@ -5775,8 +5775,29 @@
    ]
   },
   "初心者": {
-   "cols": [],
-   "nodes": [],
+   "cols": [
+    "空手"
+   ],
+   "nodes": [
+    {
+     "id": 5,
+     "name": "空手技",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill1.png",
+      160,
+      0
+     ],
+     "eff": {
+      "skill:b_novice": 1,
+      "atk": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "gate": 0
+    }
+   ],
    "branches": []
   }
  }

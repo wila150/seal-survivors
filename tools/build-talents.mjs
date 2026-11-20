@@ -206,6 +206,10 @@ for (const [jid, job] of Object.entries(JOBS)) {
   out.jobs[job] = { cols: COLS[job], nodes, branches };
   console.log(`${job}：一轉 ${nodes.length} 個天賦、全點滿 ${total} 點；` + branches.map(b => `${b.name} ${b.nodes.length} 個／${b.nodes.reduce((t, n) => t + n.max, 0)} 點`).join('、'));
 }
-out.jobs['初心者'] = { cols: [], nodes: [], branches: [] }; // 11/19 初心者：沒有天賦樹（Base Lv 10 一轉後才有）
+// 11/20 使用者：「初心者的天賦應該要可以點，因為升級到 10 等才能轉職，所以他可以升級空手，也就是說連續技」
+// → 初心者樹＝PC 初心者 tree_1 的「空手技」（base_0.json id 5，上限 5 級；其他是睡覺、交易、釣魚等生活技，割草版不收）；空手技等級決定連續技（照 PC 連續技表）
+{ const s = JSON.parse(fs.readFileSync(path.join(dir, 'base_0.json'), 'utf8')).infos.tree_1_data.find(x => +x.skillid === 5);
+  const [px, py] = s.zuobiao.split(' ').map(v => -parseInt(v));
+  out.jobs['初心者'] = { cols: ['空手'], nodes: [{ id: 5, name: '空手技', col: 0, max: +s.maxlv, icon: [s.icon_bg, px, py], eff: { 'skill:b_novice': 1, atk: 0.02 }, final: false, weapon: true, gate: 0 }], branches: [] }; }
 fs.writeFileSync(new URL('../assets/data/talents.json', import.meta.url), JSON.stringify(out, null, 1));
 console.log('→ assets/data/talents.json');

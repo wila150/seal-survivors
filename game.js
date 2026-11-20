@@ -260,14 +260,17 @@ const cbPromptEl = cbPad.querySelector('#cbPrompt');
 cbPad.querySelectorAll('.keys button').forEach(b => b.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); cbPress(b.dataset.k); }));
 // 11/20 使用者：「連續技玩法不變，改它的傷害就好」「看他練到幾等」→ 傷害照 PC 連續技表（2u id=51）：
 // PC 普攻技能（雙手劍技／單手劍技…）練到幾級，解鎖哪些連續技（段數 → 傷害倍率 × 普攻傷害）；二轉後有「普攻技2」更長的連續技
-// 割草版：局內普攻 Lv1～5 ＝ PC 技能等級 2～5（Lv1 就能用；Lv4、5 都算 PC 5）；二轉以上普攻 Lv n ＝ 技2 Lv n
+// 割草版：等級看「天賦樹」裡的普攻技能（雙手劍技、單手劍技…初心者＝空手技），照上限換算成 PC 1～5 級；沒點也能用（算 PC 2 級，玩法不變）
+//   劍士另有「雙手劍技2」天賦 → 解鎖技2 的 16～21 段長連續技
 // 第 i 段的累積倍率＝這個等級解鎖的連續技裡「段數 ≤ i」的最高倍率（中間段數用線性補，每段都有傷害）；鐵匠倍率是其他職業的 2.5 倍（PC 原表）
 // 總傷害 70% 分給每一段、30% 給終結技；PERFECT 每段 ×1.3；完全體（D 階全接完）終結技 ×1.3
 const CB_PC = [[2, 4, 4.8], [2, 8, 13.2], [3, 4, 6.5], [4, 8, 10.3], [4, 8, 15.7], [5, 4, 4.5], [5, 5, 7.7], [5, 6, 8.5], [5, 8, 11.8], [5, 8, 13.0], [5, 8, 14.3], [5, 7, 14.8], [5, 8, 17.7], [5, 13, 28.0]];
 const CB_PC2 = [[1, 16, 38.5], [2, 17, 47.5], [3, 18, 51.0], [4, 19, 54.0], [5, 21, 62.5]];
 function cbMultTable() { // 回傳函式 i → 累積倍率
-  const lv = SM.skills[SM.J.basic]?.lv || 1, L = Math.min(5, lv + 1), job2 = !!CHAR.job2, k = CHAR.job === '鐵匠' ? 2.5 : 1;
-  const pts = [[0, 0]]; for (const [l, n, m] of CB_PC) if (l <= L) pts.push([n, m]); if (job2) for (const [l, n, m] of CB_PC2) if (l <= lv) pts.push([n, m]);
+  const W = (TAL?.jobs?.[CHAR.job]?.nodes || []).filter(n => n.weapon), b1 = W[0], b2 = W.find(n => /技2$/.test(n.name)), al = CHAR.talents || {};
+  const pc = n => n && al[n.id] ? Math.ceil(Math.min(al[n.id], n.max) / n.max * 5) : 0; // 天賦等級 → PC 1～5 級
+  const L = Math.max(2, pc(b1)), L2 = pc(b2), k = CHAR.job === '鐵匠' ? 2.5 : 1;
+  const pts = [[0, 0]]; for (const [l, n, m] of CB_PC) if (l <= L) pts.push([n, m]); for (const [l, n, m] of CB_PC2) if (l <= L2) pts.push([n, m]);
   const env = []; for (const [n, m] of pts.sort((a, b) => a[0] - b[0] || b[1] - a[1])) if (!env.length || m > env[env.length - 1][1]) env.push([n, m]); // 段數越多倍率越高的上緣
   return i => { if (i <= 0) return 0; for (let j = 1; j < env.length; j++) { const [n0, m0] = env[j - 1], [n1, m1] = env[j]; if (i <= n1) return k * (m0 + (m1 - m0) * (i - n0) / (n1 - n0)); }
     const [nl, ml] = env[env.length - 1]; return k * ml; }; // 超過最長連續技：停在最高倍率
