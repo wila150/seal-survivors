@@ -22,7 +22,8 @@ import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, 
 import * as ATT from '../src/1_data/attendance.js';
 import { rankBuffOf } from '../src/1_data/rank-buff.js';
 import { gapExp } from '../src/1_data/level-gap.js';
-import { POLY } from '../src/1_data/polymorph.js'; // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
+import { POLY } from '../src/1_data/polymorph.js';
+import { huntExtra } from '../src/1_data/hunt.js'; // PC 狩獵系統 // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../src/1_data/fishing.js';
 import { itemFromPc, wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
 
@@ -358,7 +359,7 @@ const api = {
     // 項目 51：難度經驗加成（階梯式）：敵人數量、事件數量每多一階（×2、×3…）Base／Job 經驗 +12%；塔不套用
     const DX = isTower ? null : cleanDiff(diff, stB), expBonus = (DX ? 1 + 0.12 * ((DX.count - 1) + (DX.event - 1)) : 1) * (1 + 0.1 * (Math.max(1, Math.min(4, party | 0)) - 1)); // 組隊副本 v1.1：每多 1 個隊友經驗 +10%
     const jobGain = Math.floor((secs / 3 + kills / 4 + lv * 5) * mul * expBonus); // Job 經驗維持原本算法（第 25／27 項的 Job 曲線是照這個調的）
-    const gain = Math.floor((runExp(Math.max(0, +kills | 0), monLvExp, c.base_lv) * mul + lv * 5 * mul) * expBonus); // 項目 33：Base 經驗照怪物等級（PC）
+    const gain = Math.floor((runExp(Math.max(0, +kills | 0) + huntExtra(Math.max(0, Math.min(20000, +kills | 0)), (party | 0) > 1), monLvExp, c.base_lv) * mul + lv * 5 * mul) * expBonus); // 項目 33：Base 經驗照怪物等級（PC）
     let base = c.base_lv, exp = c.exp + gain, ups = 0;
     while (exp >= needExp(base) && base < BASE_MAX) { exp -= needExp(base); base++; ups++; }
     if (base >= BASE_MAX) exp = 0;
