@@ -285,6 +285,7 @@ import { gapExp, gapDrop } from './src/1_data/level-gap.js';
 import { POLY } from './src/1_data/polymorph.js';
 import { EMO_TABS, emoPos } from './src/1_data/emote.js';
 import * as ML from './src/1_data/mainline.js';
+import { weakList } from './src/2_core/stun.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
@@ -771,7 +772,7 @@ async function talk(n) {
 function mvpElemHint(name) {
   const me = EL.MONSTER_ELEM[name] ?? 0, best = [1, 2, 3, 4, 5, 6, 7].filter(a => EL.elemMult(a, me) > 1).sort((a, b) => EL.elemMult(b, me) - EL.elemMult(a, me));
   const tag = i => `<b style="color:${i ? EL.ELEM_COLOR[i] : '#5a6478'};${i ? 'text-shadow:0 1px 2px #000' : ''}">${EL.ELEMS[i]}</b>`; // 無屬性原色是白色，米色底看不到 → 用深灰
-  return `<div style="margin:6px 0;padding:6px 10px;border-radius:10px;background:#fff8e6;border:1px solid #e8c77a;font-size:13px">🔮 MVP <b>${esc(name)}</b> 屬性【${tag(me)}】　${best.length ? `剋它：${best.map(a => `${tag(a)} ×${EL.elemMult(a, me)}`).join('、')}　→ 去<b>寶石收藏家 扎羅</b>配技能寶石` : '沒有特別剋它的屬性'}</div>`;
+  return `<div style="margin:6px 0;padding:6px 10px;border-radius:10px;background:#fff8e6;border:1px solid #e8c77a;font-size:13px">🔮 MVP <b>${esc(name)}</b> 屬性【${tag(me)}】　${best.length ? `剋它：${best.map(a => `${tag(a)} ×${EL.elemMult(a, me)}`).join('、')}　→ 去<b>寶石收藏家 扎羅</b>配技能寶石` : '沒有特別剋它的屬性'}<br>⚡ 昏厥弱點（三段鎖）：${weakList(name, true).map(tag).join(' → ')}　<small>用這些屬性的技能／武器才推得動昏厥條；單人遊玩無屬性也有 60％</small></div>`;
 }
 // 11/19 一轉（照 PC：初心者 Base Lv 10 → 7 職選 1）
 function openJob1(D) {

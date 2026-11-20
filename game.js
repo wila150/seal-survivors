@@ -17,6 +17,20 @@ import { applyRankBuff } from './src/1_data/rank-buff.js';
 import { gapDrop } from './src/1_data/level-gap.js';
 import { applyPoly } from './src/1_data/polymorph.js';
 import { createHunt } from './src/1_data/hunt.js'; // PC 狩獵系統
+import { createStun } from './src/2_core/stun.js'; // 元素屬性 × 首領昏厥破韌（使用者 11/21 企劃）
+let STUNS = null, stunTxt = {};
+function newStun() {
+  STUNS = createStun({ solo: !NET,
+    onText: (e, txt, col) => { const k = txt[0]; if ((stunTxt[k] || 0) > t) return; stunTxt[k] = t + 0.45; dmgNum(e.mesh.position, 0, txt === 'BREAK!', (e.hgt || 2) + 0.6, false, txt); },
+    onBreak: (e, chest) => { // 100％ 元素崩解：橫幅＋畫面邊緣閃光＋0.1 秒頓幀＋破韌寶箱
+      showBanner(`<small>BREAK!</small><b>元素崩解</b><span>${e.type} 昏厥 7 秒・全員受到傷害 ×1.5${chest ? '・掉落破韌寶箱' : ''}</span>`, 1800, true); play('boom', 0.9, 0); setTimeout(() => play('zap', 0.7, 0), 120);
+      const fl = document.getElementById('brkFlash'); if (fl) { fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on'); }
+      bossFx.shake = Math.max(bossFx.shake, 0.6); spawnFx('shock', e.mesh.position, { flat: true, scale: (e.hgt || 2) * 3.5, life: 0.9, grow: 1.8, color: 0xffd34f });
+      if (chest) dropChest({ x: e.mesh.position.x + 1.5, z: e.mesh.position.z }, true);
+      if (state === 'play') { state = 'hitstop'; setTimeout(() => { if (state === 'hitstop') state = 'play'; }, 100); }
+    } });
+}
+const stunRisk = () => { const b = boss?.brk; if (!b || !(W_ELEM === 6 || W_ELEM === 7)) return 1; const w = STUNS?.curWeak(b); return (W_ELEM === 6 && w === 7) || (W_ELEM === 7 && w === 6) ? 1.2 : 1; }; // 光暗雙刃劍
 let HUNT = null;
 function huntKill() { const m = HUNT?.kill() || 1; if (m > 1) { dmgNum(player.position, 0, false, 2, true, `狩獵 ×${m}`); play('level', 0.3, 0); } } // 加倍那隻的經驗在伺服器算（hunt.js huntExtra） // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF
 import { PC_PETS, petName, petBonus, petStage9 } from './src/1_data/pets.js';
@@ -564,7 +578,7 @@ function reset() {
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
   chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; winAt = null; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
-  enemies = []; gems = []; t = 0; kills = 0; spawner.reset(); HUNT = createHunt((NET?.jobs?.length || 1) > 1); // PC 狩獵：每局重新開始
+  enemies = []; gems = []; t = 0; kills = 0; spawner.reset(); newStun(); HUNT = createHunt((NET?.jobs?.length || 1) > 1); // PC 狩獵：每局重新開始
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
   if (TOWER) { floor = 1; document.getElementById('stageName').textContent = `${TOWER_NAME}　第 1 層`; for (const [k, v] of Object.entries(TSET?.boost || {})) for (let i = 0; i <= v && v > 0; i++) SM.add(k); } // 塔點數：選好的技能起始等級＝1＋點數
@@ -713,11 +727,11 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   const gm = P.gem?.[src], eg = P.egem?.[src];
   // 項目 44：屬性相剋（element.scr）；項目 23：屬性寶石改招式屬性、每級爆擊 +3%
   if (src) e.lastSrc = src; // 戰寵擊殺歸屬
-  const em0 = elemMult(opts.elem ?? (eg ? eg.e : (skillElem(SKD.skills[src]) || W_ELEM)), MONSTER_ELEM[e.type] ?? 0); // 指令 4-3：招式本身沒屬性 → 用武器合成的屬性 // 寵物＝自己的屬性
+  const atkE = opts.elem ?? (eg ? eg.e : (skillElem(SKD.skills[src]) || W_ELEM)), em0 = elemMult(atkE, MONSTER_ELEM[e.type] ?? 0); // 指令 4-3：招式本身沒屬性 → 用武器合成的屬性 // 寵物＝自己的屬性
   const em = em0 > 1 ? 1 + (em0 - 1) * 1.5 : em0; // 項目 57：提高相剋倍率（剋制的加成 ×1.5，例：1.2 → 1.3）
   const crit = weak || Math.random() < P.crit + (gm?.crit || 0) + (eg ? 0.03 * eg.lv : 0);
   // 項目 34：× 0.9～1.1 隨機；爆擊 ×1.6＋額外（技能寶石爆傷）
-  const amt = opts.raw ? dmg : dmg * P.might * (kind === 'magic' ? P.magic : P.phys) * (crit ? 1.6 + (gm?.critDmg || 0) : 1) * (weak ? SKD.status.shatterMult : 1) * em * (0.9 + Math.random() * 0.2) * (P.tmp.dmg > 0 ? 1.2 : 1);
+  const amt = opts.raw ? dmg : dmg * P.might * (kind === 'magic' ? P.magic : P.phys) * (crit ? 1.6 + (gm?.critDmg || 0) : 1) * (weak ? SKD.status.shatterMult : 1) * em * (0.9 + Math.random() * 0.2) * (P.tmp.dmg > 0 ? 1.2 : 1) * (e.brk && !NET?.guest ? STUNS.hit(e, src, atkE, eg?.lv, !!SKD.skills[src]?.basic, t) : 1); // 昏厥：累積＋昏厥中 ×1.5
   if (em >= 1.2 && elemCd < t) { elemCd = t + 0.5; dmgNum(e.mesh.position, 0, true, 2.4, false, '剋！'); } else if (em <= 0.5 && elemCd < t) { elemCd = t + 0.8; dmgNum(e.mesh.position, 0, false, 2.4, false, '抗'); }
   if (weak && Math.random() < 0.5) { spawnFx('ice', e.mesh.position, { scale: 1.8, life: 0.3, grow: 1.6, color: 0xbfe8ff }); shatterText(e.mesh.position); }
   // 上狀態（首領只吃一半）
@@ -734,6 +748,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   if (e.hp <= 0 && !e.dead) {
     e.dead = true; if (e.lastSrc === 'bpet') bpet.kills++; /* 戰寵自己殺的才算戰寵經驗 */ if (!NET || (e.by ?? NET.me) === NET.me) { kills++; huntKill(); } dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
     if (e.mvp) finalDown = true;
+    if (e.ai && STUNS?.died(e)) { P.pbLoot = (P.pbLoot || 0) + 0.1; showBanner('<small>崩解斬殺</small><b>元素支配者</b><span>昏厥中從 30％ 以上直接打倒首領・這局掉寶率提升</span>', 2200, true); }
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
     else if (e.elite) { if (Math.random() < (0.4 + (P.pbLoot || 0)) * GAP_DROP) dropChest(e.mesh.position, false); dropChest({ x: e.mesh.position.x + 1.2, z: e.mesh.position.z }, false, true); } // 項目 37：菁英另外一定掉菁英寶箱（花金幣開、開出局內道具）
     if (e === boss) setBoss(null);
@@ -748,7 +763,8 @@ function nearest(pos, maxD = 1e9, skip) {
 }
 
 const bossEl = document.getElementById('boss');
-function setBoss(e) { boss = e; bossEl.style.display = e ? 'block' : 'none'; if (e) { bossEl.querySelector('b').textContent = e.type; document.getElementById('bossTitle').textContent = '　' + (BOSS_TITLES[e.type] || ''); } }
+function setBoss(e) { boss = e; if (e?.ai && !e.brk && !e.netBoss) STUNS?.init(e); // 首領出場：建立昏厥條
+  bossEl.style.display = e ? 'block' : 'none'; if (e) { bossEl.querySelector('b').textContent = e.type; document.getElementById('bossTitle').textContent = '　' + (BOSS_TITLES[e.type] || ''); } }
 
 const bannerEl = document.getElementById('banner');
 let bannerTimer;
@@ -766,7 +782,7 @@ function hitPlayer(dmg) {
   bossFx.shake = Math.max(bossFx.shake, 0.25);
 }
 // 首領（src/2_core/game-manager.js）
-const BS = createBossSystem({ pcfx: PCFX, scene, tex, player, ENEMY_TYPES, spawnFx, play, showBanner, hitPlayer, addMat, spawnEnemy, setBoss, dropGem,
+const BS = createBossSystem({ pcfx: PCFX, scene, tex, player, ENEMY_TYPES, spawnFx, play, showBanner, hitPlayer: d => hitPlayer(d * stunRisk()), addMat, spawnEnemy, setBoss, dropGem,
   gameOver: win => gameOver(win), time: () => t, state: () => state, enemies: () => enemies,
   onAoe: (x, z, r, dmg) => NET?.host && NET.aoe(x, z, r, dmg), onShot: (x, z, vx, vz, dmg) => NET?.host && NET.shot(x, z, vx, vz, dmg) }); // 組隊：首領的範圍攻擊／彈幕同步給隊員
 const bossFx = BS.fx;
@@ -1027,7 +1043,7 @@ function update(dt) {
     if (e.dead || e.netX != null) continue; const p = e.mesh.position; // netX＝組隊隊員畫面上的鏡像怪（party-game.js 移動）
     const tp = e.evT || (NET ? NET.targetFor(p) : pp); tmp.subVectors(tp, p).setY(0); const d = tmp.length(); // 項目 53：商隊附近的怪改追咕咕
     statusTick(e, dt);
-    if (e.ai) { BS.think(e, dt, NET ? tp : pp, d); continue; } // 組隊：首領追最近的隊員
+    if (e.ai) { STUNS?.tick(e, dt); if (STUNS?.stunned(e)) { e.aura && (e.aura.rotation.z += dt * 0.5); continue; } BS.think(e, dt, NET ? tp : pp, d); continue; } // 昏厥中不動、不攻擊 // 組隊：首領追最近的隊員
     const spd = e.stunT > 0 ? 0 : e.speed * (e.slowT > 0 ? 1 - e.slowK : 1);
     if (d > 0.001) tmp.multiplyScalar((e.thief ? -1 : 1) * spd / d); // 黃金大盜：往反方向逃
     const cx = Math.floor(p.x / 1.2), cz = Math.floor(p.z / 1.2);
@@ -1177,6 +1193,8 @@ function render() {
   hud.hpTxt.textContent = `${Math.max(0, Math.ceil(P.hp))} / ${Math.round(P.maxHp)}`; hud.xpPct.textContent = (P.xp / P.need * 100).toFixed(1) + '%';
   hud.time.textContent = `${String(t / 60 | 0).padStart(2, '0')}:${String(t % 60 | 0).padStart(2, '0')}`;
   if (boss) bossEl.querySelector('i').style.width = Math.max(0, boss.hp / boss.maxHp * 100) + '%';
+  { const sb = document.getElementById('stunbar'), v = boss && STUNS?.view(boss); if (sb) { sb.style.display = v ? 'block' : 'none'; if (v) { const f = sb.querySelector('i'); f.style.width = v.pct + '%'; f.style.background = v.color; sb.classList.toggle('stun', !!v.stun); sb.classList.toggle('lock', !!v.locked); sb.classList.toggle('mvp', !!v.mvp);
+    sb.querySelector('span').textContent = v.label; const ic = sb.querySelector('b'); ic.textContent = v.weak ? ELEMS[v.weak] : v.stun ? '★' : '🔒'; ic.style.background = v.weak ? ELEM_COLOR[v.weak] : v.stun ? '#ffd34f' : '#555'; } } }
 }
 
 // ===== 項目 7：自動畫質（中低階手機不用自己調）：出征中連續 4 秒平均低於 40 fps → 解析度降一檔（最多 2 檔：×0.8、×0.6）並減少怪物動作更新；
@@ -1305,5 +1323,5 @@ if (location.search.includes('auto')) start().then(() => {
   if (location.search.includes('ride')) setMounted(true);
   const bq = location.search.match(/boss=(\d)/); if (bq) { spawner.bossIdx = +bq[1]; t = BOSSES[spawner.bossIdx][0] - 0.1; }
   const m = location.search.match(/sim=([\d.]+)/); if (m) { for (let i = 0; i < +m[1] * 30 && state !== 'over'; i++) { if (state === 'level') document.querySelector('.card')?.click(); P.hp = P.maxHp; update(1 / 30); } }
-  window.__ss = { P: () => P, bpet: () => bpet, pet: () => PET ? { pc: PET.pc, name: petName(PET), lv: PET.lv, bonus: petBonus(PET) } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, setT: v => { t = v; }, coins: () => coins.length, goldHave: () => goldHave(), tmp: () => P.tmp, cb: () => CB, ev: () => EV, evStart: k => { EV_TYPES.length; evStart(); }, perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
+  window.__ss = { P: () => P, bpet: () => bpet, pet: () => PET ? { pc: PET.pc, name: petName(PET), lv: PET.lv, bonus: petBonus(PET) } : null, dmg: () => dmgStats, pool: () => SM.J.pool, carry: () => SM.maxCarry, elemGem: (b, e) => maybeElemGem(b, e), egem: () => P.egem, elemOf: (src, type) => elemMult(P.egem?.[src]?.e ?? skillElem(SKD.skills[src]), MONSTER_ELEM[type] ?? 0), player, spawn: n => { for (let i = 0; i < n; i++) spawnEnemy(STAGE.monsters[i % STAGE.monsters.length]); }, enemies: () => enemies, gems: () => gems, pools: { enemyPool, gemPool, numPool }, state: () => state, t: () => t, kills: () => kills, zone: () => curZone, bossSlots: () => bossSlots, map: MAP, scene, sm: () => SM, pcfx: PCFX, drop: (x, z, xp, chest) => chest ? dropChest({ x, z }, chest === 2, chest === 3) : dropGem({ x, z }, xp), gold: () => goldSpent, setT: v => { t = v; }, coins: () => coins.length, goldHave: () => goldHave(), tmp: () => P.tmp, cb: () => CB, ev: () => EV, evStart: k => { EV_TYPES.length; evStart(); }, bossIn: (type, kind = 'mini') => BS.enter(type, kind), stun: () => STUNS, boss: () => boss, hitBoss: (src, elem, dmg = 1) => hurt(boss, dmg, null, 'phys', src, { elem }), perf: () => ({ upd: +perf.upd.toFixed(2), ren: +perf.ren.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }) };
 });
