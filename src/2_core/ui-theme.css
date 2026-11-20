@@ -411,12 +411,11 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .cell .bp { position: absolute; left: 2px; top: 1px; font-size: 9px; color: #2b6fd6; font-weight: 900; text-shadow: 0 0 2px #fff; }
 #fishWin .slot { border: 0; background: none; cursor: pointer; padding: 0; } #fishWin .slot small { font-size: 10px; color: #7a6c5c; }
 #fishWin .bar span { display: block; height: 100%; background: #ffd36b88; border-radius: 6px; transition: width 1s linear; }
-#pier { position: fixed; inset: 0; z-index: 40; background: #0008; display: flex; align-items: center; justify-content: center; }
-#pier .pr { width: min(680px, 96vw); background: linear-gradient(#fffdf6, #efe7d4); border: 3px solid #d8c38f; border-radius: 16px; padding: 10px; box-shadow: 0 10px 30px #000a; }
-#pier .pr-h { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; } #pier .pr-h b { font-size: 18px; color: #2b6fd6; } #pier .pr-h span { flex: 1; font-size: 13px; color: #5a4a3a; }
-#pier .pr-h button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; background: #2f62d6; color: #fff; font-weight: 900; cursor: pointer; }
-#pier canvas { width: 100%; height: auto; border-radius: 10px; display: block; touch-action: none; cursor: pointer; }
-#pier .pr-ui { display: flex; gap: 10px; margin-top: 8px; } #pier .pr-bar { flex: 1; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; }
-#pier .pr-bar i { flex: 1; height: 12px; background: #0002; border-radius: 6px; overflow: hidden; } #pier .pr-bar s { display: block; height: 100%; width: 100%; background: linear-gradient(#7dff7d, #2fae3a); }
-#pier .pr-bar.en s { background: linear-gradient(#ffb36b, #e74c3c); width: 0; }
-#pier .pr-pad { display: flex; justify-content: center; gap: 12px; margin-top: 8px; } #pier .pr-pad button { min-width: 72px; height: 48px; border-radius: 12px; border: 2px solid #fff; background: linear-gradient(#4d86e8, #2a5bbf); color: #fff; font-size: 18px; font-weight: 900; touch-action: none; user-select: none; }
+#pier { position: fixed; left: 0; bottom: 0; z-index: 40; width: min(760px, 100vw); pointer-events: none; } /* 照 PC：疊在畫面左下，不蓋全畫面 */
+#pier canvas { width: 100%; height: auto; display: block; touch-action: none; pointer-events: auto; cursor: pointer; }
+#pier .pr-msg { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); max-width: 92vw; padding: 6px 14px; border-radius: 10px; background: #000a; color: #fff; font-size: 14px; font-weight: 700; text-align: center; }
+#pier .pr-stop { position: absolute; left: 1.2%; top: 51%; width: 7.4%; aspect-ratio: 2; border: 0; background: url(../../assets/ui/pc/fish_stop.png) center/100% 100% no-repeat; pointer-events: auto; cursor: pointer; }
+#pier .pr-stop:hover { background-image: url(../../assets/ui/pc/fish_stop_h.png); }
+#pier .pr-pad { display: none; position: fixed; right: 12px; bottom: 16px; gap: 10px; pointer-events: auto; }
+#pier .pr-pad button { min-width: 64px; height: 56px; border-radius: 14px; border: 2px solid #fff; background: linear-gradient(#4d86e8, #2a5bbf); color: #fff; font-size: 18px; font-weight: 900; touch-action: none; user-select: none; }
+@media (pointer: coarse) { #pier .pr-pad { display: flex; } #pier { width: min(560px, 62vw); } }

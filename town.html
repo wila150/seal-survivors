@@ -11,7 +11,7 @@
   *{cursor:url(assets/ui/cursor_arrow.png) 1 1,default !important}
   input[type=text],input[type=password],input:not([type]),textarea{cursor:text !important}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;height:100%;overflow:hidden;background:#cdd6e4;font-family:system-ui,"Noto Sans TC",sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;color:#26324d}
+  html,body{margin:0;height:100%;overflow:hidden;background:#d8c7a0;font-family:system-ui,"Noto Sans TC",sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;color:#26324d}
   canvas{display:block}
   .chip{position:fixed;background:#eef2fbee;border:1px solid #9db4ee;border-radius:12px;box-shadow:0 4px 14px #0003}
   /* 左上角色框：跟出征畫面同一款（頭像＋等級徽章＋名字職業＋資訊列＋EXP 條），11/18 使用者：大廳跟遊戲的框不一樣 */
@@ -178,6 +178,9 @@
     #sideMenu{top:calc(max(10px,env(safe-area-inset-top)) + 96px)}
     .sd-b{width:42px;height:42px}
   }
+  /* 11/20：手機（窄或橫放矮螢幕）視窗是整頁的 → 視窗打開時蓋在左欄／底部按鈕上面（之前按鈕壓在寵物管理員等視窗上） */
+  @media (max-width:640px),(max-height:500px){#menu,#sideMenu{z-index:19!important}}
+  body.fishing #menu,body.fishing #sideMenu,body.fishing #talk,body.fishing #joy{display:none!important}
 
 </style>
 <link rel="stylesheet" href="src/2_core/pc-ui.css">
@@ -1418,37 +1421,68 @@ function openFishPier() {
   const cap = ROD_CAP[F.rod];
   openBaitPick(bait => runPier(bait, cap), cap);
 }
+// 11/20 使用者：「手動釣魚改 PC 的玩法」→ 用原版 Seal Wheel Fishing 介面圖（interface/mainblue_skill_fish02/03，tools/build-fishui.mjs）
+// 疊在主城畫面左下（不蓋全畫面）；左邊 Danger 能量條＋停止鈕；河裡：第一階段「魚兒聚集點」＋來回移動的魚鉤，左鍵在聚集點上確認；
+// 第二階段：魚在河裡左右跑、兩端是「河流危險區」，←→ 控制魚、滾輪扣魚血（數字在魚下面），魚在危險區或扣血時能量上升，滿了失敗、魚血 0 成功
+const WF = {}; const wfImg = n => WF[n] ??= Object.assign(new Image(), { src: `assets/ui/pc/wf_${n}.png` });
 function runPier(bait, cap) {
+  const B = baitList().find(b => typeof b.key === 'object' ? b.key.itemId === bait?.itemId : b.key === bait), pc = B?.pc || 40, rod = (CHAR.fishing || {}).rod || 1;
+  ['base', 'wave', 'splash', 'gauge', 'gauge0', 'hook', 'fish', 'dcur', 'spot1', 'spot2', 'spot3', 'dz1', 'dz2', 'dz3', 'dz4'].forEach(wfImg);
+  closeDlg(); document.body.classList.add('fishing'); // 照 PC：釣魚台時只剩釣魚介面
   const ov = document.createElement('div'); ov.id = 'pier'; document.body.appendChild(ov);
-  ov.innerHTML = `<div class="pr"><div class="pr-h"><b>釣魚台</b><span id="prMsg">第一階段：魚餌在河裡移動，點一下確認位置</span><button id="prX">✕</button></div>
-    <canvas id="prCv" width="640" height="300"></canvas>
-    <div class="pr-ui"><div class="pr-bar"><span>魚</span><i><s id="prHp"></s></i></div><div class="pr-bar en"><span>能量</span><i><s id="prEn"></s></i></div></div>
-    <div class="pr-pad"><button id="prL">◀</button><button id="prReel">收線</button><button id="prR">▶</button></div></div>`;
-  const cv = ov.querySelector('#prCv'), g = cv.getContext('2d'), W = 640, H = 300, msg = t => ov.querySelector('#prMsg').textContent = t;
-  let ph = 1, bx = 0.5, bv = 0.6, fx = 0.5, fv = 0, hp = 1, en = 0, steer = 0, end = false, last = performance.now(), dz = [[0.04, 0.2], [0.8, 0.96]], fishHp = 1, turn = 0;
-  const done = async ok => { if (end) return; end = true; msg(ok ? '釣到了！' : '線斷了…'); try { const r = await call('POST', '/api/fish', { charId: CHAR.id, bait, mode: 'manual', ok }); showChar(r.char); toast(ok && r.got ? `${r.got.rare ? '✨ ' : ''}釣到了 ${r.got.name}！` : '魚跑掉了（魚餌用掉了）'); } catch (e) { toast(e.message); } setTimeout(close, 900); };
-  const close = () => { cancelAnimationFrame(raf); removeEventListener('keydown', kd); removeEventListener('keyup', ku); ov.remove(); };
-  const reel = () => { if (ph !== 2 || end) return; hp -= 0.035 / fishHp; en += 0.045; if (hp <= 0) done(true); };
-  const kd = e => { if (e.code === 'ArrowLeft') steer = -1; if (e.code === 'ArrowRight') steer = 1; if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); reel(); } if (e.code === 'Escape') close(); };
-  const ku = e => { if ((e.code === 'ArrowLeft' && steer < 0) || (e.code === 'ArrowRight' && steer > 0)) steer = 0; };
-  addEventListener('keydown', kd); addEventListener('keyup', ku);
-  cv.addEventListener('wheel', e => { e.preventDefault(); reel(); }, { passive: false });
-  cv.addEventListener('pointerdown', () => { if (ph === 1) { ph = 2; fx = bx; fishHp = 1 + Math.abs(bx - 0.5) * 1.2; msg('第二階段：←→（或下方按鈕）把魚拉離紅色危險區，滾輪／收線把魚的血扣光'); } else reel(); });
-  const hold = (id, v) => { const b = ov.querySelector(id); b.onpointerdown = e => { e.preventDefault(); steer = v; }; b.onpointerup = b.onpointerleave = () => { if (steer === v) steer = 0; }; };
-  hold('#prL', -1); hold('#prR', 1); ov.querySelector('#prReel').onpointerdown = e => { e.preventDefault(); reel(); }; ov.querySelector('#prX').onclick = () => { if (ph === 2 && !end) done(false); else close(); };
+  ov.innerHTML = `<div class="pr-msg" id="prMsg"></div><canvas id="prCv" width="760" height="400"></canvas>
+    <button id="prX" class="pr-stop" title="停止"></button>
+    <div class="pr-pad"><button id="prL">◀</button><button id="prReel">收線</button><button id="prR">▶</button></div>`;
+  const cv = ov.querySelector('#prCv'), g = cv.getContext('2d'), W = 760, msg = t => ov.querySelector('#prMsg').textContent = t;
+  const RX0 = 150, RX1 = 640, RY0 = 290, RY1 = 333, RCY = (RY0 + RY1) / 2; // 河道（畫布座標）
+  const tier = Math.min(4, 1 + Math.floor(Math.log2(Math.max(1, pc / 50)) / 1.6)); // 魚餌越貴，危險區越寬（dz1～dz4）
+  const spot = Math.min(3, rod), spW = [0, 52, 76, 110][spot], dzW = [0, 40, 67, 94, 107][tier];
+  const spX = RX0 + 60 + Math.random() * (RX1 - RX0 - 120 - spW); // 魚兒聚集點
+  const maxHp = Math.round(120 + Math.sqrt(pc) * 22), dmg = 6 + rod * 3; // 魚血（大魚餌＝大魚）、每格滾輪扣血（釣竿越好越多）
+  let ph = 1, hx = RX0 + 20, hv = 260 + tier * 30, tries = 3, fx = 0, fv = 0, turn = 0, hp = maxHp, en = 0, steer = 0, end = false, last = performance.now(), shake = 0, flash = 0;
+  msg('第一階段：魚鉤在河裡來回移動，在「魚兒聚集點」上按左鍵（手機點河面）');
+  const done = async ok => { if (end) return; end = true; msg(ok ? '釣到了！' : '能量爆表，魚跑掉了…');
+    try { const r = await call('POST', '/api/fish', { charId: CHAR.id, bait, mode: 'manual', ok }); showChar(r.char); toast(ok && r.got ? `${r.got.rare ? '✨ ' : ''}釣到了 ${r.got.name}！${r.exp ? `（經驗 +${r.exp}）` : ''}` : '魚跑掉了（魚餌用掉了）'); } catch (e) { toast(e.message); }
+    setTimeout(close, 1100); };
+  const close = () => { cancelAnimationFrame(raf); removeEventListener('keydown', kd, true); removeEventListener('keyup', ku, true); removeEventListener('wheel', wh, { capture: true }); ov.remove(); document.body.classList.remove('fishing'); };
+  const reel = () => { if (ph !== 2 || end) return; hp = Math.max(0, hp - dmg); en += 0.012; shake = 0.12; if (hp <= 0) done(true); };
+  const pick = () => { if (ph !== 1 || end) return;
+    if (hx >= spX - 6 && hx <= spX + spW + 6) { ph = 2; fx = hx; msg('第二階段：←→ 把魚拉離兩邊的危險區，滾動滑鼠滾輪（手機按「收線」）把魚的血扣光'); }
+    else if (--tries > 0) { flash = 0.5; msg(`沒有魚上鉤（還能再試 ${tries} 次）——要停在魚兒聚集點上`); }
+    else done(false); };
+  // 釣魚中鍵盤、滾輪只給釣魚台用（不會讓角色走動、鏡頭縮放）
+  const kd = e => { if (['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'].includes(e.code)) { steer = /Left|KeyA/.test(e.code) ? -1 : 1; e.preventDefault(); e.stopPropagation(); }
+    else if (['ArrowUp', 'ArrowDown', 'KeyW', 'KeyS', 'Space', 'Enter'].includes(e.code)) { e.preventDefault(); e.stopPropagation(); if (e.code === 'Space' || e.code === 'Enter') ph === 1 ? pick() : reel(); }
+    else if (e.code === 'Escape') { e.stopPropagation(); ph === 2 && !end ? done(false) : close(); } };
+  const ku = e => { if ((/ArrowLeft|KeyA/.test(e.code) && steer < 0) || (/ArrowRight|KeyD/.test(e.code) && steer > 0)) steer = 0; };
+  const wh = e => { e.preventDefault(); e.stopPropagation(); reel(); };
+  addEventListener('keydown', kd, true); addEventListener('keyup', ku, true); addEventListener('wheel', wh, { capture: true, passive: false });
+  cv.addEventListener('pointerdown', e => { e.preventDefault(); ph === 1 ? pick() : reel(); });
+  const hold = (id, v) => { const b = ov.querySelector(id); b.onpointerdown = e => { e.preventDefault(); steer = v; }; b.onpointerup = b.onpointerleave = b.onpointercancel = () => { if (steer === v) steer = 0; }; };
+  hold('#prL', -1); hold('#prR', 1); ov.querySelector('#prReel').onpointerdown = e => { e.preventDefault(); ph === 1 ? pick() : reel(); };
+  ov.querySelector('#prX').onclick = () => { if (ph === 2 && !end) done(false); else close(); };
+  ov.__st = () => ({ ph, hx, spX, spW, hp, en, end }); // 測試用
+  const im = (n, x, y, w, h) => { const i = WF[n]; if (i.complete && i.naturalWidth) g.drawImage(i, x, y, w ?? i.naturalWidth, h ?? i.naturalHeight); };
   let raf; const loop = now => { const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    if (ph === 1) { bx += bv * dt; if (bx < 0.08 || bx > 0.92) { bv = -bv; bx = Math.max(0.08, Math.min(0.92, bx)); } }
-    else if (!end) { if ((turn -= dt) <= 0) { turn = 0.5 + Math.random() * 1.2; fv = (Math.random() - 0.5) * 0.9 * fishHp; } // 魚自己亂跑
-      fx += (fv + steer * 0.55) * dt; fx = Math.max(0.02, Math.min(0.98, fx));
-      const danger = dz.some(([a, b]) => fx >= a && fx <= b); en += (danger ? 0.22 : -0.08) * dt; en = Math.max(0, en); if (en >= 1) done(false); }
-    // 畫
-    g.fillStyle = '#3d8fd6'; g.fillRect(0, 0, W, H); for (let i = 0; i < 6; i++) { g.strokeStyle = '#ffffff33'; g.beginPath(); const y = 40 + i * 45 + Math.sin(now / 600 + i) * 6; g.moveTo(0, y); g.bezierCurveTo(W / 3, y - 10, W * 2 / 3, y + 10, W, y); g.stroke(); }
-    if (ph === 2) for (const [a, b] of dz) { g.fillStyle = '#e74c3c55'; g.fillRect(a * W, 0, (b - a) * W, H); }
-    g.fillStyle = '#6b4a3a'; g.fillRect(0, 0, W, 18);
-    const x = (ph === 1 ? bx : fx) * W; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(W / 2, 18); g.lineTo(x, H / 2); g.stroke();
-    if (ph === 1) { g.fillStyle = '#ff5a5a'; g.beginPath(); g.arc(x, H / 2, 9, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillRect(x - 2, H / 2 - 18, 4, 10); }
-    else { g.save(); g.translate(x, H / 2 + Math.sin(now / 120) * 4); g.scale(fv + steer < 0 ? -1 : 1, 1); g.fillStyle = '#ffcf3a'; g.beginPath(); g.ellipse(0, 0, 30, 14, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(-26, 0); g.lineTo(-44, -12); g.lineTo(-44, 12); g.fill(); g.fillStyle = '#000'; g.beginPath(); g.arc(16, -3, 3, 0, 7); g.fill(); g.restore(); }
-    ov.querySelector('#prHp').style.width = Math.max(0, hp) * 100 + '%'; ov.querySelector('#prEn').style.width = Math.min(1, en) * 100 + '%';
+    if (ph === 1 && !end) { hx += hv * dt; if (hx < RX0 + 10 || hx > RX1 - 10) { hv = -hv; hx = Math.max(RX0 + 10, Math.min(RX1 - 10, hx)); } }
+    else if (ph === 2 && !end) {
+      if ((turn -= dt) <= 0) { turn = 0.4 + Math.random() * 1.1; fv = (Math.random() < 0.5 ? -1 : 1) * (70 + Math.random() * 90) * (0.8 + tier * 0.15) * (0.5 + hp / maxHp * 0.5); } // 魚自己亂跑，血少就沒力
+      fx = Math.max(RX0 + 4, Math.min(RX1 - 4, fx + (fv + steer * 230) * dt));
+      const danger = fx < RX0 + dzW || fx > RX1 - dzW; en = Math.max(0, en + (danger ? 0.42 : -0.05) * dt); if (en >= 1) done(false); }
+    shake = Math.max(0, shake - dt); flash = Math.max(0, flash - dt);
+    g.clearRect(0, 0, W, 400);
+    // 河延長到右邊（原圖河道只到 512）＋右邊浪花
+    const base = WF.base; if (base.complete && base.naturalWidth) { g.drawImage(base, 440, 280, 72, 92, 510, 280, RX1 - 510 + 20, 92); g.drawImage(base, 0, 0); }
+    im('wave', RX1 - 70, 236);
+    // 危險條（左上）：能量從下往上漲
+    const GX = 8, GY = 40; im('gauge0', GX, GY); const gi = WF.gauge; if (gi.complete && gi.naturalWidth && en > 0) { const fh = Math.round(126 * Math.min(1, en)), sy = 20 + 126 - fh; g.drawImage(gi, 0, sy, 43, fh + 7, GX, GY + sy, 43, fh + 7); }
+    if (ph === 1) im('dcur', GX - 4, GY + 80);
+    if (ph === 1) { g.globalAlpha = flash > 0 ? 0.5 + 0.5 * Math.sin(now / 40) : 1; im('spot' + spot, spX, RY0 - 1, spW, 45); g.globalAlpha = 1; im('hook', hx - 24, RCY - 50); }
+    else { g.globalAlpha = 0.75; im('dz' + tier, RX0, RY0 - 1, dzW, 45); g.save(); g.translate(RX1, 0); g.scale(-1, 1); im('dz' + tier, 0, RY0 - 1, dzW, 45); g.restore(); g.globalAlpha = 1;
+      const sx = shake > 0 ? (Math.random() - 0.5) * 6 : 0; im('fish', fx - 28 + sx, RCY - 50);
+      g.font = 'bold italic 22px Arial'; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = '#fff'; g.strokeText(hp, fx, RY1 + 28); g.fillStyle = '#d01010'; g.fillText(hp, fx, RY1 + 28); }
+    // 釣線：竿尖 → 魚鉤／魚
+    g.strokeStyle = '#ffffffaa'; g.lineWidth = 1; g.beginPath(); g.moveTo(330, 4); g.lineTo(ph === 1 ? hx : fx, RCY - 30); g.stroke();
     raf = requestAnimationFrame(loop); };
   raf = requestAnimationFrame(loop);
 }
