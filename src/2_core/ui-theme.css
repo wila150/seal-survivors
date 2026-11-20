@@ -324,6 +324,8 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 
 /* 11/20 自測（手機 390 寬）：分頁按鈕不准一個字一行（拍賣所「瀏覽／上架／我的拍賣」）；長標題（天賦）縮字不換行 */
 #dlg .tabs2 .btn { white-space: nowrap; flex-shrink: 0; }
+#dlg .tabs2 { flex-wrap: wrap; } /* 11/20 使用者：鑑定師分頁在手機擠出畫面、切不回武器 → 排不下就換行 */
+@media (max-width: 640px) { #dlg .tabs2 .btn { padding: 6px 12px !important; } }
 @media (max-width: 640px) {
   #dlg .box.pcf header .pct-txt { font-size: 17px; letter-spacing: 0; white-space: nowrap; max-width: calc(100vw - 110px); overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 }
