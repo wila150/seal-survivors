@@ -253,6 +253,7 @@ const api = {
     if (!a || !verify(password, a.pass)) return send(res, 401, { error: '帳號或密碼錯誤' });
     const token = crypto.randomBytes(24).toString('hex');
     db.prepare('DELETE FROM sessions WHERE expires<?').run(Date.now());
+    db.prepare('DELETE FROM sessions WHERE account_id=?').run(a.id); // 11/20 使用者「竟然可以同時手機電腦開同一支帳號」→ 照 PC：同一帳號只能一個地方登入，新登入把舊的踢掉
     db.prepare('INSERT INTO sessions VALUES (?,?,?)').run(token, a.id, Date.now() + 30 * DAY);
     send(res, 200, { token, username });
   },
@@ -1253,7 +1254,7 @@ http.createServer(async (req, res) => {
     const key = `${req.method} /api/${name}`;
     const fn = api[key]; if (!fn) return send(res, 404, { error: 'not found' });
     let uid = null;
-    if (!PUBLIC.has(key) && !(uid = auth(req))) return send(res, 401, { error: '請重新登入' });
+    if (!PUBLIC.has(key) && !(uid = auth(req))) return send(res, 401, { error: req.headers.authorization ? '這個帳號已經在其他裝置登入（或登入過期），請重新登入' : '請重新登入' });
     try { await fn(req, res, null, uid, id); } catch (e) { if (e?.code === 400) return send(res, 400, { error: '資料格式不對' }); console.error(e); send(res, 500, { error: '伺服器錯誤' }); }
     return;
   }
