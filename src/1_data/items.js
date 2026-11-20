@@ -236,3 +236,12 @@ export function stockFor(charId, hourIndex) {
   const rand = mulberry32(charId * 1000003 + hourIndex * 7919);
   return Array.from({ length: STOCK_SIZE }, () => { const it = rollItem(rand, 0.8); return { ...it, price: STOCK_PRICE[it.rarity] }; });
 }
+
+// 11/20 釣魚 v2：PC 道具編號 → 一件本作裝備（釣到裝備用；品質一般、浮動照常）
+export function itemFromPc(id, rand = Math.random) {
+  for (const [t, list] of Object.entries(PC_ITEMS)) { const x = list.find(v => v[0] === id); if (!x) continue;
+    const base = Object.keys(PC_TYPE_OF).find(k => String(PC_TYPE_OF[k]) === String(t)); if (!base) return null;
+    const slot = Object.keys(BASES).find(sl => BASES[sl].some(b => b.key === base)); if (!slot) return null;
+    return { slot, base, rarity: 0, roll: +(0.9 + rand() * 0.2).toFixed(3), refine: 0, aff: null, pc: id, name: x[1] }; }
+  return null;
+}

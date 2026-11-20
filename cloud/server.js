@@ -19,8 +19,8 @@ import { BPETS, BPET_REQ_LV, AWAKEN, STONE as NAT_STONE, rollGrade, bpetName, ad
 import { PC_PETS, PET_MAX, EGGS, FEED_EXP, addPetExp, petNeed, petStage9, petName, HUNGER_PER_SEC, FEED_HUNGER, PLAY_HUNGER, EVOLVE_SECS, WANT_SLOTS, EVO_CAT, evolveResult, migratePets } from '../src/1_data/pets.js';
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from '../src/1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../src/1_data/talents.js';
-import { RODS, BAIT, CATCH, rollCatch } from '../src/1_data/fishing.js';
-import { wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
+import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf } from '../src/1_data/fishing.js';
+import { itemFromPc, wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../src/1_data/items.js';
 
 const PORT = +process.env.PORT || 8765;
 let _skills = null; const SKILLS = () => (_skills ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'data', 'skills.json'), 'utf8')));
@@ -198,6 +198,8 @@ const send = (res, code, obj) => { res.writeHead(code, { 'content-type': 'applic
 const body = (req, max = 1e5) => new Promise((ok, bad) => { let s = ''; req.on('data', c => { s += c; if (s.length > max) req.destroy(); }); req.on('end', () => { try { const v = s ? JSON.parse(s) : {}; ok(v && typeof v === 'object' && !Array.isArray(v) ? v : {}); } catch { bad(Object.assign(new Error('bad json'), { code: 400 })); } }); }); // 不是物件（null、陣列、字串）一律當空的；壞掉的 JSON 回 400（11/20 自測：以前會 500）
 // 好友：兩邊都加進名單、刪掉兩個方向的邀請
 function friendLink(a, b) { const now = Date.now(); db.prepare('INSERT OR IGNORE INTO friends VALUES (?,?,?)').run(a, b, now); db.prepare('INSERT OR IGNORE INTO friends VALUES (?,?,?)').run(b, a, now); db.prepare('DELETE FROM friendreqs WHERE (from_char=? AND to_char=?) OR (from_char=? AND to_char=?)').run(a, b, b, a); }
+// 釣魚 v2：舊存檔的魚餌數量搬到 baits.bait
+function fishMigrate(F) { F.baits ??= {}; if (F.bait > 0) { F.baits.bait = (F.baits.bait || 0) + F.bait; } F.bait = 0; F.fish ??= {}; }
 function isGm(req, uid) {
   if (['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress || '')) return true;
   const list = String(process.env.GM_USERS || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -240,7 +242,7 @@ function syncWardrobe(c, items) {
   if (changed) { const fresh = JSON.parse(db.prepare('SELECT data FROM characters WHERE id=?').get(c.id).data || '{}'); fresh.wardrobe = W; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(fresh), c.id); }
   return { wardrobe: W, costume: d.costume || {}, favs: d.favs || [] };
 }
-function fullChar(c) { const items = itemsOf(c.id), tb = towerBest(c.id), cd = JSON.parse(c.data || '{}'); return { ...charView(c), ...syncWardrobe(c, items), titles: earnedTitles({ fameLv: fameLevel(cd.fame ?? 0).lv, bossKills: cd.bossKills, towerBest: tb.floor, rebirth: cd.rebirth, job3: cd.job3 }), tower: { ...tb, points: towerPoints(tb.floor), open: towerOpen(charView(c), STAGES) }, unreadMail: db.prepare('SELECT COUNT(*) n FROM mails WHERE char_id=? AND (read=0 OR (claimed=0 AND (gold>0 OR items IS NOT NULL OR mats IS NOT NULL)))').get(c.id).n + (JSON.parse(c.data || '{}').welcomed ? 0 : 1), need: needExp(c.base_lv), jobNeed: jobNeedOf(c), fishing: JSON.parse(c.data || '{}').fishing ?? { rod: 0, bait: 0, fish: {} }, items, bonus: totalBonus(items.filter(i => i.equipped)) }; }
+function fullChar(c) { const items = itemsOf(c.id), tb = towerBest(c.id), cd = JSON.parse(c.data || '{}'); return { ...charView(c), ...syncWardrobe(c, items), titles: earnedTitles({ fameLv: fameLevel(cd.fame ?? 0).lv, bossKills: cd.bossKills, towerBest: tb.floor, rebirth: cd.rebirth, job3: cd.job3 }), tower: { ...tb, points: towerPoints(tb.floor), open: towerOpen(charView(c), STAGES) }, unreadMail: db.prepare('SELECT COUNT(*) n FROM mails WHERE char_id=? AND (read=0 OR (claimed=0 AND (gold>0 OR items IS NOT NULL OR mats IS NOT NULL)))').get(c.id).n + (JSON.parse(c.data || '{}').welcomed ? 0 : 1), need: needExp(c.base_lv), jobNeed: jobNeedOf(c), fishing: (F => { fishMigrate(F); return F; })(JSON.parse(c.data || '{}').fishing ?? { rod: 0, bait: 0, fish: {} }), items, bonus: totalBonus(items.filter(i => i.equipped)) }; }
 
 const api = {
   'POST /api/register': async (req, res) => {
@@ -594,22 +596,38 @@ const api = {
   'POST /api/fishbuy': async (req, res, _, uid) => {
     const { charId, what, n = 1 } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}'), F = d.fishing ??= { rod: 0, bait: 0, fish: {} }; let cost;
-    if (what === 'bait') { if (![10, 50].includes(n)) return send(res, 400, { error: '數量不對' }); cost = BAIT.price * n; F.bait += n; }
+    fishMigrate(F);
+    if (BAITS[what]) { if (![10, 50].includes(n)) return send(res, 400, { error: '數量不對' }); cost = BAITS[what].price * n; F.baits[what] = (F.baits[what] || 0) + n; } // 11/20 v2：魚餌／灰蚯蚓／紅蚯蚓
     else { const r = +String(what).replace('rod', ''); if (!RODS[r]) return send(res, 400, { error: '沒有這種釣竿' }); if (F.rod >= r) return send(res, 400, { error: '已經有一樣好或更好的釣竿了' }); cost = RODS[r].price; F.rod = r; }
     if ((c.gold ?? 0) < cost) return send(res, 400, { error: `金幣不夠（要 ${cost}）` });
     db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(cost, JSON.stringify(d), c.id);
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
-  // 拋竿：用掉 1 個魚餌；hit＝浮標下沉時有沒有及時拉竿（沒拉到就只用掉魚餌）
+  // 11/20 釣魚 v2（照 2u 釣魚系統）：bait＝魚餌 key（bait／worm1／worm2）或 { itemId }（背包裝備當魚餌）；mode＝auto（95 秒一次）／manual（釣魚台小遊戲）；ok＝手動有沒有成功
   'POST /api/fish': async (req, res, _, uid) => {
-    const { charId, hit } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
-    const d = JSON.parse(c.data || '{}'), F = d.fishing ??= { rod: 0, bait: 0, fish: {} };
+    const { charId, bait = 'bait', mode = 'auto', ok = true } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'), F = d.fishing ??= { rod: 0, bait: 0, fish: {} }; fishMigrate(F);
     if (!F.rod) return send(res, 400, { error: '先跟釣魚老人買一支釣竿' });
-    if (!(F.bait > 0)) return send(res, 400, { error: '沒有魚餌了' });
-    F.bait--; let got = null;
-    if (hit) { got = rollCatch(F.rod); if (got.mat) { d.mats ??= {}; d.mats[got.mat] = (d.mats[got.mat] || 0) + 1; } else F.fish[got.key] = (F.fish[got.key] || 0) + 1; }
+    const now = Date.now(), manual = mode === 'manual';
+    if (!manual && now - (F.lastAuto || 0) < (AUTO_SECS - 3) * 1000) return send(res, 400, { error: `自動釣魚每 ${AUTO_SECS} 秒一次` });
+    if (manual && now - (F.lastManual || 0) < 5000) return send(res, 400, { error: '太快了' });
+    let price, item = null;
+    if (typeof bait === 'object' && bait?.itemId) { item = ownItem(uid, bait.itemId); if (!item || item.char_id !== c.id) return send(res, 404, { error: '找不到這件魚餌' });
+      if (item.equipped || item.locked) return send(res, 400, { error: '穿著或鎖定的不能當魚餌' }); price = baitPcPrice({ sellP: sellPrice(itemView(item)) }); }
+    else { const B = BAITS[bait]; if (!B) return send(res, 400, { error: '沒有這種魚餌' }); if (!(F.baits[bait] > 0)) return send(res, 400, { error: `沒有${B.name}了` }); price = B.pc; }
+    if (manual && price > ROD_CAP[F.rod]) return send(res, 400, { error: `${RODS[F.rod].name}只能用購買價格 ${ROD_CAP[F.rod]} 以下的魚餌` });
+    if (item) db.prepare('DELETE FROM items WHERE id=?').run(item.id); else F.baits[bait]--;
+    if (manual) F.lastManual = now; else F.lastAuto = now;
+    let got = null;
+    if (ok) {
+      const id = rollFishV2(price, F.rod, manual);
+      if (FISH_ID[id]) { const f = CATCH.find(x => x.key === FISH_ID[id]); F.fish[f.key] = (F.fish[f.key] || 0) + 1; got = { kind: 'fish', name: f.name, icon: f.icon, rare: !!f.rare }; }
+      else if (GEM_ID[id]) { d.mats ??= {}; d.mats[GEM_ID[id]] = (d.mats[GEM_ID[id]] || 0) + 1; got = { kind: 'mat', name: { crystal: '水晶', ruby: '紅寶石', diamond: '鑽石' }[GEM_ID[id]], rare: id !== 432 }; }
+      else if (JUNK[id]) { F.junk ??= {}; F.junk[id] = (F.junk[id] || 0) + 1; got = { kind: 'junk', name: JUNK[id][0] }; }
+      else { const it = itemFromPc(id); if (it && bagCount(c.id) < BAG_MAX) { const { name, ...rest } = it; giveItem(c.id, rest); got = { kind: 'gear', name, rare: true }; } else { F.junk ??= {}; F.junk[41] = (F.junk[41] || 0) + 1; got = { kind: 'junk', name: '廢鐵罐（背包滿了）' }; } }
+    }
     db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
-    send(res, 200, { got: got && { key: got.key, name: got.name, icon: got.icon, rare: !!got.rare }, char: fullChar(ownChar(uid, c.id)) });
+    send(res, 200, { got, tier: tierOf(price), next: manual ? 0 : AUTO_SECS, char: fullChar(ownChar(uid, c.id)) });
   },
   // 項目 55：稀有魚 2 條 → 艾彼斯的祝福 1 個（白金金魚、鯉魚、綢緞鯉魚任意組合）
   'POST /api/fishtrade': async (req, res, _, uid) => {
@@ -625,6 +643,7 @@ const api = {
     const { charId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}'), F = d.fishing ??= { rod: 0, bait: 0, fish: {} };
     let gold = 0; for (const f of CATCH) if (F.fish[f.key]) { gold += f.sell * F.fish[f.key]; delete F.fish[f.key]; }
+    for (const [id, n] of Object.entries(F.junk || {})) gold += (JUNK[id]?.[1] || 1) * n; F.junk = {}; // 雜物也一起賣
     if (!gold) return send(res, 400, { error: '沒有魚可以賣' });
     db.prepare('UPDATE characters SET gold=gold+?, data=? WHERE id=?').run(gold, JSON.stringify(d), c.id);
     send(res, 200, { gold, char: fullChar(ownChar(uid, c.id)) });

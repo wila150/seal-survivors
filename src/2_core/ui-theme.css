@@ -403,3 +403,20 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .fr-req > div { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 #dlg .fr-req span { font-weight: 800; } #dlg .fr-req small { flex: 1; color: #7a6c5c; }
 #dlg .fr-req .btn { padding: 2px 10px; font-size: 12px; }
+/* 釣魚 v2：釣魚老人視窗、選魚餌、釣魚台小遊戲 */
+#dlg .fbag { background: #fff; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+#dlg .fb { display: inline-flex; align-items: center; gap: 4px; margin: 2px 8px 2px 0; } #dlg .fb img { width: 28px; height: 28px; }
+#dlg .fbtns { display: flex; flex-wrap: wrap; gap: 6px; }
+#dlg .cell.off { filter: grayscale(1); opacity: .45; }
+#dlg .cell .bp { position: absolute; left: 2px; top: 1px; font-size: 9px; color: #2b6fd6; font-weight: 900; text-shadow: 0 0 2px #fff; }
+#fishWin .slot { border: 0; background: none; cursor: pointer; padding: 0; } #fishWin .slot small { font-size: 10px; color: #7a6c5c; }
+#fishWin .bar span { display: block; height: 100%; background: #ffd36b88; border-radius: 6px; transition: width 1s linear; }
+#pier { position: fixed; inset: 0; z-index: 40; background: #0008; display: flex; align-items: center; justify-content: center; }
+#pier .pr { width: min(680px, 96vw); background: linear-gradient(#fffdf6, #efe7d4); border: 3px solid #d8c38f; border-radius: 16px; padding: 10px; box-shadow: 0 10px 30px #000a; }
+#pier .pr-h { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; } #pier .pr-h b { font-size: 18px; color: #2b6fd6; } #pier .pr-h span { flex: 1; font-size: 13px; color: #5a4a3a; }
+#pier .pr-h button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; background: #2f62d6; color: #fff; font-weight: 900; cursor: pointer; }
+#pier canvas { width: 100%; height: auto; border-radius: 10px; display: block; touch-action: none; cursor: pointer; }
+#pier .pr-ui { display: flex; gap: 10px; margin-top: 8px; } #pier .pr-bar { flex: 1; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; }
+#pier .pr-bar i { flex: 1; height: 12px; background: #0002; border-radius: 6px; overflow: hidden; } #pier .pr-bar s { display: block; height: 100%; width: 100%; background: linear-gradient(#7dff7d, #2fae3a); }
+#pier .pr-bar.en s { background: linear-gradient(#ffb36b, #e74c3c); width: 0; }
+#pier .pr-pad { display: flex; justify-content: center; gap: 12px; margin-top: 8px; } #pier .pr-pad button { min-width: 72px; height: 48px; border-radius: 12px; border: 2px solid #fff; background: linear-gradient(#4d86e8, #2a5bbf); color: #fff; font-size: 18px; font-weight: 900; touch-action: none; user-select: none; }
