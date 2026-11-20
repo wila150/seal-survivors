@@ -198,6 +198,14 @@ export const ORES = {
   clk1: { name: '實習生的發條', icon: 4298, price: 5000, desc: '使用後，賦予裝備 N～G 等級的 3 種隨機屬性（會蓋掉原本的發條屬性）', scroll: true },
   clk2: { name: '高手的發條', icon: 4299, price: 15000, desc: '進階發條：賦予裝備 N～XG 等級的 3 種隨機屬性', scroll: true },
   clk3: { name: '武爾坎努斯的發條', icon: 4300, price: 30000, desc: '最高級的發條：N～XG 等級的 3 種隨機屬性，可以選擇維持使用前的屬性', scroll: true },
+  // PC 變身藥水（polymorph.js；item.scr 售價 ÷10，PC 在獅子城道具店 拿坡里 賣）：在背包點藥水「喝下」→ 下一次出征整局變身
+  poly1: { name: '小碗豆變身藥水', icon: 2574, price: 1000, desc: '喝了下一次出征變身成小碗豆（名聲 370 以上）：攻擊力 +5、魔法力 +5、防禦力 +5、必殺技 +5、回避率 +5、移動速度 +3、HP +100', scroll: true },
+  poly2: { name: '蘑菇妹妹變身藥水', icon: 2574, price: 1600, desc: '喝了下一次出征變身成蘑菇妹妹（名聲 5007 以上）：攻擊力 +8、魔法力 +5、防禦力 +5、必殺技 +7、回避率 +6、移動速度 +4、HP +150', scroll: true },
+  poly3: { name: '菜頭王變身藥水', icon: 2574, price: 2400, desc: '喝了下一次出征變身成菜頭王（名聲 8441 以上）：攻擊力 +11、魔法力 +5、防禦力 +5、必殺技 +9、回避率 +7、移動速度 +5、HP +200', scroll: true },
+  poly4: { name: '拳擊毛毛蟲變身藥水', icon: 2574, price: 3400, desc: '喝了下一次出征變身成拳擊毛毛蟲（名聲 14280 以上）：攻擊力 +14、魔法力 +5、防禦力 +5、必殺技 +11、回避率 +8、移動速度 +6、HP +250', scroll: true },
+  poly5: { name: '熊寶寶變身藥水', icon: 2574, price: 4600, desc: '喝了下一次出征變身成熊寶寶（名聲 24207 以上）：攻擊力 +17、魔法力 +5、防禦力 +5、必殺技 +13、回避率 +9、移動速度 +7、HP +300', scroll: true },
+  poly6: { name: '小妖姬變身藥水', icon: 2574, price: 6000, desc: '喝了下一次出征變身成小妖姬（名聲 41082 以上）：攻擊力 +20、魔法力 +5、防禦力 +5、必殺技 +15、回避率 +10、移動速度 +8、HP +350', scroll: true },
+  unpoly: { name: '恢復原狀變身藥水', icon: 2575, price: 10, desc: '解除變身（喝了還沒出征的變身藥水也會取消，藥水不退）', scroll: true },
   // PC 在線與簽到獎勵（服務端 Attendance_Reward.scr／Reward_Time.scr；名稱、圖示、售價照 item.scr ÷1000）
   quartz:  { name: '水晶', icon: 39, price: 0, desc: '合成用寶石（簽到、在線獎勵送的；PC 用在合成與 G 化）', scroll: true, noshop: true },
   petMilk: { name: '奶粉', icon: 759, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +50、飢餓 −25', scroll: true, noshop: true },

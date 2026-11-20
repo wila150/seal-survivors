@@ -276,6 +276,7 @@ import { openTalents } from './src/2_core/talent-ui.js';
 import { openGems } from './src/2_core/gem-ui.js';
 import { RANK_BUFF, rankBuffText } from './src/1_data/rank-buff.js';
 import { gapExp, gapDrop } from './src/1_data/level-gap.js';
+import { POLY } from './src/1_data/polymorph.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
@@ -1895,7 +1896,7 @@ function renderBag() {
     if (bagMode === 'smith') html += `<div class="acts" style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="dismAll">🔨 一鍵分解（非本職業＋普通／精良）</button></div>`;
     const it = items.find(i => i.id === selItem), mk = typeof selItem === 'string' && selItem.startsWith('m:') ? selItem.slice(2) : null;
     if (it) html += `<div class="detail">${itemDetail(it)}</div>`;
-    else if (mk && ORES[mk]) html += `<div class="detail"><b>${ORES[mk].name}</b>　<small>×${c.mats?.[mk] || 0}</small><br><small>${ORES[mk].desc}</small></div>`;
+    else if (mk && ORES[mk]) html += `<div class="detail"><b>${ORES[mk].name}</b>　<small>×${c.mats?.[mk] || 0}</small><br><small>${ORES[mk].desc}</small>${POLY[mk] || mk === 'unpoly' ? `<br>${c.poly ? `<small style="color:#8e44ad">目前已喝：${POLY[c.poly]?.name}（下一次出征變身成 ${POLY[c.poly]?.mob}）</small><br>` : ''}<button class="btn primary" data-act="poly" data-mat="${mk}" ${mk === 'unpoly' && !c.poly ? 'disabled' : ''}>${mk === 'unpoly' ? '解除變身' : '喝下（下一次出征變身）'}</button>` : ''}</div>`;
     else if (bagMode !== 'bag') html += `<div class="detail"><small>點一件裝備看詳細</small></div>`;
   }
   openDlg(title, html, [], bagMode !== 'bag'); // 背包＝小視窗（PC ITEM 大小）
@@ -1933,6 +1934,7 @@ function renderBag() {
     if (a === 'lookcopy') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把這件的外觀改成「${itemName(from)}」？\n「${itemName(from)}」會消失，花 1000 希幣。`, { ok: '複製外觀' }))) return; act('/api/lookcopy', { fromId: from.id, toId: id }, () => '外觀複製完成！'); }
     if (a === 'inherit') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把「${itemName(from)}」的精煉 +${from.refine || 0}、G 化 ${GUP[from.gup || 0]?.tag || '一般'} 繼承到這件？\n「${itemName(from)}」會消失，花 ${inheritCost(from)} 希幣。`, { ok: '繼承' }))) return; act('/api/inherit', { fromId: from.id, toId: id }, () => '繼承完成！'); }
     if (a === 'clock') { const k = b.dataset.kind; if (k !== 'clk3' && (CHAR.items || []).find(x => x.id === id)?.clk && !(await askConfirm(`用「${ORES[k].name}」會蓋掉這件原本的發條屬性，確定？`, { ok: '使用' }))) return; act('/api/clock', { itemId: id, kind: k }, r => r.pending ? '擲出新屬性了：選要換成新的還是維持原本的' : '發條屬性：' + r.lines.map(clkText).join('、')); }
+    if (a === 'poly') { const k = b.dataset.mat; if (POLY[k] && CHAR.poly && !(await askConfirm(`已經喝了「${POLY[CHAR.poly].name}」，換成「${POLY[k].name}」？（之前那瓶不退）`, { ok: '喝下' }))) return; act('/api/poly', { charId: CHAR.id, key: k }, () => k === 'unpoly' ? '恢復原狀了' : `喝下了！下一次出征會變身成${POLY[k].mob}`); }
     if (a === 'clkpick') act('/api/clockpick', { itemId: id, keep: b.dataset.keep === '1' }, () => b.dataset.keep === '1' ? '維持原本的發條屬性' : '換成新的發條屬性');
     if (a === 'clkinh') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把「${itemName(from)}」的發條屬性移到這件？\n（用 1 張發條屬性繼承卷軸，原本那件的發條屬性會消失）`, { ok: '繼承' }))) return; act('/api/clockinherit', { fromId: from.id, toId: id }, () => '發條屬性繼承完成！'); }
     if (a === 'gup') act('/api/gup', { itemId: id, box: b.dataset.box }, r => r.result === 'ok' ? `G 化成功！變成 ${r.tag}` : 'G 化失敗，材料用掉了…');
