@@ -744,7 +744,7 @@ function openTownMap() {
 $('#tmmMap').onclick = openTownMap; $('#tmm').onclick = openTownMap;
 
 // ===== 項目 30：寵物飼育員（買蛋、出戰、餵食、改名）=====
-let petTab = 'p', bpSel = null; // 寵物管理員分頁：p 寵物／b 戰寵
+let petTab = 'p', bpSel = null, bpEq = 0; // 寵物管理員分頁：p 寵物／b 戰寵
 let petSel = null, petFeed = new Set(), petEvo = {}; // petEvo：進化要放的材料 { key: 數量 }
 // 寵物 v3（11/20 照 PC：服務端 item.txt 類別 22＋官方 wiki 49）：蛋在這裡買 → 放進裝備欄（出戰）才會長大 → 第 9 階段帶材料進化成同系列下一階
 const petTabs = () => `<div style="display:flex;gap:6px;margin-bottom:8px"><button class="btn ${petTab === 'p' ? 'primary' : ''}" data-ptab="p">寵物</button><button class="btn ${petTab === 'b' ? 'primary' : ''}" data-ptab="b">戰寵</button></div>`;
@@ -761,6 +761,11 @@ function openBpets() {
       <small>${b.lv < BPV.BPET_MAX_LV ? `經驗 ${b.exp} / ${BPV.bpetNeed(b)}` : '已滿級'}　親密度 ${b.close ?? 0}%　忠誠度 ${b.loyal || 0}</small></div></div>
       <div><small>戰寵能力（PC 原版 bpet_level）：攻擊 ${Math.round(S.atk)}（普攻每下約 ${S.dmg}）・防禦 ${S.def}・HP ${S.hp}</small></div>
       <div><small>召喚中加給你（PC bpet_buff）：<b>${BPV.bpetAuxText(b) || '—'}</b>（等級、GRADE 越高越多；親密度 100% 再 +10%）</small></div>
+      <div style="margin-top:6px"><b>戰寵裝備</b>　<small>PC 原版 item.scr：限定種類、戰寵等級、忠誠度（親密度 100% 時召喚出征才會漲）・買了直接穿上，換下的舊裝備退 10%</small>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${BPV.EQUIP_SLOTS.map((n, i) => { const e = BPV.PC_BPET_EQUIP[b.equip?.[i]]; return `<button class="btn" data-beq="${i}" style="padding:2px 6px;font-size:12px;${i === bpEq ? 'border-color:#ff8a3d;background:#fff4e8' : ''}">${e ? `<img src="assets/items/${e.icon}.png" alt="" style="width:18px;height:18px;vertical-align:middle;image-rendering:pixelated"> ` : ''}${n}：${e ? esc(e.name) : '空'}</button>`; }).join('')}</div>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px;max-height:220px;overflow-y:auto">${(EL => { const show = EL.filter(e => e.req <= b.lv + 10), more = EL.length - show.length;
+          return show.map(e => { const err = BPV.equipCheck(b, e.id), on = b.equip?.[bpEq] === e.id, old = BPV.PC_BPET_EQUIP[b.equip?.[bpEq]], cost = BPV.equipPrice(e) - (old ? BPV.equipRefund(old) : 0);
+            return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;opacity:${err && !on ? 0.6 : 1}"><img src="assets/items/${e.icon}.png" alt="" style="width:24px;height:24px;image-rendering:pixelated"><div style="flex:1;min-width:0"><b>${esc(e.name)}</b><br><small>${e.atk ? `攻擊 ${e.atk}　` : ''}${e.def ? `防禦 ${e.def}　` : ''}Lv ${e.req}${e.loyal ? `・忠誠 ${e.loyal}` : ''}</small></div>${on ? '<b style="color:#c8901a">穿著中</b>' : `<button class="btn" data-bbuy="${e.id}" ${err || c.gold < cost ? `disabled title="${esc(err || `希幣不夠（要 ${cost}）`)}"` : ''} style="padding:2px 8px">買來穿（${BPV.equipPrice(e)}）</button>`}</div>`; }).join('') + (more ? `<small>還有 ${more} 件要更高等級</small>` : ''); })(BPV.equipFor(b.kind, bpEq))}</div></div>
       <div style="margin-top:6px"><b>戰寵技能</b>　<small>技能點 ${BPV.spTotal(b) - BPV.spUsed(b)} / ${BPV.spTotal(b)}（每升一級拿技能點）・攻擊技能出征時自動施放、被動技能永久提升</small>
         <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px">${BPV.skillsFor(b.kind).map(k => { const cur = b.skills?.[k.g] || 0, nx = k.lv[cur], err = BPV.learnCheck(b, k.g);
           return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;opacity:${b.lv >= k.need ? 1 : 0.55}"><b style="min-width:76px">${k.name}</b><span style="min-width:44px">Lv ${cur}/${k.lv.length}</span><small style="flex:1">${esc(k.tip)}${k.need > 1 ? `（戰寵 Lv ${k.need}）` : ''}${[50, 60, 450].includes(k.g) ? '<b style="color:#b0702a">（割草版沒有 AP，學了沒效果）</b>' : /挑釁/.test(k.name) ? '<b style="color:#b0702a">（割草版怪物本來就會圍過來，沒效果）</b>' : ''}</small>${nx ? `<button class="btn" data-bl="${k.g}" ${err ? `disabled title="${esc(err)}"` : ''} style="padding:2px 8px">學（${nx[0]} 點）</button>` : ''}</div>`; }).join('')}</div></div>
@@ -775,6 +780,8 @@ function openBpets() {
   const B = $('#dlgBody'), go = async (body, confirmMsg) => { if (confirmMsg && !(await askConfirm(confirmMsg))) return; try { const r = await call('POST', '/api/bpet', { charId: c.id, ...body }); showChar(r.char); refreshChar(); toast(r.msg); openBpets(); } catch (e) { toast(e.message); } };
   B.querySelectorAll('[data-bs]').forEach(x => x.onclick = () => { bpSel = +x.dataset.bs; openBpets(); });
   B.querySelectorAll('[data-badopt]').forEach(x => x.onclick = () => go({ act: 'adopt', kind: x.dataset.badopt }));
+  B.querySelectorAll('[data-beq]').forEach(x => x.onclick = () => { bpEq = +x.dataset.beq; openBpets(); });
+  B.querySelectorAll('[data-bbuy]').forEach(x => x.onclick = () => { const e = BPV.PC_BPET_EQUIP[x.dataset.bbuy]; go({ act: 'equip', id: b.id, eq: +x.dataset.bbuy }, `花 ${BPV.equipPrice(e)} 希幣買 ${e.name} 給${BPV.bpetName(b)}穿上？`); });
   B.querySelectorAll('[data-bl]').forEach(x => x.onclick = () => go({ act: 'learn', id: b.id, g: +x.dataset.bl }));
   B.querySelectorAll('[data-ba]').forEach(x => x.onclick = () => { const a = x.dataset.ba;
     go({ act: a, id: b?.id }, a === 'awaken' ? `覺醒${BPV.bpetName(b)}？\n成功率 ${Math.round(BPV.AWAKEN[b.stage || 0].rate * 100)}%，不管成功或失敗，屬性自然石和希幣都會用掉（戰寵不會消失）。` : a === 'seal' ? '封印戰寵？照 PC，封印後親密度會歸 0。' : null); });

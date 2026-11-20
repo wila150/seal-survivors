@@ -12,6 +12,7 @@
 // 割草版換算（PC 數值 → 割草版）🔢：戰寵攻擊 × 0.06 × 技能傷害% ＝ 每下傷害；HP × 0.06；防禦：受到傷害 × 100 ÷（100＋防禦 ÷ 10）
 //   主人增益：攻擊 ÷1000＝傷害%、魔法 ÷1000＝技能傷害%、防禦 ÷20＝護甲、攻速 ÷2＝急速、必殺 ×0.06%＝爆擊率、移速 ÷1000＝移速%、HP ÷10000＝最大 HP%
 import { PC_BPET, LEVEL, BUFF, SKILLS } from './pc-bpets.js';
+import { PC_BPET_EQUIP } from './pc-bpet-equip.js';
 export { SKILLS as BPET_SKILLS };
 export const BPETS = {
   light: { name: '光之精靈', item: 13525, icon: 3142, elem: 6, color: 0xfff3a0, fx: 'holy' },
@@ -51,9 +52,27 @@ const passive = (b, g) => { const lv = b.skills?.[g] || 0; return lv ? SKILLS[g]
 const close = b => (b.close ?? 0) >= 100 ? 1.1 : 1; // 2u：親密度 100% 能力提升（幅度原版沒寫，暫定 +10% 🔢）
 export function bpetStats(b) {
   const [, , , hp, atk, def, crit] = row(b), m = close(b), base = PC_BPET.BASE[b.kind] || { delay: 800 };
-  const A = atk + passive(b, 20), H = hp + passive(b, 40), Df = def + passive(b, 30), cdCut = passive(b, 70) / 100; // 鬥志激發／生命增幅／鐵壁／集中
+  const E = equipSum(b), A = atk + passive(b, 20) + E.atk, H = hp + passive(b, 40), Df = def + passive(b, 30) + E.def, cdCut = passive(b, 70) / 100; // 鬥志激發／生命增幅／鐵壁／集中
   return { atk: A * m, dmg: Math.round(A * 0.06 * m), hp: Math.round(H * 0.06 * m), def: Df, crit: crit * 0.0006, delay: base.delay, cdCut, range: 9 };
 }
+// ===== 裝備（服務端 item.scr 類別 50；tools/build-bpet-equip.mjs → pc-bpet-equip.js）=====
+// PC：每隻戰寵 5 格（武器或頭盔／上衣／下褲／精靈石Ⅰ／精靈石Ⅱ）；限定種類、戰寵等級、忠誠度
+// 割草版：在寵物管理員買了直接穿上，換下來的舊裝備照 PC 賣店價（售價 10%）退錢；售價 ÷100 換金幣 🔢
+export { PC_BPET_EQUIP };
+export const EQUIP_SLOTS = ['武器／頭盔', '上衣', '下褲', '精靈石Ⅰ', '精靈石Ⅱ'];
+export const equipPrice = e => Math.max(10, Math.round(e.price / 100));
+export const equipRefund = e => Math.round(equipPrice(e) / 10);
+export const equipFor = (kind, slot) => Object.entries(PC_BPET_EQUIP).filter(([, e]) => e.slot === slot && (!e.kind || e.kind === kind)).map(([id, e]) => ({ id: +id, ...e })).sort((a, b) => a.req - b.req || a.loyal - b.loyal || a.price - b.price);
+// 能不能穿：回傳錯誤或 null
+export function equipCheck(b, id) {
+  const e = PC_BPET_EQUIP[id]; if (!e) return '沒有這件裝備';
+  if (e.kind && e.kind !== b.kind) return '這隻戰寵不能穿';
+  if (b.lv < e.req) return `戰寵要 Lv ${e.req}`;
+  if ((b.loyal || 0) < e.loyal) return `忠誠度要 ${e.loyal}`;
+  if (b.equip?.[e.slot] === +id) return '已經穿著了';
+  return null;
+}
+function equipSum(b) { const o = { atk: 0, def: 0 }; for (const id of b.equip || []) { const e = PC_BPET_EQUIP[id]; if (e && (!e.kind || e.kind === b.kind)) { o.atk += e.atk; o.def += e.def; } } return o; }
 // 主人增益（bpet_buff）
 export function bpetAux(b) {
   const [atk, mag, def, aspd, crit, move, hp] = brow(b), m = close(b);
