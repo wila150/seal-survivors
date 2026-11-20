@@ -170,6 +170,7 @@
   #sysMenu .sm-t{font-weight:900;color:#7a5a2c;text-align:center;margin-bottom:6px;letter-spacing:4px}
   #sysMenu .sm-g{display:grid;grid-template-columns:repeat(4,auto);gap:6px;align-items:center;justify-items:center}
   #sysMenu .pct{min-width:58px}
+  @media (min-width:641px){#menu{z-index:25}} /* 底部常用鈕在視窗上層：開了大視窗也按得到，可以再開別的視窗 */
   #gmBtn{top:calc(220px + env(safe-area-inset-top))!important}
   @media (max-width:640px){
     #menuToggle{top:auto;bottom:calc(max(6px,env(safe-area-inset-bottom)) + 62px);width:50px;height:50px}
@@ -266,8 +267,10 @@ async function call(method, url, data) {
 }
 // 切回這個分頁時確認登入還有效（別的裝置登入了就回登入頁；不用定時輪詢，閒置不吵醒伺服器）
 document.addEventListener('visibilitychange', () => { if (!document.hidden) call('GET', '/api/char/' + CHAR.id).catch(() => {}); });
-async function refreshChar() {
-  const c = await call('GET', '/api/char/' + CHAR.id); CHAR = c;
+async function refreshChar(tries = 0) {
+  // 11/20：伺服器剛好重開／網路斷一下 → 以前 HUD 整個空白；現在自動重試 5 次（1、2、3…秒），還是不行就提示
+  let c; try { c = await call('GET', '/api/char/' + CHAR.id); } catch (e) { if (/重新登入|其他裝置/.test(e.message) || tries >= 5) { toast('連不到伺服器，請重新整理（' + e.message + '）'); throw e; } await new Promise(r => setTimeout(r, 1000 * (tries + 1))); return refreshChar(tries + 1); }
+  CHAR = c;
   try { sessionStorage.setItem('ss_char', JSON.stringify(c)); } catch {}
   $('#meName').textContent = (titleOf(c.title) ? `【${titleOf(c.title).name}】` : '') + c.name; $('#meJob').textContent = c.jobName || c.job;
   $('#meLv').textContent = `經驗 ${c.exp} / ${c.need}`; /* 11/19 使用者：大廳只顯示一個等級（Job 只在角色視窗／百業宗師看） */ $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
