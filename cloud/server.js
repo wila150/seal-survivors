@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS invites (id INTEGER PRIMARY KEY, to_char INTEGER NOT 
 CREATE INDEX IF NOT EXISTS invites_to ON invites(to_char);`);
 try { db.exec('ALTER TABLE characters ADD COLUMN seen INTEGER NOT NULL DEFAULT 0'); } catch {}
 // 公開隊伍列表（PC 組隊搜尋 PARTY SEARCH）：隊伍房間（cloud/party.js）有變動就回報，90 秒沒回報就不列
+db.exec('CREATE TABLE IF NOT EXISTS friendreqs (id INTEGER PRIMARY KEY, from_char INTEGER NOT NULL, to_char INTEGER NOT NULL, created INTEGER NOT NULL, UNIQUE(from_char, to_char))'); // 11/20 使用者：好友要先寄邀請、對方同意才成為好友（雙向）
 db.exec('CREATE TABLE IF NOT EXISTS parties (code TEXT PRIMARY KEY, name TEXT NOT NULL, leader TEXT NOT NULL, lim INTEGER NOT NULL, exp TEXT NOT NULL, count INTEGER NOT NULL, place TEXT NOT NULL, phase TEXT NOT NULL, updated INTEGER NOT NULL)');
 const NPC_SELLERS = ['旅行商人 卡爾', '收藏家 莉莉', '老商人 巴頓'], NPC_MAX = 6, NPC_EVERY = 2 * 3600e3;
 const metaGet = k => db.prepare('SELECT v FROM meta WHERE k=?').get(k)?.v, metaSet = (k, v) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k, String(v));
@@ -195,6 +196,8 @@ const verify = (pw, stored) => { const [salt, h] = stored.split(':'); return cry
 
 const send = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
 const body = (req, max = 1e5) => new Promise((ok, bad) => { let s = ''; req.on('data', c => { s += c; if (s.length > max) req.destroy(); }); req.on('end', () => { try { const v = s ? JSON.parse(s) : {}; ok(v && typeof v === 'object' && !Array.isArray(v) ? v : {}); } catch { bad(Object.assign(new Error('bad json'), { code: 400 })); } }); }); // 不是物件（null、陣列、字串）一律當空的；壞掉的 JSON 回 400（11/20 自測：以前會 500）
+// 好友：兩邊都加進名單、刪掉兩個方向的邀請
+function friendLink(a, b) { const now = Date.now(); db.prepare('INSERT OR IGNORE INTO friends VALUES (?,?,?)').run(a, b, now); db.prepare('INSERT OR IGNORE INTO friends VALUES (?,?,?)').run(b, a, now); db.prepare('DELETE FROM friendreqs WHERE (from_char=? AND to_char=?) OR (from_char=? AND to_char=?)').run(a, b, b, a); }
 function isGm(req, uid) {
   if (['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress || '')) return true;
   const list = String(process.env.GM_USERS || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -1199,7 +1202,7 @@ const api = {
   },
   'DELETE /api/chars': async (req, res, _, uid, id) => {
     const r = db.prepare('DELETE FROM characters WHERE id=? AND account_id=?').run(+id, uid);
-    if (r.changes) { db.prepare('DELETE FROM mails WHERE char_id=?').run(+id); db.prepare('DELETE FROM runs WHERE char_id=?').run(+id); db.prepare('DELETE FROM items WHERE char_id=?').run(+id); db.prepare('DELETE FROM auctions WHERE seller_char=?').run(+id); }
+    if (r.changes) { db.prepare('DELETE FROM mails WHERE char_id=?').run(+id); db.prepare('DELETE FROM runs WHERE char_id=?').run(+id); db.prepare('DELETE FROM items WHERE char_id=?').run(+id); db.prepare('DELETE FROM auctions WHERE seller_char=?').run(+id); db.prepare('DELETE FROM friends WHERE owner_char=? OR friend_char=?').run(+id, +id); db.prepare('DELETE FROM friendreqs WHERE from_char=? OR to_char=?').run(+id, +id); }
     send(res, r.changes ? 200 : 404, r.changes ? { ok: true } : { error: '找不到角色' });
   },
   // ===== 舊存檔搬上雲端（11/20：手機／電腦帳號互通）=====
@@ -1239,24 +1242,40 @@ const api = {
     const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
     const now = Date.now();
     const rows = db.prepare('SELECT c.id, c.name, c.job, c.base_lv, c.seen FROM friends f JOIN characters c ON c.id=f.friend_char WHERE f.owner_char=? ORDER BY c.seen DESC').all(c.id);
-    send(res, 200, { friends: rows.map(r => ({ id: r.id, name: r.name, job: r.job, baseLv: r.base_lv, online: now - (r.seen || 0) < 120e3 })) });
+    const inc = db.prepare('SELECT q.id, c.name, c.job, c.base_lv FROM friendreqs q JOIN characters c ON c.id=q.from_char WHERE q.to_char=? ORDER BY q.created DESC').all(c.id);
+    const out = db.prepare('SELECT q.id, c.name, c.job, c.base_lv FROM friendreqs q JOIN characters c ON c.id=q.to_char WHERE q.from_char=? ORDER BY q.created DESC').all(c.id);
+    const v = r => ({ id: r.id, name: r.name, job: r.job, baseLv: r.base_lv });
+    send(res, 200, { friends: rows.map(r => ({ id: r.id, name: r.name, job: r.job, baseLv: r.base_lv, online: now - (r.seen || 0) < 120e3 })), incoming: inc.map(v), outgoing: out.map(v) });
   },
-  'POST /api/friendadd': async (req, res, _, uid) => {
+  'POST /api/friendadd': async (req, res, _, uid) => { // 寄好友邀請；對方已經寄給你 → 直接成為好友
     const { charId, name } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const f = db.prepare('SELECT id, name FROM characters WHERE name=?').get(String(name || '').trim()); if (!f) return send(res, 404, { error: '找不到這個角色名稱' });
     if (f.id === c.id) return send(res, 400, { error: '不能加自己' });
+    if (db.prepare('SELECT 1 FROM friends WHERE owner_char=? AND friend_char=?').get(c.id, f.id) && db.prepare('SELECT 1 FROM friends WHERE owner_char=? AND friend_char=?').get(f.id, c.id)) return send(res, 400, { error: '已經是好友了' });
     if (db.prepare('SELECT COUNT(*) n FROM friends WHERE owner_char=?').get(c.id).n >= 50) return send(res, 400, { error: '好友最多 50 個' });
-    db.prepare('INSERT OR IGNORE INTO friends VALUES (?,?,?)').run(c.id, f.id, Date.now());
-    send(res, 200, { ok: true, name: f.name });
+    if (db.prepare('SELECT 1 FROM friendreqs WHERE from_char=? AND to_char=?').get(f.id, c.id)) { friendLink(c.id, f.id); return send(res, 200, { ok: true, name: f.name, linked: true }); }
+    db.prepare('INSERT OR IGNORE INTO friendreqs (from_char, to_char, created) VALUES (?,?,?)').run(c.id, f.id, Date.now());
+    send(res, 200, { ok: true, name: f.name, sent: true });
+  },
+  'POST /api/friendreply': async (req, res, _, uid) => { // 收到的好友邀請：同意／拒絕
+    const { charId, id, ok } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const r = db.prepare('SELECT * FROM friendreqs WHERE id=? AND to_char=?').get(+id, c.id); if (!r) return send(res, 404, { error: '邀請不存在（可能已經取消）' });
+    if (ok) { if (db.prepare('SELECT COUNT(*) n FROM friends WHERE owner_char=?').get(c.id).n >= 50) return send(res, 400, { error: '好友最多 50 個' }); friendLink(c.id, r.from_char); }
+    else db.prepare('DELETE FROM friendreqs WHERE id=?').run(r.id);
+    send(res, 200, { ok: true });
+  },
+  'POST /api/friendcancel': async (req, res, _, uid) => { // 收回自己寄出的邀請
+    const { charId, id } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    db.prepare('DELETE FROM friendreqs WHERE id=? AND from_char=?').run(+id, c.id); send(res, 200, { ok: true });
   },
   'POST /api/frienddel': async (req, res, _, uid) => {
     const { charId, friendId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
-    db.prepare('DELETE FROM friends WHERE owner_char=? AND friend_char=?').run(c.id, +friendId); send(res, 200, { ok: true });
+    db.prepare('DELETE FROM friends WHERE (owner_char=? AND friend_char=?) OR (owner_char=? AND friend_char=?)').run(c.id, +friendId, +friendId, c.id); send(res, 200, { ok: true }); // 雙向一起刪
   },
   'POST /api/invite': async (req, res, _, uid) => {
     const { charId, friendId, code } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     if (!/^[A-Z0-9]{6}$/.test(String(code))) return send(res, 400, { error: '隊伍代碼不對' });
-    if (!db.prepare('SELECT 1 FROM friends WHERE owner_char=? AND friend_char=?').get(c.id, +friendId)) return send(res, 400, { error: '只能邀請好友' });
+    if (!db.prepare('SELECT 1 FROM friends WHERE owner_char=? AND friend_char=?').get(c.id, +friendId)) return send(res, 400, { error: '只能邀請好友' }); // 舊的單向好友也可以邀
     db.prepare('DELETE FROM invites WHERE to_char=? AND from_char=?').run(+friendId, c.id);
     db.prepare('INSERT INTO invites (to_char, from_char, from_name, code, created) VALUES (?,?,?,?,?)').run(+friendId, c.id, c.name, code, Date.now());
     send(res, 200, { ok: true });
@@ -1279,7 +1298,7 @@ const api = {
     const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
     const now = Date.now(); db.prepare('UPDATE characters SET seen=? WHERE id=?').run(now, c.id);
     db.prepare('DELETE FROM invites WHERE created<?').run(now - 300e3);
-    send(res, 200, { invites: db.prepare('SELECT id, from_name, code, created FROM invites WHERE to_char=? ORDER BY created DESC LIMIT 5').all(c.id) });
+    send(res, 200, { invites: db.prepare('SELECT id, from_name, code, created FROM invites WHERE to_char=? ORDER BY created DESC LIMIT 5').all(c.id), freqs: db.prepare('SELECT q.id, c.name FROM friendreqs q JOIN characters c ON c.id=q.from_char WHERE q.to_char=?').all(c.id) });
   },
   'POST /api/invitedel': async (req, res, _, uid) => {
     const { charId, id } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });

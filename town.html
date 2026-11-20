@@ -322,9 +322,9 @@ $('#stoneMenuBtn').onclick = () => $('#stoneBtn').click();
 // 左邊系統圖示欄：藍色箭頭收起／展開（記住狀態）；手機的組隊／好友／菜單在這一欄
 { let closed = false; try { closed = localStorage.getItem('ss_side_closed') === '1'; } catch {} $('#sideMenu').classList.toggle('closed', closed);
   $('#sideToggle').onclick = () => { closed = !closed; $('#sideMenu').classList.toggle('closed', closed); try { localStorage.setItem('ss_side_closed', closed ? '1' : '0'); } catch {} }; }
-$('#partyBtnM').onclick = () => openParty(); $('#friendBtnM').onclick = () => openFriends(); $('#setBtnM').onclick = () => escMenu(true);
+$('#partyBtnM').onclick = () => openParty(); $('#friendBtnM').onclick = () => { ptyFr = null; openFriends(); }; $('#setBtnM').onclick = () => escMenu(true);
 $('#keysBtn').onclick = () => document.querySelector('[data-esc="keys"]').click();
-$('#friendBtn').onclick = () => openFriends();
+$('#friendBtn').onclick = () => { ptyFr = null; openFriends(); }; // 每次打開都重新讀（對方同意後才看得到）
 // 組隊：回到主城自動接回原本的隊伍（大廳 → 遊戲 → 大廳同一支）；邀請連結 index.html?join=代碼 → 選好角色進主城後自動加入
 moduleDone.then(() => {
   if (!partyOK()) return;
@@ -1006,6 +1006,7 @@ async function fillThumbs(root) { for (const img of root.querySelectorAll('img[d
 let expSel = 0;
 const fmtT = s => `${String(s / 60 | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 // ===== 組隊副本 v1.1（docs/企劃_組隊副本.md）：照 PC 原版——組隊搜尋（PARTY SEARCH）、創立隊伍（CREATE PARTY）、好友（FRIENDS）各自一個視窗；只有雲端版能用 =====
+let frInc = [], frOut = [], frSeen = new Set();
 let PTY = null, ptyErr = '', ptyInv = [], ptyFr = null, ptyList = null, ptyPage = 0, ptySel = null, frOnline = false, frSel = null;
 const ptyMe = () => CHAR.id, ptyLead = () => PTY?.room?.leader === ptyMe();
 const PTY_T = '組隊', PTY_T_IN = '組隊（隊伍）', FR_T = '好友', PC_T = '創立隊伍';
@@ -1090,24 +1091,31 @@ function ptyLeave() { PTY?.leave(); PTY = null; saveCode(''); ptyList = null; up
 // FRIENDS（照 PC 好友視窗：好友／冒險團／軍團分頁、查詢上線、添加好友、邀請、刪除）
 function openFriends() {
   if (!partyOK()) return openDlg(FR_T, NOCLOUD, [], true);
-  if (!ptyFr) { ptyFr = []; call('GET', '/api/friends?charId=' + CHAR.id).then(r => { ptyFr = r.friends; if (boxOpen(FR_T)) redrawBg(openFriends); }).catch(e => toast(e.message)); }
+  if (!ptyFr) { ptyFr = []; call('GET', '/api/friends?charId=' + CHAR.id).then(r => { ptyFr = r.friends; frInc = r.incoming || []; frOut = r.outgoing || []; if (boxOpen(FR_T)) redrawBg(openFriends); }).catch(e => toast(e.message)); }
   const list = ptyFr.filter(f => !frOnline || f.online);
   const h = `<label class="ck fr-on"><input type="checkbox" id="frOn" ${frOnline ? 'checked' : ''}>查詢上線</label>
-    <div class="fr-list">${list.length ? list.map(f => `<div class="fr-row ${frSel === f.id ? 'on' : ''}" data-fs="${f.id}"><span class="dot ${f.online ? 'on' : ''}"></span><b>${esc(f.name)}</b><small>${esc(f.job)}・Lv ${f.baseLv}</small></div>`).join('') : `<small>${ptyFr.length ? '沒有在線上的好友' : '還沒有好友，按「添加好友」輸入角色名稱（照 PC：單向名單，對方不用同意）'}</small>`}</div>
+    <div class="fr-list">${list.length ? list.map(f => `<div class="fr-row ${frSel === f.id ? 'on' : ''}" data-fs="${f.id}"><span class="dot ${f.online ? 'on' : ''}"></span><b>${esc(f.name)}</b><small>${esc(f.job)}・Lv ${f.baseLv}</small></div>`).join('') : `<small>${ptyFr.length ? '沒有在線上的好友' : '還沒有好友。輸入角色名稱按「寄好友邀請」，對方同意後兩邊都會看到彼此。'}</small>`}</div>
+    ${frInc.length ? `<div class="fr-req"><b>好友邀請（${frInc.length}）</b>${frInc.map(q => `<div><span>${esc(q.name)}</span><small>${esc(q.job)}・Lv ${q.baseLv}</small><button class="btn primary" data-fok="${q.id}">同意</button><button class="btn" data-fno="${q.id}">拒絕</button></div>`).join('')}</div>` : ''}
+    ${frOut.length ? `<div class="fr-req out"><b>已寄出，等對方同意</b>${frOut.map(q => `<div><span>${esc(q.name)}</span><small>${esc(q.job)}・Lv ${q.baseLv}</small><button class="btn" data-fcx="${q.id}">收回</button></div>`).join('')}</div>` : ''}
     <div class="fr-tabs"><img src="assets/ui/pc/fr_tab_on.png" alt="好友"><img src="assets/ui/pc/fr_tab_off.png" alt="冒險團" class="off" title="冒險團（未開放）"><img src="assets/ui/pc/fr_tab_off2.png" alt="軍團" class="off" title="軍團（未開放）"></div>
-    <div class="pty-add"><input id="frName" maxlength="12" placeholder="角色名稱"><button class="btn" id="frAdd">添加好友</button></div>`;
+    <div class="pty-add"><input id="frName" maxlength="12" placeholder="角色名稱"><button class="btn" id="frAdd">寄好友邀請</button></div>`;
   openDlg(FR_T, h, [['邀請', async () => { if (!frSel) return toast('先點一個好友'); if (!PTY) return toast('先創立或加入隊伍'); try { await call('POST', '/api/invite', { charId: CHAR.id, friendId: frSel, code: PTY.code }); toast('已送出邀請（5 分鐘內有效）'); } catch (e) { toast(e.message); } }, true],
     ['刪除', async () => { if (!frSel) return toast('先點一個好友'); if (!(await askConfirm('刪除這個好友？'))) return; await call('POST', '/api/frienddel', { charId: CHAR.id, friendId: frSel }).catch(e => toast(e.message)); frSel = null; ptyFr = null; openFriends(); }]], false);
   const B = $('#dlgBody');
   B.querySelector('#frOn').onchange = e => { frOnline = e.target.checked; openFriends(); };
   B.querySelectorAll('[data-fs]').forEach(r => r.onclick = () => { frSel = +r.dataset.fs; openFriends(); });
-  B.querySelector('#frAdd').onclick = async () => { try { const r = await call('POST', '/api/friendadd', { charId: CHAR.id, name: B.querySelector('#frName').value }); toast(`已加 ${r.name} 為好友`); ptyFr = null; openFriends(); } catch (e) { toast(e.message); } };
+  B.querySelector('#frAdd').onclick = async () => { try { const r = await call('POST', '/api/friendadd', { charId: CHAR.id, name: B.querySelector('#frName').value }); toast(r.linked ? `${r.name} 也邀請過你，已經成為好友` : `已寄好友邀請給 ${r.name}，等對方同意`); ptyFr = null; openFriends(); } catch (e) { toast(e.message); } };
+  const frAct = async (url, data, msg) => { try { await call('POST', url, { charId: CHAR.id, ...data }); if (msg) toast(msg); } catch (e) { toast(e.message); } ptyFr = null; openFriends(); };
+  B.querySelectorAll('[data-fok]').forEach(b => b.onclick = () => frAct('/api/friendreply', { id: +b.dataset.fok, ok: true }, '已成為好友'));
+  B.querySelectorAll('[data-fno]').forEach(b => b.onclick = () => frAct('/api/friendreply', { id: +b.dataset.fno, ok: false }));
+  B.querySelectorAll('[data-fcx]').forEach(b => b.onclick = () => frAct('/api/friendcancel', { id: +b.dataset.fcx }));
 }
 // 邀請：主城每 20 秒問一次（分頁在背景就不問，省額度）；有新邀請跳提示
 let ptyInvSeen = new Set();
 async function ptyPoll() {
   if (!partyOK() || document.hidden || !CHAR?.id) return;
   try { const r = await call('GET', '/api/invites?charId=' + CHAR.id); ptyInv = r.invites || [];
+    for (const q of r.freqs || []) if (!frSeen.has(q.id)) { frSeen.add(q.id); toast(`💌 ${q.name} 想加你好友（按「好友名單」同意）`); if (boxOpen(FR_T)) { ptyFr = null; redrawBg(openFriends); } }
     for (const v of ptyInv) if (!ptyInvSeen.has(v.id)) { ptyInvSeen.add(v.id); if (!PTY) toast(`👥 ${v.from_name} 邀請你組隊（按「組隊」查看）`); }
     if (!PTY && boxOpen(PTY_T)) redrawBg(openParty); } catch {}
 }
