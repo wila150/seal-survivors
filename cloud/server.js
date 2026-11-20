@@ -89,6 +89,17 @@ function expireAuctions() {
 // ①自動上架：每 2 小時補 2 件，NPC 同時最多 6 件；帶技能屬性鑑定（武器、防具）或 G 化的 PC 道具，定價＝賣價 ×8（G 化、鑑定再加價）
 // ②自動收購：玩家上架 10 分鐘以上，依「行情 ÷ 定價」每小時有機率被買走（便宜賣很快、亂開價幾乎不會成交）；金幣扣 5% 手續費後用信件寄給賣家
 db.exec('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)');
+// 錯誤紀錄（11/20 偵測 bug → 維運監控）：前端回報（src/2_core/errlog.js）＋伺服器 500；同一個錯誤只留一列、累加次數
+db.exec('CREATE TABLE IF NOT EXISTS client_errors (sig TEXT PRIMARY KEY, kind TEXT NOT NULL, msg TEXT NOT NULL, src TEXT, page TEXT, ua TEXT, stack TEXT, n INTEGER NOT NULL, first INTEGER NOT NULL, last INTEGER NOT NULL)');
+let errBudget = { min: 0, n: 0 }; // 每分鐘最多寫 120 次，避免被灌爆
+function logErr(kind, msg, src = '', page = '', ua = '', stack = '', line = 0) {
+  const now = Date.now(), m = Math.floor(now / 60e3); if (errBudget.min !== m) errBudget = { min: m, n: 0 }; if (++errBudget.n > 120) return;
+  const S = (v, n) => String(v ?? '').slice(0, n); msg = S(msg, 300); if (!msg) return;
+  const sig = S(`${kind}|${msg}|${S(src, 160)}|${+line || 0}`, 500);
+  db.prepare('INSERT INTO client_errors (sig, kind, msg, src, page, ua, stack, n, first, last) VALUES (?,?,?,?,?,?,?,1,?,?) ON CONFLICT(sig) DO UPDATE SET n=n+1, last=excluded.last, ua=excluded.ua, page=excluded.page')
+    .run(sig, S(kind, 12), msg, S(src, 160) + (line ? ':' + (+line) : ''), S(page, 40), S(ua, 40), S(stack, 800), now, now);
+  if (Math.random() < 0.02) db.prepare('DELETE FROM client_errors WHERE sig NOT IN (SELECT sig FROM client_errors ORDER BY last DESC LIMIT 1000)').run(); // 最多留 1000 種
+}
 // 組隊副本 v1.1：好友（單向名單，照 PC）、隊伍邀請（5 分鐘失效）、角色最後上線時間（主城每 20 秒檢查邀請時更新）
 db.exec(`CREATE TABLE IF NOT EXISTS friends (owner_char INTEGER NOT NULL, friend_char INTEGER NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (owner_char, friend_char));
 CREATE TABLE IF NOT EXISTS invites (id INTEGER PRIMARY KEY, to_char INTEGER NOT NULL, from_char INTEGER NOT NULL, from_name TEXT NOT NULL, code TEXT NOT NULL, created INTEGER NOT NULL);
@@ -1347,7 +1358,20 @@ const api = {
     db.prepare('DELETE FROM invites WHERE id=? AND to_char=?').run(+id, c.id); send(res, 200, { ok: true });
   },
 };
-const PUBLIC = new Set(['POST /api/register', 'POST /api/login', 'POST /api/partyreg']); // partyreg 自己檢查 x-internal
+// ===== 偵測 bug（11/20）=====
+// 前端回報錯誤（不用登入；不收帳號資料）
+api['POST /api/clientlog'] = async (req, res) => {
+  const b = await body(req, 4000); if (typeof b.msg !== 'string') return send(res, 400, { error: 'bad' });
+  logErr(['js', 'promise', 'console', 'load', 'app'].includes(b.kind) ? b.kind : 'js', b.msg, b.src, b.page, b.ua, b.stack, b.line); send(res, 200, { ok: true });
+};
+// 維運監控：/api/ops/health（公開，只回 ok）；/api/ops/errors?since=毫秒（要 header x-ops-token＝環境變數 OPS_TOKEN，不對就當作不存在）
+api['GET /api/ops'] = async (req, res, _, __, sub) => {
+  if (sub === 'health') { db.prepare('SELECT 1').get(); return send(res, 200, { ok: true, t: Date.now() }); }
+  const tok = process.env.OPS_TOKEN || ''; if (sub !== 'errors' || tok.length < 24 || req.headers['x-ops-token'] !== tok) return send(res, 404, { error: 'not found' });
+  const since = Math.max(0, +new URL(req.url, 'http://x').searchParams.get('since') || 0);
+  send(res, 200, { now: Date.now(), errors: db.prepare('SELECT kind, msg, src, page, ua, stack, n, first, last FROM client_errors WHERE last>? ORDER BY last DESC LIMIT 50').all(since) });
+};
+const PUBLIC = new Set(['POST /api/register', 'POST /api/login', 'POST /api/partyreg', 'POST /api/clientlog', 'GET /api/ops']); // partyreg 自己檢查 x-internal
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.json': 'application/json', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm' };
 const BLOCK = /^\/(data|docs|tools|server\.mjs)/; // 不對外提供的檔案
@@ -1360,7 +1384,7 @@ http.createServer(async (req, res) => {
     const fn = api[key]; if (!fn) return send(res, 404, { error: 'not found' });
     let uid = null;
     if (!PUBLIC.has(key) && !(uid = auth(req))) return send(res, 401, { error: req.headers.authorization ? '這個帳號已經在其他裝置登入（或登入過期），請重新登入' : '請重新登入' });
-    try { await fn(req, res, null, uid, id); } catch (e) { if (e?.code === 400) return send(res, 400, { error: '資料格式不對' }); console.error(e); send(res, 500, { error: '伺服器錯誤' }); }
+    try { await fn(req, res, null, uid, id); } catch (e) { if (e?.code === 400) return send(res, 400, { error: '資料格式不對' }); console.error(e); try { logErr('server', e?.message || String(e), key, '', '', String(e?.stack || '').split('\n').slice(0, 5).join('\n')); } catch {} send(res, 500, { error: '伺服器錯誤' }); }
     return;
   }
   let p; try { p = decodeURIComponent(url.pathname); } catch { res.writeHead(400); return res.end(); }

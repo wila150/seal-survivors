@@ -13,6 +13,7 @@ export class Game extends DurableObject {
     super(ctx, env);
     globalThis.__SS_STORAGE = ctx.storage;
     globalThis.process ??= { env: {} }; globalThis.process.env ??= {}; globalThis.process.env.GM_USERS = env.GM_USERS || ''; // GM 帳號（wrangler.toml [vars]）
+    globalThis.process.env.OPS_TOKEN = env.OPS_TOKEN || ''; // 維運監控拿錯誤紀錄用（wrangler secret put OPS_TOKEN）
     ctx.blockConcurrencyWhile(async () => { this.srv = await import('./server.js'); });
   }
   async fetch(request) { return this.srv.handle(request); }
