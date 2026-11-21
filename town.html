@@ -289,6 +289,7 @@ import * as ML from './src/1_data/mainline.js';
 import { weakList } from './src/2_core/stun.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import * as BPD from './src/1_data/blueprint.js'; // PC 希望藍圖
+import { COSTUMES, FASHION_SLOTS, isOnePiece, fashionPrice, fashionText, costumeStats, shopList, STAT_LABEL } from './src/1_data/fashion.js'; // PC 時裝（#15）
 import { BAGS as FT_BAGS, CHESTS as FT_CHESTS, KEY as FT_KEY, chestOdds, JACKPOT_TAKE } from './src/1_data/fortune.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
@@ -1753,29 +1754,60 @@ let sty = null;
 // ===== 造型師＝衣櫥（照 PC：FAVORITE／4 PIECE／ALL IN ONE；時裝只改外觀不改數值）=====
 const PC_BY_ID = new Map(Object.values(PC_ITEMS).flat().map(x => [x[0], x]));
 const WSLOT = { head: '頭部', top: '上衣', bottom: '下衣', shoes: '鞋子' };
-let styTab = 'ward', wSel = 'top';
-function openStylist(keep) { if (styTab === 'ward') return openWardrobe(keep); return openHairStyle(keep); }
+let styTab = 'ward', wSel = 'top', fsSlot = 'top', fsQ = '', fsPage = 0, fsSel = null;
+function openStylist(keep) { if (styTab === 'ward') return openWardrobe(keep); if (styTab === 'shop') return openFashionShop(keep); return openHairStyle(keep); }
+// 衣櫥格子的圖示：一般裝備外觀（pc-items）或 PC 時裝（costumes.js）
+const wardIcon = pc => { const x = PC_BY_ID.get(pc), c = COSTUMES[pc]; const n = x ? x[1] : c ? c[0] : '', i = x ? x[4] : c ? c[3] : 0; return i ? `<img src="assets/items/${i}.png" alt="" title="${esc(n)}${c ? '｜' + fashionText(pc) : ''}">` : ''; };
+const costumeLine = cos => { const s = costumeStats(cos); const t = Object.entries(s).map(([k, v]) => `${STAT_LABEL[k]} +${v}`).join('、'); return t ? `<small style="color:#2e5aa8">穿著時裝能力：${t}（命中、AP 割草版不生效）</small>` : ''; };
 function openWardrobe(keep) {
   const st = keep || { hair: CHAR.hair ?? 0, hairColor: CHAR.hairColor ?? 0, outfit: CHAR.outfit ?? 0, costume: { ...(CHAR.costume || {}) } };
-  const W = CHAR.wardrobe || {}, favs = CHAR.favs || [], ic = pc => { const x = PC_BY_ID.get(pc); return x ? `<img src="assets/items/${x[4]}.png" alt="" title="${esc(x[1])}">` : ''; };
+  const W = CHAR.wardrobe || {}, favs = CHAR.favs || [], ic = wardIcon;
   const fav = [0, 1, 2, 3].map(i => `<div class="wf-row">${Object.keys(WSLOT).map(k => `<div class="wcell sm">${favs[i]?.[k] ? ic(favs[i][k]) : ''}</div>`).join('')}<button class="btn" data-fuse="${i}" ${favs[i] ? '' : 'disabled'}>套</button><button class="btn" data-fsave="${i}">存</button></div>`).join('');
-  const list = W[wSel] || [], cells = [...list.map(pc => `<div class="wcell${st.costume?.[wSel] === pc ? ' on' : ''}" data-wp="${pc}">${ic(pc)}</div>`), ...Array.from({ length: Math.max(0, 40 - list.length) }, () => '<div class="wcell"></div>')].join('');
-  const html = `<div class="wtabs"><button class="btn primary">衣櫥</button><button class="btn" id="toHair">髮型・配色</button></div>
+  const list = (W[wSel] || []).filter(pc => !isOnePiece(pc)), ones = (W.top || []).filter(isOnePiece), cells = [...list.map(pc => `<div class="wcell${st.costume?.[wSel] === pc ? ' on' : ''}" data-wp="${pc}">${ic(pc)}</div>`), ...Array.from({ length: Math.max(0, 40 - list.length) }, () => '<div class="wcell"></div>')].join('');
+  const html = `<div class="wtabs"><button class="btn primary">衣櫥</button><button class="btn" id="toShop">時裝商店</button><button class="btn" id="toHair">髮型・配色</button></div>
     <div class="ward"><div id="styPv" class="wpv"><div id="styLoad" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#5a6a90">載入中…</div>
       <div style="position:absolute;bottom:6px;left:0;right:0;display:flex;justify-content:center;gap:6px"><button class="btn" data-rot="-1">⟲</button><button class="btn" data-rot="1">⟳</button></div></div>
     <div class="wpan"><div class="wt">FAVORITE</div><div class="wsub">分離式</div>${fav}<div class="wsub">一件式</div><div class="wf-row">${'<div class="wcell sm lock">🔒</div>'.repeat(4)}</div><small>* 存＝把目前時裝存成一套，套＝換上那一套</small></div>
-    <div class="wpan wide"><div class="wt">4 PIECE</div><div class="wtabs">${Object.entries(WSLOT).map(([k, v]) => `<button class="btn ${wSel === k ? 'primary' : ''}" data-ws="${k}">${v} ${(W[k] || []).length}</button>`).join('')}<button class="btn" data-wnone="1">脫掉${WSLOT[wSel]}時裝</button></div><div class="wgrid">${cells}</div>
-      <small>拿到過的原版裝備外觀會自動收進衣櫥（賣掉也保留）。時裝只改外觀，不影響數值。</small></div>
-    <div class="wpan"><div class="wt">ALL IN ONE</div><div class="wgrid s">${'<div class="wcell"></div>'.repeat(16)}</div><small>一件式時裝（原版商城套裝）尚未開放</small></div></div>`;
+    <div class="wpan wide"><div class="wt">4 PIECE</div><div class="wtabs">${Object.entries(WSLOT).map(([k, v]) => `<button class="btn ${wSel === k ? 'primary' : ''}" data-ws="${k}">${v} ${(W[k] || []).filter(pc => !isOnePiece(pc)).length}</button>`).join('')}<button class="btn" data-wnone="1">脫掉${WSLOT[wSel]}時裝</button></div><div class="wgrid">${cells}</div>
+      <small>拿到過的原版裝備外觀會自動收進衣櫥（賣掉也保留），只改外觀。PC 時裝（時裝商店買）另有小能力。</small>${costumeLine(st.costume)}</div>
+    <div class="wpan"><div class="wt">ALL IN ONE</div><div class="wgrid s">${[...ones.map(pc => `<div class="wcell${st.costume?.top === pc ? ' on' : ''}" data-wone="${pc}">${ic(pc)}</div>`), ...Array.from({ length: Math.max(0, 16 - ones.length) }, () => '<div class="wcell"></div>')].join('')}</div><small>一件式時裝（穿在上衣欄）；在時裝商店買</small></div></div>`;
   openDlg('造型師・衣櫥', html, [['復原', () => openWardrobe()], ['套用', async () => {
     try { for (const k of Object.keys(WSLOT)) if ((st.costume[k] ?? null) !== (CHAR.costume?.[k] ?? null)) showChar(await call('POST', '/api/costume', { charId: CHAR.id, slot: k, pc: st.costume[k] ?? null })); toast('換好了！'); openWardrobe(); } catch (e) { toast(e.message); } }, true]], true);
   const B = $('#dlgBody');
   $('#toHair').onclick = () => { styTab = 'hair'; openStylist(); };
+  $('#toShop').onclick = () => { styTab = 'shop'; openFashionShop(st); };
+  B.querySelectorAll('[data-wone]').forEach(b => b.onclick = () => { const pc = +b.dataset.wone; st.costume.top = st.costume.top === pc ? undefined : pc; openWardrobe(st); });
   B.querySelectorAll('[data-ws]').forEach(b => b.onclick = () => { wSel = b.dataset.ws; openWardrobe(st); });
   B.querySelectorAll('[data-wp]').forEach(b => b.onclick = () => { const pc = +b.dataset.wp; st.costume[wSel] = st.costume[wSel] === pc ? undefined : pc; openWardrobe(st); });
   B.querySelector('[data-wnone]').onclick = () => { delete st.costume[wSel]; openWardrobe(st); };
   B.querySelectorAll('[data-fsave]').forEach(b => b.onclick = async () => { try { showChar(await call('POST', '/api/costumefav', { charId: CHAR.id, i: +b.dataset.fsave, act: 'save' })); toast(`存到第 ${+b.dataset.fsave + 1} 套`); openWardrobe(st); } catch (e) { toast(e.message); } });
   B.querySelectorAll('[data-fuse]').forEach(b => b.onclick = () => { st.costume = { ...(favs[+b.dataset.fuse] || {}) }; openWardrobe(st); });
+  stylistPreview(st);
+}
+// PC 時裝商店（#15）：依部位／一件式列出 PC 時裝，點一下試穿（左邊預覽），買了永久收進衣櫥
+function openFashionShop(keep) {
+  const st = keep || { hair: CHAR.hair ?? 0, hairColor: CHAR.hairColor ?? 0, outfit: CHAR.outfit ?? 0, costume: { ...(CHAR.costume || {}) } };
+  const W = CHAR.wardrobe || {}, all = shopList(fsSlot, fsQ), PER = 40, pages = Math.max(1, Math.ceil(all.length / PER)); fsPage = Math.min(fsPage, pages - 1);
+  const pg = all.slice(fsPage * PER, fsPage * PER + PER), owned = id => (W[COSTUMES[id][1]] || []).includes(id), sel = fsSel && COSTUMES[fsSel] ? fsSel : null;
+  const html = `<div class="wtabs"><button class="btn" id="toWard">衣櫥</button><button class="btn primary">時裝商店</button><button class="btn" id="toHair">髮型・配色</button></div>
+    <div class="ward"><div id="styPv" class="wpv"><div id="styLoad" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#5a6a90">載入中…</div>
+      <div style="position:absolute;bottom:6px;left:0;right:0;display:flex;justify-content:center;gap:6px"><button class="btn" data-rot="-1">⟲</button><button class="btn" data-rot="1">⟳</button></div></div>
+    <div class="wpan wide"><div class="wt">COSTUME SHOP</div>
+      <div class="wtabs">${[...Object.entries(FASHION_SLOTS), ['one', '一件式']].map(([k, v]) => `<button class="btn ${fsSlot === k ? 'primary' : ''}" data-fss="${k}">${v}</button>`).join('')}<input id="fsQ" placeholder="搜尋名稱" value="${esc(fsQ)}" style="flex:1;min-width:90px"></div>
+      <div class="wgrid">${pg.map(id => `<div class="wcell${sel === id ? ' on' : ''}" data-fsi="${id}" style="${owned(id) ? 'opacity:.45' : ''}">${wardIcon(id)}</div>`).join('')}</div>
+      <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin:4px 0"><button class="btn" data-fsp="-1" ${fsPage ? '' : 'disabled'}>◀</button><small>${fsPage + 1} / ${pages}（${all.length} 件）</small><button class="btn" data-fsp="1" ${fsPage < pages - 1 ? '' : 'disabled'}>▶</button></div>
+      ${sel ? `<div class="sec" style="border:1px solid #c9d5f3;border-radius:10px;padding:8px"><b>${esc(COSTUMES[sel][0])}</b>　<small>${isOnePiece(sel) ? '一件式（上衣欄）' : FASHION_SLOTS[COSTUMES[sel][1]]}</small><br><small>${fashionText(sel)}</small><br>
+        ${owned(sel) ? '<b style="color:#2e7d32">衣櫥裡已經有了</b>' : `<button class="btn primary" id="fsBuy">買下 ${fashionPrice(sel).toLocaleString()} 金幣</button>`}　<small>你有 <b class="gold">${CHAR.gold}</b> 金幣・左邊是試穿</small></div>` : '<small>點一件試穿；灰色＝已經有了。PC 時裝原本是商城道具，這裡用金幣買，買了永久收進衣櫥（造型師「衣櫥」換上）。</small>'}
+    </div></div>`;
+  openDlg('造型師・時裝商店', html, [], true);
+  const B = $('#dlgBody');
+  $('#toWard').onclick = () => { styTab = 'ward'; openWardrobe(); };
+  $('#toHair').onclick = () => { styTab = 'hair'; openStylist(); };
+  B.querySelectorAll('[data-fss]').forEach(b => b.onclick = () => { fsSlot = b.dataset.fss; fsPage = 0; fsSel = null; openFashionShop(st); });
+  B.querySelectorAll('[data-fsp]').forEach(b => b.onclick = () => { fsPage += +b.dataset.fsp; openFashionShop(st); });
+  $('#fsQ').onchange = e => { fsQ = e.target.value.trim(); fsPage = 0; openFashionShop(st); };
+  B.querySelectorAll('[data-fsi]').forEach(b => b.onclick = () => { fsSel = +b.dataset.fsi; const x = COSTUMES[fsSel]; st.costume = { ...(CHAR.costume || {}), [x[1]]: fsSel }; openFashionShop(st); });
+  $('#fsBuy')?.addEventListener('click', async () => { try { const r = await call('POST', '/api/fashionbuy', { charId: CHAR.id, id: fsSel }); showChar(r.char); toast(`買了「${COSTUMES[fsSel][0]}」（-${r.price} 金幣），到衣櫥換上`); openFashionShop(st); } catch (e) { toast(e.message); } });
   stylistPreview(st);
 }
 function openHairStyle(keep) {
@@ -2186,7 +2218,7 @@ function loop(now) {
   raf = requestAnimationFrame(loop);
 }
 raf = requestAnimationFrame(loop);
-window.__town = { player, map: TMAP, center: TC, openBag, openFortune }; // 測試用（無頭截圖）
+window.__town = { player, map: TMAP, center: TC, openBag, openFortune, openFashionShop, openWardrobe }; // 測試用（無頭截圖）
 moduleReady();
 // 切到背景就停
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(loop); } });

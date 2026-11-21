@@ -11,6 +11,7 @@ import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath }
 import { parseMs1, texToPng } from './seal-model.mjs';
 import { parseBn1, parseSkin } from './seal-anim.mjs';
 import { PC_ITEMS } from '../src/1_data/pc-items.js';
+import { COSTUMES } from '../src/1_data/costumes.js'; // 11/21 PC 時裝（tools/build-costumes.mjs）
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..'), OUT = path.join(ROOT, 'assets/models');
 const dir = process.argv[2]; if (!dir) { console.log('用法：node tools/build-wear.mjs <wear 資料夾>'); process.exit(1); }
@@ -27,7 +28,7 @@ const SEC = { 15: ['M_body', 'W_body'], 16: ['M_body', 'W_body'], 25: ['M_Leg', 
 
 const texCache = new Map();
 function texFor(msName, buf) {
-  const refs = [...buf.toString('latin1', 0, Math.min(buf.length, 20000)).matchAll(/([A-Za-z0-9_\-]+)\.(tga|jpg|bmp|dds|png)/gi)].map(m => m[1]);
+  const refs = [...buf.toString('latin1', 0, Math.min(buf.length, 20000)).matchAll(/([A-Za-z0-9_\-]+)\.(tga|jpg|bmp|dds|png|psd)/gi)].map(m => m[1]);
   for (const c of [msName, ...refs]) {
     const real = lower.get(c.toLowerCase() + '.tex'); if (!real) continue;
     if (texCache.has(real)) return texCache.get(real);
@@ -79,5 +80,19 @@ for (const [t, list] of Object.entries(PC_ITEMS)) {
     if (out[0] || out[1]) MAP[it[0]] = out;
   }
 }
+// 11/21 PC 時裝：部位 → cha.dat 段（外觀編號規則跟一般裝備一樣）
+const CSEC = { head: ['M_head', 'W_head'], top: ['M_body', 'W_body'], bottom: ['M_Leg', 'W_Leg'], shoes: ['M_Foot', 'W_Foot'] };
+let nc = 0;
+for (const [id, x] of Object.entries(COSTUMES)) {
+  const sec = CSEC[x[1]], idx = x[2], out = [];
+  for (let k = 0; k < 2; k++) {
+    const n = CHA[sec[k]]?.[idx - 1]; if (!n) { out.push(null); continue; }
+    const key = 'pcw_' + n + '|' + 'MW'[k];
+    if (!done.has(key)) { const d = bodyPiece(n, 'MW'[k]); if (d) { fs.writeFileSync(path.join(OUT, d.name + '.json'), JSON.stringify(d)); nb++; } else miss++; done.set(key, d ? d.name : null); }
+    out.push(done.get(key));
+  }
+  if (out[0] || out[1]) { MAP[id] = out; nc++; }
+}
+console.log(`時裝有外觀 ${nc} 件`);
 fs.writeFileSync(path.join(ROOT, 'src/1_data/pc-wear.js'), `// 自動產生，不要手改（node tools/build-wear.mjs <wear 資料夾>）\n// PC 道具編號 → [男角外觀模型, 女角外觀模型]（assets/models/<名>.json；pcw_＝身上部位、wpn_＝武器／盾）\nexport const PC_WEAR = ${JSON.stringify(MAP)};\n`);
 console.log(`外觀：身上部位 ${nb}、武器／盾 ${ng}、找不到模型 ${miss}；有外觀的道具 ${Object.keys(MAP).length}`);

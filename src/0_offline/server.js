@@ -21,6 +21,7 @@ import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, 
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../1_data/talents.js';
 import * as ATT from '../1_data/attendance.js';
 import * as FT from '../1_data/fortune.js';
+import { COSTUMES, fashionPrice } from '../1_data/fashion.js'; // PC 時裝（#15）
 import { rankBuffOf } from '../1_data/rank-buff.js';
 import { gapExp } from '../1_data/level-gap.js';
 import { POLY } from '../1_data/polymorph.js';
@@ -596,6 +597,20 @@ const api = {
     const d = JSON.parse(c.data || '{}'); d.costume ??= {};
     if (pc == null) delete d.costume[slot]; else { if (!(d.wardrobe?.[slot] || []).includes(+pc)) return send(res, 400, { error: '衣櫥裡沒有這件' }); d.costume[slot] = +pc; }
     db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
+  // PC 時裝（#15，src/1_data/fashion.js）：造型師「時裝商店」用金幣買，永久收進衣櫥（一件式放上衣欄）
+  'POST /api/fashionbuy': async (req, res, _, uid) => {
+    const { charId, id } = await body(req); const x = COSTUMES[+id]; if (!x) return send(res, 400, { error: '沒有這件時裝' });
+    const out = tx(() => {
+      const c = ownChar(uid, charId); if (!c) return { err: '找不到角色' };
+      const d = JSON.parse(c.data || '{}'), W = d.wardrobe ??= {}, L = W[x[1]] ??= [];
+      if (L.includes(+id)) return { err: '衣櫥裡已經有這件了' };
+      const price = fashionPrice(+id); if ((c.gold || 0) < price) return { err: `金幣不夠（要 ${price}）` };
+      L.push(+id); db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(price, JSON.stringify(d), c.id);
+      return { cid: c.id, price };
+    });
+    if (out.err) return send(res, 400, { error: out.err });
+    send(res, 200, { price: out.price, char: fullChar(ownChar(uid, out.cid)) });
   },
   // 衣櫥：我的最愛（4 套）。act＝save（存目前時裝到第 i 套）／use（套用第 i 套）／clear
   'POST /api/costumefav': async (req, res, _, uid) => {

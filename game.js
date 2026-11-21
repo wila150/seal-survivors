@@ -16,6 +16,7 @@ import { titleOf } from './src/1_data/fame.js';
 import { applyRankBuff } from './src/1_data/rank-buff.js';
 import { gapDrop } from './src/1_data/level-gap.js';
 import { applyPoly } from './src/1_data/polymorph.js';
+import { applyCostume } from './src/1_data/fashion.js'; // PC 時裝能力（#15）
 import { createHunt } from './src/1_data/hunt.js'; // PC 狩獵系統
 import { createStun } from './src/2_core/stun.js'; // 元素屬性 × 首領昏厥破韌（使用者 11/21 企劃）
 let STUNS = null, stunTxt = {};
@@ -566,6 +567,7 @@ function reset() {
   // 項目 47：裝上的稱號加成
   { const tb = titleOf(CHAR.title)?.bonus || {}; P.might *= 1 + (tb.atk || 0); P.magic += tb.magic || 0; P.crit += tb.crit || 0; P.speed *= 1 + (tb.speed || 0);
     P.hasteV += (tb.haste || 0) * 100; P.armor += tb.armor || 0; if (tb.hp) { P.maxHp = Math.round(P.maxHp * (1 + tb.hp)); P.hp = P.maxHp; } }
+  P.costumeSt = applyCostume(P, CHAR.costume); // PC 時裝（衣櫥穿的時裝；原版裝備外觀不算）
   P.poly = applyPoly(P, CHAR.poly); // PC 變身（polymorph.scr）：整局變身＋屬性
   P.rankBuff = applyRankBuff(P, CHAR.pwRank); // PC 戰鬥力排名 BUFF（每天 0 點同職業排名前 50 名，Rank.scr）
   // 個性化 v2 主要個性能力值（src/1_data/persona.js；次要個性已經加在素質裡）
