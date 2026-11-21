@@ -284,7 +284,7 @@ import { openGems } from './src/2_core/gem-ui.js';
 import { RANK_BUFF, rankBuffText } from './src/1_data/rank-buff.js';
 import { gapExp, gapDrop } from './src/1_data/level-gap.js';
 import { POLY } from './src/1_data/polymorph.js';
-import { EMO_TABS, emoPos } from './src/1_data/emote.js';
+import { EMO_TABS, emoPos , ACTIONS } from './src/1_data/emote.js';
 import * as ML from './src/1_data/mainline.js';
 import { weakList } from './src/2_core/stun.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
@@ -439,14 +439,18 @@ qmRender();
 // ===== PC 表情（EMOTION 視窗：感情／記號／特殊；圖＝客戶端 Emoticon.tex）：自己頭上冒 3 秒，主城其他玩家也看得到 =====
 let emoTab = 0;
 function showEmote(e) { meLbl.querySelector('.emo')?.remove(); const i = document.createElement('i'); i.className = 'emo'; i.style.backgroundPosition = emoPos(e); meLbl.appendChild(i); setTimeout(() => i.remove(), 3000); TNET?.emote(e); }
+// PC 動作系統（2u id=71）：角色播一次原版動作（男女不同），主城其他玩家也看得到
+function showAction(k) { if (pActor?.riding) return toast('騎坐騎時不能做動作'); pActor?.playOnce?.(k); TNET?.action?.(k); }
 function openEmote() {
-  const [, st, n] = EMO_TABS[emoTab];
-  openDlg('EMOTION 表情', `<div class="tabs2">${EMO_TABS.map(([t], i) => `<button class="btn ${i === emoTab ? 'primary' : ''}" data-emt="${i}">${t}</button>`).join('')}</div>
-    <div class="emw">${Array.from({ length: n }, (_, k) => `<button data-emo="${st + k}"><i style="background-position:${emoPos(st + k)}"></i></button>`).join('')}</div>
-    <p style="text-align:center;font-size:12px;color:#6b5a4e;margin:6px 0">點一下，角色頭上會出現表情（主城裡其他玩家也看得到）</p>`, []);
+  const ACT = emoTab === EMO_TABS.length, [, st, n] = EMO_TABS[emoTab] || [];
+  openDlg('EMOTION 表情', `<div class="tabs2">${EMO_TABS.map(([t], i) => `<button class="btn ${i === emoTab ? 'primary' : ''}" data-emt="${i}">${t}</button>`).join('')}<button class="btn ${ACT ? 'primary' : ''}" data-emt="${EMO_TABS.length}">動作</button></div>
+    ${ACT ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px">${ACTIONS.map(([k, nm, cmd]) => `<button class="btn" data-act2="${k}" title="${cmd}">${nm}</button>`).join('')}</div>
+    <p style="text-align:center;font-size:12px;color:#6b5a4e;margin:6px 0">點一下，角色做一次原版動作（要站著不動；主城裡其他玩家也看得到）</p>` : `<div class="emw">${Array.from({ length: n }, (_, k) => `<button data-emo="${st + k}"><i style="background-position:${emoPos(st + k)}"></i></button>`).join('')}</div>
+    <p style="text-align:center;font-size:12px;color:#6b5a4e;margin:6px 0">點一下，角色頭上會出現表情（主城裡其他玩家也看得到）</p>`}`, []);
   const b = $('#dlgBody');
   b.querySelectorAll('[data-emt]').forEach(x => x.onclick = () => { emoTab = +x.dataset.emt; openEmote(); });
   b.querySelectorAll('[data-emo]').forEach(x => x.onclick = () => showEmote(+x.dataset.emo));
+  b.querySelectorAll('[data-act2]').forEach(x => x.onclick = () => showAction(x.dataset.act2));
 }
 // ===== 主線巡邏（docs/企劃_主線獎勵.md）：沒出征也在累積（最多 12 小時），快速巡邏每天 3 次 =====
 async function openPatrol() {
@@ -2381,7 +2385,7 @@ function loop(now) {
   raf = requestAnimationFrame(loop);
 }
 raf = requestAnimationFrame(loop);
-window.__town = { player, map: TMAP, center: TC, openBag, openFortune, openFashionShop, openWardrobe, openTrade, openBuyOrders, openRula }; // 測試用（無頭截圖）
+window.__town = { player, map: TMAP, center: TC, openBag, openFortune, openFashionShop, openWardrobe, openTrade, openBuyOrders, openRula, openEmote }; // 測試用（無頭截圖）
 moduleReady();
 // 切到背景就停
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(loop); } });

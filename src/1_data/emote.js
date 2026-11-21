@@ -8,3 +8,7 @@ export function emoXY(e) {
 }
 export const EMO_MAX = 38;
 export const emoPos = e => { const [x, y] = emoXY(e); return `-${x}px -${y}px`; };
+// PC 動作系統（2u news id=71）：13 個動作，男女不同；動作檔＝客戶端 actor/M_／W_social_*、*_bow（tools/build-anims.mjs SOCIAL → 動作組 s_*）
+export const ACTIONS = [['s_bow', '拜年', '/拜年'], ['s_scare', '驚訝', '/驚訝'], ['s_doze', '打瞌睡', '/打瞌睡'], ['s_anger', '發怒', '/怒'], ['s_grats', '恭喜', '/恭喜'], ['s_sulk', '生氣', '/生氣'], ['s_agree', '同意', '/同意'],
+  ['s_greet', '打招呼', '/打招呼'], ['s_cute', '撒嬌', '/撒嬌'], ['s_frustrated', '挫折', '/挫折'], ['s_whine', '賴皮', '/賴皮'], ['s_threat', '威脅', '/威脅'], ['s_cry', '哭', '/哭']];
+export const isAction = k => ACTIONS.some(a => a[0] === k);

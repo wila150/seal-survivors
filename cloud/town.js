@@ -24,6 +24,7 @@ export class Town extends DurableObject {
     let o; try { o = JSON.parse(raw); } catch { return; } const a = ws.deserializeAttachment(); if (!a?.m) return;
     if (o.t === 'p') { const p = { x: +o.x || 0, z: +o.z || 0, ry: +o.ry || 0, mv: o.mv ? 1 : 0, rd: o.rd ? 1 : 0 }; a.p = p; ws.serializeAttachment(a); this.bcast({ t: 'p', id: a.m.charId, ...p }, ws); }
     else if (o.t === 'e') { const e = o.e | 0, now = Date.now(); if (e < 0 || e >= 64 || now - (a.eAt || 0) < 1500) return; a.eAt = now; ws.serializeAttachment(a); this.bcast({ t: 'e', id: a.m.charId, e }, ws); } // PC 表情（客戶端 Emoticon.tex），每 1.5 秒最多一次
+    else if (o.t === 'a') { const k = String(o.k || ''), now = Date.now(); if (!/^s_[a-z]{2,12}$/.test(k) || now - (a.eAt || 0) < 1500) return; a.eAt = now; ws.serializeAttachment(a); this.bcast({ t: 'a', id: a.m.charId, k }, ws); } // PC 動作系統（跟表情共用 1.5 秒冷卻）
     else if (o.t === 'ping') ws.send(JSON.stringify({ t: 'pong' }));
   }
   async webSocketClose(ws) { this.gone(ws); }

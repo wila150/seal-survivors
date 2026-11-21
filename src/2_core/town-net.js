@@ -30,6 +30,7 @@ export function createTownNet({ THREE, scene, camera, player, CHAR, token, groun
       else if (o.t === 'join') add(o.m, null);
       else if (o.t === 'leave') remove(o.id);
       else if (o.t === 'e') { const r = others.get(o.id); if (r) showEmo(r.el, o.e); } // PC 表情
+      else if (o.t === 'a') { const r = others.get(o.id); if (r && !r.mv) r.g?.userData.actor?.playOnce?.(o.k); } // PC 動作系統（s_bow…s_cry）
       else if (o.t === 'p') { const r = others.get(o.id); if (!r) return; const now = performance.now();
         // 11/20 使用者：「看對方移動卡卡的」→ 記下速度，兩次封包之間照速度往前推（不是走到就停），再慢慢修正誤差
         if (r.seen && r.at) { const dtS = Math.max(0.03, (now - r.at) / 1000); r.vx = (o.x - r.tx) / dtS; r.vz = (o.z - r.tz) / dtS; if (Math.hypot(r.vx, r.vz) > 20) r.vx = r.vz = 0; }
@@ -48,6 +49,7 @@ export function createTownNet({ THREE, scene, camera, player, CHAR, token, groun
     get count() { return others.size; },
     positions() { return [...others.values()].filter(o => o.seen).map(o => ({ id: o.m.charId, x: o.x, z: o.z, name: o.m.name })); }, // 小地圖用（11/21 使用者：地圖不會顯示其他玩家）
     emote(e) { if (ws?.readyState === 1) ws.send(JSON.stringify({ t: 'e', e })); },
+    action(k) { if (ws?.readyState === 1) ws.send(JSON.stringify({ t: 'a', k })); },
     tick(dt) {
       const now = performance.now(), mv = moving();
       if (mv) { lastAct = now; if (!want) { want = true; connect(); } }
