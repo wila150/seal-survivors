@@ -122,6 +122,7 @@ try { db.exec('ALTER TABLE characters ADD COLUMN seen INTEGER NOT NULL DEFAULT 0
 // 公開隊伍列表（PC 組隊搜尋 PARTY SEARCH）：隊伍房間（cloud/party.js）有變動就回報，90 秒沒回報就不列
 db.exec('CREATE TABLE IF NOT EXISTS friendreqs (id INTEGER PRIMARY KEY, from_char INTEGER NOT NULL, to_char INTEGER NOT NULL, created INTEGER NOT NULL, UNIQUE(from_char, to_char))'); // 11/20 使用者：好友要先寄邀請、對方同意才成為好友（雙向）
 db.exec('CREATE TABLE IF NOT EXISTS parties (code TEXT PRIMARY KEY, name TEXT NOT NULL, leader TEXT NOT NULL, lim INTEGER NOT NULL, exp TEXT NOT NULL, count INTEGER NOT NULL, place TEXT NOT NULL, phase TEXT NOT NULL, updated INTEGER NOT NULL)');
+try { db.exec('ALTER TABLE parties ADD COLUMN lv INTEGER NOT NULL DEFAULT 1'); } catch {} // 11/21 冒險團：隊長 Job 等級（PC：等級差 ±40 才能組隊，搜尋列表不顯示組不了的隊伍）
 const NPC_SELLERS = ['旅行商人 卡爾', '收藏家 莉莉', '老商人 巴頓'], NPC_MAX = 6, NPC_EVERY = 2 * 3600e3;
 const metaGet = k => db.prepare('SELECT v FROM meta WHERE k=?').get(k)?.v, metaSet = (k, v) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k, String(v));
 const ftGet = () => { try { return { pool: FT.JACKPOT_SEED, ...JSON.parse(metaGet('fortune') || '{}') }; } catch { return { pool: FT.JACKPOT_SEED }; } }, ftPut = F => metaSet('fortune', JSON.stringify(F)); // 發財遊戲全服彩金
@@ -1610,13 +1611,13 @@ const api = {
     if (req.headers['x-internal'] !== '1') return send(res, 403, { error: 'forbidden' });
     const r = await body(req); if (!/^[A-Z0-9]{6}$/.test(String(r.code))) return send(res, 400, { error: 'bad' });
     if (!r.count) { db.prepare('DELETE FROM parties WHERE code=?').run(r.code); return send(res, 200, { ok: true }); }
-    db.prepare('INSERT INTO parties VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET name=excluded.name, leader=excluded.leader, lim=excluded.lim, exp=excluded.exp, count=excluded.count, place=excluded.place, phase=excluded.phase, updated=excluded.updated')
-      .run(r.code, String(r.name || '').slice(0, 20), String(r.leader || '').slice(0, 20), +r.lim || 4, r.exp === 'even' ? 'even' : 'own', +r.count, String(r.place || '主城').slice(0, 20), r.phase === 'game' ? 'game' : 'lobby', Date.now());
+    db.prepare('INSERT INTO parties (code, name, leader, lim, exp, count, place, phase, updated, lv) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET name=excluded.name, leader=excluded.leader, lim=excluded.lim, exp=excluded.exp, count=excluded.count, place=excluded.place, phase=excluded.phase, updated=excluded.updated, lv=excluded.lv')
+      .run(r.code, String(r.name || '').slice(0, 20), String(r.leader || '').slice(0, 20), +r.lim || 4, r.exp === 'even' ? 'even' : 'own', +r.count, String(r.place || '主城').slice(0, 20), r.phase === 'game' ? 'game' : 'lobby', Date.now(), Math.max(1, Math.min(200, +r.lv || 1)));
     send(res, 200, { ok: true });
   },
   'GET /api/parties': async (req, res) => {
     const now = Date.now(); db.prepare('DELETE FROM parties WHERE updated<?').run(now - 90e3);
-    send(res, 200, { parties: db.prepare('SELECT code, name, leader, lim, exp, count, place, phase FROM parties ORDER BY (phase=\'lobby\') DESC, updated DESC LIMIT 80').all() });
+    send(res, 200, { parties: db.prepare('SELECT code, name, leader, lim, exp, count, place, phase, lv FROM parties ORDER BY (phase=\'lobby\') DESC, updated DESC LIMIT 80').all() });
   },
   // 主城每 20 秒問一次（順便記錄上線時間）
   'GET /api/invites': async (req, res, _, uid) => {

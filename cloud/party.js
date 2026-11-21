@@ -22,7 +22,7 @@ export class Party extends DurableObject {
   async reg() {
     const M = this.meta, ms = this.members(); if (!M?.code || !this.env.GAME) return;
     const lead = ms.find(x => x.charId === M.leader);
-    const body = JSON.stringify({ code: M.code, name: M.name, leader: lead?.name || '', lim: M.lim, exp: M.exp, count: ms.length + Object.keys(M.left || {}).length, place: M.phase === 'game' ? (M.setup?.name || '野外') : '主城', phase: M.phase });
+    const body = JSON.stringify({ code: M.code, name: M.name, leader: lead?.name || '', lim: M.lim, exp: M.exp, count: ms.length + Object.keys(M.left || {}).length, place: M.phase === 'game' ? (M.setup?.name || '野外') : '主城', phase: M.phase, lv: lead?.jobLv || 1 }); // lv＝隊長 Job 等級（搜尋列表藏 ±40 以外的隊伍）
     try { await this.env.GAME.get(this.env.GAME.idFromName('main')).fetch(new Request('https://x/api/partyreg', { method: 'POST', headers: { 'content-type': 'application/json', 'x-internal': '1' }, body })); } catch {}
   }
 
@@ -40,7 +40,7 @@ export class Party extends DurableObject {
     if (!create && count === 0 && !M.roster.includes(m.charId)) return fail('找不到這支隊伍（代碼打錯，或隊伍已經解散）');
     if (count >= Math.min(PARTY_MAX, M.lim || PARTY_MAX)) return fail(`隊伍滿了（最多 ${Math.min(PARTY_MAX, M.lim || PARTY_MAX)} 人）`);
     if (M.phase === 'game' && !M.roster.includes(m.charId)) return fail('這支隊伍正在打，等他們回主城再加入');
-    { const lvs = others.filter(w => w !== dup).map(w => w.deserializeAttachment().m.baseLv || 1); if (lvs.some(l => Math.abs(l - (m.baseLv || 1)) > 40)) return fail('等級差超過 40，不能組同一隊（照 PC 冒險團）'); }
+    { const lvs = others.filter(w => w !== dup).map(w => w.deserializeAttachment().m.jobLv || 1); if (lvs.some(l => Math.abs(l - (m.jobLv || 1)) > 40)) return fail('Job 等級差超過 40，不能組同一隊（照 PC 冒險團）'); } // 11/21 Base 改成轉生次數 → 等級看 Job
     if (count === 0 && !M.roster.includes(m.charId)) { this.meta = { leader: m.charId, phase: 'lobby', setup: null, seed: 0, roster: [], left: {}, name: '', lim: PARTY_MAX, exp: 'own', code: '' }; }
     const R = this.meta; if (!R.roster.includes(m.charId)) R.roster.push(m.charId); delete R.left[m.charId];
     R.code = U.pathname.split('/').pop();
