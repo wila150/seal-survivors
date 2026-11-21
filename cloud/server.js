@@ -28,6 +28,7 @@ import { gapExp } from '../src/1_data/level-gap.js';
 import { POLY } from '../src/1_data/polymorph.js';
 import * as BC from '../src/1_data/bosschest.js'; // PC 首領寶箱＋鑰匙
 import * as BP from '../src/1_data/blueprint.js'; // PC 希望藍圖（成長型任務）
+import * as GD from '../src/1_data/guild.js'; // PC 軍團＋情侶
 import { huntExtra } from '../src/1_data/hunt.js';
 import * as ML from '../src/1_data/mainline.js'; // 主線獎勵：時間寶箱、巡邏 // PC 狩獵系統 // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../src/1_data/fishing.js';
@@ -116,6 +117,37 @@ function logErr(kind, msg, src = '', page = '', ua = '', stack = '', line = 0) {
 db.exec(`CREATE TABLE IF NOT EXISTS friends (owner_char INTEGER NOT NULL, friend_char INTEGER NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (owner_char, friend_char));
 CREATE TABLE IF NOT EXISTS invites (id INTEGER PRIMARY KEY, to_char INTEGER NOT NULL, from_char INTEGER NOT NULL, from_name TEXT NOT NULL, code TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS invites_to ON invites(to_char);`);
+// PC 軍團（2u id=62）＋情侶（id=61）：src/1_data/guild.js
+db.exec(`CREATE TABLE IF NOT EXISTS guilds (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, leader INTEGER NOT NULL, notice TEXT NOT NULL DEFAULT '', tier INTEGER NOT NULL DEFAULT 0, lv INTEGER NOT NULL DEFAULT 1, gp INTEGER NOT NULL DEFAULT 0, gold INTEGER NOT NULL DEFAULT 0, emblem TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS guild_members (char_id INTEGER PRIMARY KEY, guild_id INTEGER NOT NULL, rank TEXT NOT NULL DEFAULT 'member', gp INTEGER NOT NULL DEFAULT 0, exp INTEGER NOT NULL DEFAULT 0, joined INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS gm_guild ON guild_members(guild_id);
+CREATE TABLE IF NOT EXISTS guild_invites (guild_id INTEGER NOT NULL, char_id INTEGER NOT NULL, from_name TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (guild_id, char_id));
+CREATE TABLE IF NOT EXISTS couples (id INTEGER PRIMARY KEY, a INTEGER NOT NULL UNIQUE, b INTEGER NOT NULL UNIQUE, since INTEGER NOT NULL, secs INTEGER NOT NULL DEFAULT 0, pts INTEGER NOT NULL DEFAULT 0, used INTEGER NOT NULL DEFAULT 0, last INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS couple_reqs (from_char INTEGER NOT NULL, to_char INTEGER NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (from_char, to_char));`);
+function guildView(c) {
+  const me = db.prepare('SELECT * FROM guild_members WHERE char_id=?').get(c.id);
+  const invites = db.prepare('SELECT i.guild_id id, g.name, i.from_name "from" FROM guild_invites i JOIN guilds g ON g.id=i.guild_id WHERE i.char_id=?').all(c.id);
+  const d = JSON.parse(c.data || '{}');
+  if (!me) return { guild: null, invites, cd: Math.max(0, (d.guildCd || 0) - Date.now()) };
+  const G = db.prepare('SELECT * FROM guilds WHERE id=?').get(me.guild_id), now = Date.now();
+  const members = db.prepare('SELECT m.char_id id, m.rank, m.gp, c.name, c.job, c.job_lv jobLv, c.seen FROM guild_members m JOIN characters c ON c.id=m.char_id WHERE m.guild_id=? ORDER BY m.gp DESC').all(G.id).map(({ seen, ...m }) => ({ ...m, online: now - (seen || 0) < 120e3 }));
+  return { guild: { id: G.id, name: G.name, notice: G.notice, tier: G.tier, cap: GD.GUILD_TIERS[G.tier][1], lv: G.lv, gp: G.gp, need: GD.GP_NEED[G.lv - 1] || 0, gold: G.gold, emblem: G.emblem }, me: { rank: me.rank, gp: me.gp, exp: me.exp }, members, invites };
+}
+function coupleView(c) {
+  const C = coupleOf(c.id), reqs = db.prepare('SELECT q.from_char id, c.name, c.job, c.job_lv jobLv FROM couple_reqs q JOIN characters c ON c.id=q.from_char WHERE q.to_char=?').all(c.id);
+  if (!C) return { couple: null, reqs };
+  const o = db.prepare('SELECT id, name, job, job_lv, seen FROM characters WHERE id=?').get(C.a === c.id ? C.b : C.a), days = Math.floor(C.secs / GD.COUPLE_SECS_PER_DAY);
+  return { couple: { id: o.id, name: o.name, job: o.job, jobLv: o.job_lv, online: Date.now() - (o.seen || 0) < 120e3, days, pts: C.pts, since: C.since, fee: GD.breakFee(days), roses: GD.roses(C.pts, c.job_lv) }, reqs };
+}
+const coupleOf = cid => db.prepare('SELECT * FROM couples WHERE a=? OR b=?').get(cid, cid);
+function coupleTick(cid) { // 情侶同時在線計時：兩人都在線（2 分鐘內有動作）才累積；每 24 分鐘＝1 天、情侶點數 +1（上限 3650）
+  db.prepare('UPDATE characters SET seen=? WHERE id=?').run(Date.now(), cid); /* 在線心跳（主城＋出征）也算上線：軍團／情侶／好友的在線燈 */
+  const C = coupleOf(cid); if (!C) return; const now = Date.now(), other = C.a === cid ? C.b : C.a;
+  const o = db.prepare('SELECT seen FROM characters WHERE id=?').get(other);
+  let secs = C.secs; if (o && now - (o.seen || 0) < 120e3 && C.last) secs += Math.max(0, Math.min(90, Math.round((now - C.last) / 1000)));
+  const pts = Math.min(GD.COUPLE_PTS_MAX, Math.floor(secs / GD.COUPLE_SECS_PER_DAY) - C.used);
+  db.prepare('UPDATE couples SET secs=?, pts=?, last=? WHERE id=?').run(secs, Math.max(0, pts), now, C.id);
+}
 try { db.exec('ALTER TABLE characters ADD COLUMN seen INTEGER NOT NULL DEFAULT 0'); } catch {}
 // 公開隊伍列表（PC 組隊搜尋 PARTY SEARCH）：隊伍房間（cloud/party.js）有變動就回報，90 秒沒回報就不列
 db.exec('CREATE TABLE IF NOT EXISTS friendreqs (id INTEGER PRIMARY KEY, from_char INTEGER NOT NULL, to_char INTEGER NOT NULL, created INTEGER NOT NULL, UNIQUE(from_char, to_char))'); // 11/20 使用者：好友要先寄邀請、對方同意才成為好友（雙向）
@@ -461,6 +493,7 @@ const api = {
       g.fx = (g.fx || 0) + 20 * n; while (g.fx >= 100 && g.grade < 3) { g.fx -= 100; g.grade++; gemUps.push(g.grade); } if (g.grade >= 3) g.fx = Math.min(g.fx, 100); } }
     let souls = 0; if (isTower) { delete d.towerPass; souls = Math.floor(floor / 3); if (souls) { d.mats ??= {}; d.mats.ashton = (d.mats.ashton || 0) + souls; } } // 賢者之塔：入場證用掉、每 3 層 1 個艾希頓之魂
     d.poly = null; // PC 變身：出征結束就恢復原狀（一瓶＝一局）
+    if (jobGain > 0) db.prepare('UPDATE guild_members SET exp=exp+? WHERE char_id=?').run(jobGain, c.id); /* PC 軍團：出征拿到的 Job 經驗累積成可貢獻經驗（每 400＝1 GP） */
     if (!isTower && d.bp?.cur && mobKills && typeof mobKills === 'object') { const K = Math.max(0, +kills | 0), mk = {}; let left = K; for (const [m, n] of Object.entries(mobKills).slice(0, 40)) { const v = Math.max(0, Math.min(left, +n | 0)); if (v) { mk[m] = v; left -= v; } } BP.bpAddKills(d.bp, mk); } // PC 希望藍圖：任務怪擊殺數（總數不超過這局擊殺）
     let bossChest = null; if (bonus && Math.random() < BC.CHEST_DROP) { const k = BC.chestOfStage(S.key); if (k) { d.mats ??= {}; d.mats[k] = (d.mats[k] || 0) + 1; bossChest = ORES[k].name; } } // PC 首領寶箱：打倒 MVP 70% 掉上鎖寶箱
     const spentGold = Math.max(0, Math.min(Math.floor(+req.__spent || 0), (c.gold ?? 0) + gold)); // 項目 37：菁英寶箱花的金幣，結算時扣（不會扣到負的）
@@ -1325,7 +1358,7 @@ const api = {
     const A = attGet(uid), day = ATT.twDay(), now = Date.now();
     if (act === 'tick') { // 在線心跳（主城／出征每分鐘一次；兩次之間最多算 90 秒）
       if (A.last && now - A.last > 0) A.secs = Math.min(ATT.ONLINE_CAP, A.secs + Math.min(ATT.TICK_MAX, Math.round((now - A.last) / 1000)));
-      A.last = now; attPut(uid, A); return send(res, 200, attView(uid));
+      A.last = now; attPut(uid, A); try { coupleTick(c.id); } catch {} return send(res, 200, attView(uid)); /* PC 情侶：同時在線累積天數 */
     }
     if (act === 'check') { // 每日簽到：28 天一輪
       if (A.signDay === day) return send(res, 400, { error: '今天已經簽到過了' });
@@ -1685,6 +1718,127 @@ const api = {
     const v = charView(c);
     const eq = itemsOf(c.id).filter(i => i.equipped), d = JSON.parse(c.data || '{}');
     send(res, 200, { charId: c.id, name: c.name, job: c.job, jobName: v.jobName, gender: c.gender, baseLv: c.base_lv, jobLv: c.job_lv, power: powerOf(eq), hair: v.hair, hairColor: v.hairColor, outfit: v.outfit, costume: d.costume || null, items: eq.map(i => ({ slot: i.slot, base: i.base, pc: i.pc, look: i.look, equipped: true, gup: i.gup })) }); // 隊友畫面要畫你的外觀
+  },
+  // ===== PC 軍團（2u id=62）=====
+  'GET /api/guild': async (req, res, _, uid) => {
+    const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
+    send(res, 200, guildView(c));
+  },
+  'POST /api/guild': async (req, res, _, uid) => {
+    const { charId, act, name, memberId, rank, text, gold, guildId, emblem } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const me = db.prepare('SELECT * FROM guild_members WHERE char_id=?').get(c.id), G = me && db.prepare('SELECT * FROM guilds WHERE id=?').get(me.guild_id);
+    const d = JSON.parse(c.data || '{}'), now = Date.now(), ok = msg => send(res, 200, { msg, ...guildView(ownChar(uid, c.id)) }), err = m => send(res, 400, { error: m });
+    const count = gid => db.prepare('SELECT COUNT(*) n FROM guild_members WHERE guild_id=?').get(gid).n;
+    const lead = me?.rank === 'leader';
+    try {
+      if (act === 'create') {
+        if (me) return err('你已經在軍團裡了');
+        if (c.job_lv < GD.GUILD_CREATE_LV) return err(`要 Job Lv ${GD.GUILD_CREATE_LV} 才能建立軍團`);
+        if ((d.guildCd || 0) > now) return err(`解散軍團後 ${GD.GUILD_REMAKE_DAYS} 天內不能再建立（還要 ${Math.ceil((d.guildCd - now) / 86400e3)} 天）`);
+        const nm = String(name || '').trim().slice(0, 12); if (nm.length < 2) return err('軍團名稱要 2～12 個字');
+        if (db.prepare('SELECT 1 FROM guilds WHERE name=?').get(nm)) return err('這個名稱已經有人用了');
+        const cost = GD.tierCost(0); if ((c.gold ?? 0) < cost) return err(`金幣不夠（建立要 ${cost}）`);
+        tx(() => { db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(cost, c.id);
+          const r = db.prepare('INSERT INTO guilds (name, leader, created) VALUES (?,?,?)').run(nm, c.id, now);
+          db.prepare('INSERT INTO guild_members (char_id, guild_id, rank, joined) VALUES (?,?,?,?)').run(c.id, r.lastInsertRowid, 'leader', now); db.prepare('DELETE FROM guild_invites WHERE char_id=?').run(c.id); });
+        return ok(`建立了軍團「${nm}」`);
+      }
+      if (act === 'accept' || act === 'decline') {
+        const inv = db.prepare('SELECT * FROM guild_invites WHERE guild_id=? AND char_id=?').get(+guildId, c.id); if (!inv) return err('沒有這個邀請');
+        db.prepare('DELETE FROM guild_invites WHERE guild_id=? AND char_id=?').run(+guildId, c.id); if (act === 'decline') return ok('拒絕了邀請');
+        if (me) return err('你已經在軍團裡了'); const g = db.prepare('SELECT * FROM guilds WHERE id=?').get(+guildId); if (!g) return err('這個軍團已經解散了');
+        if (count(g.id) >= GD.GUILD_TIERS[g.tier][1]) return err('軍團人數滿了');
+        db.prepare('INSERT INTO guild_members (char_id, guild_id, rank, joined) VALUES (?,?,?,?)').run(c.id, g.id, 'member', now); db.prepare('DELETE FROM guild_invites WHERE char_id=?').run(c.id);
+        return ok(`加入了軍團「${g.name}」`);
+      }
+      if (!G) return err('你還沒有軍團');
+      if (act === 'invite') {
+        if (!GD.canInvite(me.rank)) return err('只有首長、公爵、侯爵可以邀請');
+        const t = db.prepare('SELECT id, name FROM characters WHERE name=?').get(String(name || '').trim()); if (!t) return err('找不到這個角色');
+        if (db.prepare('SELECT 1 FROM guild_members WHERE char_id=?').get(t.id)) return err('對方已經有軍團了');
+        if (count(G.id) >= GD.GUILD_TIERS[G.tier][1]) return err('軍團人數滿了（首長可以做軍團試練提升上限）');
+        db.prepare('INSERT OR REPLACE INTO guild_invites (guild_id, char_id, from_name, created) VALUES (?,?,?,?)').run(G.id, t.id, c.name, now);
+        return ok(`已邀請 ${t.name}，等對方同意`);
+      }
+      if (act === 'leave') {
+        if (lead) { // PC：首長按退出＝解散；解散後 7 天才能再建立
+          tx(() => { db.prepare('DELETE FROM guild_members WHERE guild_id=?').run(G.id); db.prepare('DELETE FROM guild_invites WHERE guild_id=?').run(G.id); db.prepare('DELETE FROM guilds WHERE id=?').run(G.id);
+            d.guildCd = now + GD.GUILD_REMAKE_DAYS * 86400e3; db.prepare('UPDATE characters SET gold=gold+?, data=? WHERE id=?').run(G.gold, JSON.stringify(d), c.id); });
+          return ok(`解散了軍團「${G.name}」${G.gold ? `（軍團倉庫的 ${G.gold} 金幣退給首長）` : ''}`);
+        }
+        db.prepare('DELETE FROM guild_members WHERE char_id=?').run(c.id); return ok(`退出了軍團「${G.name}」`);
+      }
+      const tgt = memberId && db.prepare('SELECT m.*, c.name, c.job_lv FROM guild_members m JOIN characters c ON c.id=m.char_id WHERE m.char_id=? AND m.guild_id=?').get(+memberId, G.id);
+      if (act === 'kick') {
+        if (!GD.canKick(me.rank)) return err('只有首長、公爵可以踢除'); if (!tgt || tgt.char_id === c.id) return err('找不到這個團員'); if (tgt.rank === 'leader' || (tgt.rank === 'duke' && !lead)) return err('不能踢除這個團員');
+        db.prepare('DELETE FROM guild_members WHERE char_id=?').run(tgt.char_id); return ok(`把 ${tgt.name} 踢出軍團`);
+      }
+      if (act === 'rank') {
+        if (!lead) return err('只有首長可以設立爵位'); if (!tgt || tgt.char_id === c.id) return err('找不到這個團員'); if (!(rank in GD.RANK_LV)) return err('沒有這個爵位');
+        if (tgt.job_lv < GD.RANK_LV[rank]) return err(`${GD.RANKS[rank]}要 Job Lv ${GD.RANK_LV[rank]} 以上`);
+        if (rank !== 'member') { const cap = GD.GUILD_TIERS[G.tier][3][rank], n = db.prepare('SELECT COUNT(*) n FROM guild_members WHERE guild_id=? AND rank=? AND char_id<>?').get(G.id, rank, tgt.char_id).n; if (n >= cap) return err(`${GD.RANKS[rank]}最多 ${cap} 人（提升軍團人數上限會增加）`); }
+        db.prepare('UPDATE guild_members SET rank=? WHERE char_id=?').run(rank, tgt.char_id); return ok(`${tgt.name} 成為${GD.RANKS[rank]}`);
+      }
+      if (act === 'transfer') {
+        if (!lead) return err('只有首長可以轉讓'); if (G.lv < 2) return err('軍團 Lv2 才能轉讓首長'); if (!tgt || tgt.char_id === c.id) return err('找不到這個團員');
+        tx(() => { db.prepare("UPDATE guild_members SET rank='member' WHERE char_id=?").run(c.id); db.prepare("UPDATE guild_members SET rank='leader' WHERE char_id=?").run(tgt.char_id); db.prepare('UPDATE guilds SET leader=? WHERE id=?').run(tgt.char_id, G.id); });
+        return ok(`首長轉讓給 ${tgt.name}`);
+      }
+      if (act === 'notice') { if (!lead) return err('只有首長可以發布公告'); db.prepare('UPDATE guilds SET notice=? WHERE id=?').run(String(text || '').slice(0, 120), G.id); return ok('公告已更新'); }
+      if (act === 'tierup') { // 軍團試練：提升人數上限（首長等級＋希望幣）
+        if (!lead) return err('只有首長可以進行軍團試練'); const t = G.tier + 1; if (t >= GD.GUILD_TIERS.length) return err('人數上限已經最高了');
+        if (c.job_lv < GD.GUILD_TIERS[t][0]) return err(`首長要 Job Lv ${GD.GUILD_TIERS[t][0]}`); const cost = GD.tierCost(t); if ((c.gold ?? 0) < cost) return err(`金幣不夠（要 ${cost}）`);
+        tx(() => { db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(cost, c.id); db.prepare('UPDATE guilds SET tier=? WHERE id=?').run(t, G.id); });
+        return ok(`軍團人數上限提升到 ${GD.GUILD_TIERS[t][1]} 人`);
+      }
+      if (act === 'contribute') { // 把累積的 Job 經驗換成 GP（每 400＝1 GP）；GP 夠就升軍團等級
+        const n = Math.floor(me.exp / GD.GP_PER_EXP); if (n < 1) return err(`可貢獻經驗不足 ${GD.GP_PER_EXP}（出征拿到的 Job 經驗會自動累積）`);
+        let gp = G.gp + n, lv = G.lv; while (lv < GD.GUILD_MAX_LV && gp >= GD.GP_NEED[lv - 1]) { gp -= GD.GP_NEED[lv - 1]; lv++; }
+        tx(() => { db.prepare('UPDATE guild_members SET exp=exp-?, gp=gp+? WHERE char_id=?').run(n * GD.GP_PER_EXP, n, c.id); db.prepare('UPDATE guilds SET gp=?, lv=? WHERE id=?').run(gp, lv, G.id); });
+        return ok(`貢獻了 ${n} GP${lv > G.lv ? `　軍團升到 Lv${lv}！` : ''}`);
+      }
+      if (act === 'deposit' || act === 'withdraw') {
+        if (G.lv < 2) return err('軍團 Lv2 才能用軍團倉庫'); const g = Math.floor(+gold || 0); if (g < 1) return err('金額不對');
+        if (act === 'deposit') { if ((c.gold ?? 0) < g) return err('金幣不夠'); tx(() => { db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(g, c.id); db.prepare('UPDATE guilds SET gold=gold+? WHERE id=?').run(g, G.id); }); return ok(`存入 ${g} 金幣`); }
+        if (!lead) return err('只有首長可以從軍團倉庫拿金幣'); if (G.gold < g) return err('軍團倉庫金幣不夠');
+        tx(() => { db.prepare('UPDATE characters SET gold=gold+? WHERE id=?').run(g, c.id); db.prepare('UPDATE guilds SET gold=gold-? WHERE id=?').run(g, G.id); }); return ok(`取出 ${g} 金幣`);
+      }
+      if (act === 'emblem') { if (!lead) return err('只有首長可以設立紋章'); if (G.lv < 3) return err('軍團 Lv3 才能設立紋章'); if (!GD.EMBLEMS.includes(emblem)) return err('沒有這個紋章'); db.prepare('UPDATE guilds SET emblem=? WHERE id=?').run(emblem, G.id); return ok('紋章已設立'); }
+      return err('不明的動作');
+    } catch (e) { return err(e.message); }
+  },
+  // ===== PC 情侶（2u id=61）=====
+  'GET /api/couple': async (req, res, _, uid) => {
+    const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
+    try { coupleTick(c.id); } catch {} send(res, 200, coupleView(c));
+  },
+  'POST /api/couple': async (req, res, _, uid) => {
+    const { charId, act, name, fromId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const now = Date.now(), C = coupleOf(c.id), ok = msg => send(res, 200, { msg, ...coupleView(ownChar(uid, c.id)) }), err = m => send(res, 400, { error: m });
+    if (act === 'propose') {
+      if (C) return err('你已經有情侶了'); const t = db.prepare('SELECT id, name, gender FROM characters WHERE name=?').get(String(name || '').trim()); if (!t || t.id === c.id) return err('找不到這個角色');
+      if (t.gender === c.gender) return err('只有異性角色可以結成情侶（照 PC）'); if (coupleOf(t.id)) return err('對方已經有情侶了');
+      db.prepare('INSERT OR REPLACE INTO couple_reqs (from_char, to_char, created) VALUES (?,?,?)').run(c.id, t.id, now); return ok(`已向 ${t.name} 申請情侶，等對方同意`);
+    }
+    if (act === 'accept' || act === 'decline') {
+      const q = db.prepare('SELECT * FROM couple_reqs WHERE from_char=? AND to_char=?').get(+fromId, c.id); if (!q) return err('沒有這個申請');
+      db.prepare('DELETE FROM couple_reqs WHERE from_char=? AND to_char=?').run(+fromId, c.id); if (act === 'decline') return ok('拒絕了申請');
+      if (C || coupleOf(+fromId)) return err('有一方已經有情侶了');
+      tx(() => { db.prepare('INSERT INTO couples (a, b, since, last) VALUES (?,?,?,?)').run(Math.min(c.id, +fromId), Math.max(c.id, +fromId), now, now); db.prepare('DELETE FROM couple_reqs WHERE from_char IN (?,?) OR to_char IN (?,?)').run(c.id, +fromId, c.id, +fromId); });
+      return ok('結成情侶了！');
+    }
+    if (!C) return err('你還沒有情侶');
+    if (act === 'break') { // 主動分手付「天數 × 200」希望幣（上限 10 萬）÷10
+      const fee = GD.breakFee(Math.floor(C.secs / GD.COUPLE_SECS_PER_DAY)); if ((c.gold ?? 0) < fee) return err(`分手費用 ${fee} 金幣，金幣不夠`);
+      tx(() => { db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(fee, c.id); db.prepare('DELETE FROM couples WHERE id=?').run(C.id); }); return ok(`分手了（付了 ${fee} 金幣分手費用）`);
+    }
+    if (act === 'roses') { // 情侶商店：情侶點數 × 等級倍率 → 玫瑰花
+      coupleTick(c.id); const C2 = coupleOf(c.id); if (C2.pts < 1) return err('情侶點數不夠（兩人同時在線每 24 分鐘 +1）');
+      const n = GD.roses(C2.pts, c.job_lv), d = JSON.parse(c.data || '{}'); d.mats ??= {}; d.mats.rose = (d.mats.rose || 0) + n;
+      tx(() => { db.prepare('UPDATE couples SET used=used+?, pts=0 WHERE id=?').run(C2.pts, C2.id); db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); });
+      return ok(`用 ${C2.pts} 點情侶點數換了 ${n} 朵玫瑰花`);
+    }
+    err('不明的動作');
   },
   'GET /api/friends': async (req, res, _, uid) => {
     const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });

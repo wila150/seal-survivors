@@ -289,6 +289,7 @@ import * as ML from './src/1_data/mainline.js';
 import { weakList } from './src/2_core/stun.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import * as BPD from './src/1_data/blueprint.js'; // PC 希望藍圖
+import * as GDD from './src/1_data/guild.js'; // PC 軍團＋情侶
 import { COSTUMES, FASHION_SLOTS, isOnePiece, fashionPrice, fashionText, costumeStats, shopList, STAT_LABEL } from './src/1_data/fashion.js'; // PC 時裝（#15）
 import * as TRD from './src/1_data/trade.js'; // PC 交易＋擺攤（#18）
 import { BAGS as FT_BAGS, CHESTS as FT_CHESTS, KEY as FT_KEY, chestOdds, JACKPOT_TAKE } from './src/1_data/fortune.js';
@@ -344,7 +345,7 @@ function showChar(c) {
 }
 // 模組裡有 top-level await（主城地圖），要等整個模組跑完才執行開場（不然 townMount 等變數還沒宣告，11/18 修）
 let moduleReady; const moduleDone = new Promise(r => moduleReady = r);
-Promise.all([refreshChar(), moduleDone]).then(() => { if (CHAR.unreadMail) toast(`📬 你有 ${CHAR.unreadMail} 封新信，去找郵差`); loadTownMount(); checkUnfinishedRun(); const h = location.hash.slice(1); ({ blueprint: () => openBlueprint(), talent: () => $('#talentBtn').click(), gem: () => $('#gemBtn').click(), mail: () => openMail(), stash: () => openStash(), rank: () => openRank(), rebirth: () => openRebirth(), ident: () => openIdent(), zaro: () => openZaro(), job2: () => openJob2(), guide: () => openGuide(), tower: () => openTower(), pet: () => openPets(), fishing: () => openFishing(), expedition: () => openExpedition() })[h]?.(); if (['bag', 'smith'].includes(h)) openBag(h); if (h === 'shop') openMerchant('sell'); if (h === 'stylist') openStylist(); if (h === 'stock') openMerchant('stock'); if (h === 'exp') openExpedition(); if (h === 'mount') openMount(); if (h === 'library') { bSel = 7; openBestiary(); } if (h === 'auction') openAuction('browse'); }).catch(e => console.error(e));
+Promise.all([refreshChar(), moduleDone]).then(() => { if (CHAR.unreadMail) toast(`📬 你有 ${CHAR.unreadMail} 封新信，去找郵差`); loadTownMount(); checkUnfinishedRun(); const h = location.hash.slice(1); ({ blueprint: () => openBlueprint(), guild: () => openGuild(), couple: () => openCouple(), talent: () => $('#talentBtn').click(), gem: () => $('#gemBtn').click(), mail: () => openMail(), stash: () => openStash(), rank: () => openRank(), rebirth: () => openRebirth(), ident: () => openIdent(), zaro: () => openZaro(), job2: () => openJob2(), guide: () => openGuide(), tower: () => openTower(), pet: () => openPets(), fishing: () => openFishing(), expedition: () => openExpedition() })[h]?.(); if (['bag', 'smith'].includes(h)) openBag(h); if (h === 'shop') openMerchant('sell'); if (h === 'stylist') openStylist(); if (h === 'stock') openMerchant('stock'); if (h === 'exp') openExpedition(); if (h === 'mount') openMount(); if (h === 'library') { bSel = 7; openBestiary(); } if (h === 'auction') openAuction('browse'); }).catch(e => console.error(e));
 $('#charsBtn').onclick = () => location.href = './';
 // 右上選單（項目 14）：技能＝本職業 PC 版技能一覽、角色＝素質頁、⚙＝設定
 $('#statBtn').onclick = () => openCharInfo(); // 11/19 使用者附 PC「CHARACTER INFO」截圖：照 PC 版改
@@ -389,6 +390,8 @@ const QM = {
   friend:  { n: '好友', c: '社群', i: 'btn_friend_0', f: 1, run: () => { ptyFr = null; openFriends(); } },
   party:   { n: '組隊', c: '社群', i: 'sys/party', f: 0, run: () => openParty() },
   mail:    { n: '信箱', c: '社群', i: 'sys/mail', f: 0, run: () => openMail() },
+  guild:   { n: '軍團', c: '社群', i: 'qm/sword', f: 0, run: () => openGuild() },
+  couple:  { n: '情侶', c: '社群', i: 'sys/couple', f: 0, run: () => openCouple() },
   trade:   { n: '交易', c: '社群', i: 'qm/shop', f: 1, run: () => openTrade() },
   buyord:  { n: '收購攤', c: '活動', i: 'sys/stall', f: 0, run: () => openBuyOrders() },
   status:  { n: '狀態', c: '角色', i: 'qm/sword', f: 0, run: () => $('#statBtn').click() },
@@ -464,6 +467,67 @@ let ATT_V = null;
 async function attTick() { if (document.hidden || !CHAR) return; try { ATT_V = await call('POST', '/api/attend', { charId: CHAR.id, act: 'tick' }); if ($('#dlgTitle')?.dataset.t?.startsWith('在線與簽到')) openAttend(); } catch {} }
 setInterval(attTick, 60000); setTimeout(attTick, 3000);
 let attTab = 'online';
+// PC 軍團（2u id=62）：建立／邀請／爵位／GP 升級／軍團試練（人數上限）／軍團倉庫（金幣）／紋章
+async function openGuild() {
+  let V; try { V = await call('GET', '/api/guild?charId=' + CHAR.id); } catch (e) { return toast(e.message); }
+  const go = async (b, after) => { try { const r = await call('POST', '/api/guild', { charId: CHAR.id, ...b }); toast(r.msg); await refreshChar?.(); openGuild(); } catch (e) { toast(e.message); } };
+  let h = '';
+  if (V.invites?.length) h += `<div class="sec"><h4>軍團邀請</h4>${V.invites.map(i => `<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span style="flex:1">「${esc(i.name)}」（${esc(i.from)} 邀請）</span><button class="btn primary" data-gac="${i.id}">加入</button><button class="btn" data-gde="${i.id}">拒絕</button></div>`).join('')}</div>`;
+  if (!V.guild) {
+    h += `<p><small>Job Lv ${GDD.GUILD_CREATE_LV} 以上可以建立軍團（${GDD.tierCost(0).toLocaleString()} 金幣，人數上限 ${GDD.GUILD_TIERS[0][1]}）。建立的人是首長，可以邀請團員、設立爵位。團員出征拿到的 Job 經驗會累積，每 ${GDD.GP_PER_EXP} 可以貢獻 1 GP，GP 夠就升軍團等級（Lv2 軍團倉庫、Lv3 紋章）。${V.cd ? `<br><b>解散軍團後還要 ${Math.ceil(V.cd / 86400e3)} 天才能再建立</b>` : ''}</small></p>
+      <div style="display:flex;gap:6px"><input id="gName" maxlength="12" placeholder="軍團名稱（2～12 字）" style="flex:1"><button class="btn primary" id="gMake">建立軍團</button></div>`;
+    openDlg('軍團', h, [], true);
+  } else {
+    const G = V.guild, me = V.me, lead = me.rank === 'leader', T = GDD.GUILD_TIERS, nt = T[G.tier + 1];
+    h += `<div class="sec"><h4>${G.emblem ? G.emblem + ' ' : ''}${esc(G.name)}　<small>軍團 Lv${G.lv}・人數 ${V.members.length}/${G.cap}</small></h4>
+      <div style="height:8px;border-radius:4px;background:#e3e8f3;overflow:hidden"><i style="display:block;height:100%;width:${G.need ? Math.min(100, G.gp / G.need * 100) : 100}%;background:linear-gradient(90deg,#ffd06a,#e09a2a)"></i></div>
+      <small>GP ${G.gp.toLocaleString()} / ${G.need ? G.need.toLocaleString() : 'MAX'}　你：${GDD.RANKS[me.rank]}・已貢獻 ${me.gp} GP・可貢獻經驗 ${me.exp}（${Math.floor(me.exp / GDD.GP_PER_EXP)} GP）</small>
+      <div style="margin-top:6px"><button class="btn primary" id="gGive" ${me.exp < GDD.GP_PER_EXP ? 'disabled' : ''}>貢獻 GP</button></div>
+      <p style="white-space:pre-wrap;background:#f6f8fd;border-radius:8px;padding:6px 8px;margin:8px 0"><small>公告：${esc(G.notice) || '（首長還沒寫公告）'}</small></p></div>
+      <div class="sec"><h4>團員</h4><table style="width:100%;font-size:13px"><tr><th align="left">名字</th><th>爵位</th><th>Job</th><th>GP</th><th></th></tr>${V.members.map(m => `<tr><td style="white-space:nowrap">${m.online ? '🟢' : '⚪'} ${esc(m.name)}</td><td align="center" style="white-space:nowrap">${GDD.RANKS[m.rank]}</td><td align="center">${m.jobLv}</td><td align="center">${m.gp}</td><td align="right">${m.id !== CHAR.id && lead ? `<select data-grk="${m.id}">${Object.keys(GDD.RANK_LV).map(r => `<option value="${r}" ${m.rank === r ? 'selected' : ''}>${GDD.RANKS[r]}</option>`).join('')}</select>` : ''}${m.id !== CHAR.id && GDD.canKick(me.rank) && m.rank !== 'leader' ? `<button class="btn" data-gkk="${m.id}">踢除</button>` : ''}${m.id !== CHAR.id && lead && G.lv >= 2 ? `<button class="btn" data-gtf="${m.id}">轉讓</button>` : ''}</td></tr>`).join('')}</table></div>`;
+    if (GDD.canInvite(me.rank)) h += `<div class="sec"><h4>邀請</h4><div style="display:flex;gap:6px"><input id="gInv" placeholder="角色名字" style="flex:1"><button class="btn primary" id="gInvB">邀請</button></div></div>`;
+    h += `<div class="sec"><h4>軍團倉庫</h4>${G.lv < 2 ? '<small>軍團 Lv2 開放</small>' : `<small>金幣 ${G.gold.toLocaleString()}（大家都能存，只有首長能拿）</small><div style="display:flex;gap:6px;margin-top:4px"><input id="gGold" type="number" min="1" placeholder="金額" style="flex:1"><button class="btn" id="gDep">存入</button>${lead ? '<button class="btn" id="gWd">取出</button>' : ''}</div>`}</div>`;
+    if (lead) h += `<div class="sec"><h4>首長</h4><div style="display:flex;gap:6px"><input id="gNote" maxlength="120" placeholder="軍團公告" value="${esc(G.notice)}" style="flex:1"><button class="btn" id="gNoteB">發布</button></div>
+      <div style="margin-top:6px">${nt ? `<button class="btn" id="gTier">軍團試練：人數上限 → ${nt[1]}（首長 Job Lv ${nt[0]}、${GDD.tierCost(G.tier + 1).toLocaleString()} 金幣）</button>` : '<small>人數上限已最高</small>'}</div>
+      ${G.lv >= 3 ? `<div style="margin-top:6px"><small>紋章：</small>${GDD.EMBLEMS.map(e => `<button class="btn ${G.emblem === e ? 'primary' : ''}" data-gem="${e}">${e}</button>`).join('')}</div>` : '<small>軍團 Lv3 可以設立紋章</small>'}</div>`;
+    h += `<div style="text-align:right;margin-top:6px"><button class="btn" id="gLeave">${lead ? '解散軍團' : '退出軍團'}</button></div>`;
+    openDlg('軍團', h, [], true);
+  }
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-gac]').forEach(x => x.onclick = () => go({ act: 'accept', guildId: +x.dataset.gac }));
+  b.querySelectorAll('[data-gde]').forEach(x => x.onclick = () => go({ act: 'decline', guildId: +x.dataset.gde }));
+  $('#gMake')?.addEventListener('click', () => go({ act: 'create', name: $('#gName').value }));
+  $('#gGive')?.addEventListener('click', () => go({ act: 'contribute' }));
+  $('#gInvB')?.addEventListener('click', () => go({ act: 'invite', name: $('#gInv').value }));
+  $('#gDep')?.addEventListener('click', () => go({ act: 'deposit', gold: +$('#gGold').value }));
+  $('#gWd')?.addEventListener('click', () => go({ act: 'withdraw', gold: +$('#gGold').value }));
+  $('#gNoteB')?.addEventListener('click', () => go({ act: 'notice', text: $('#gNote').value }));
+  $('#gTier')?.addEventListener('click', () => go({ act: 'tierup' }));
+  b.querySelectorAll('[data-gem]').forEach(x => x.onclick = () => go({ act: 'emblem', emblem: x.dataset.gem }));
+  b.querySelectorAll('[data-grk]').forEach(x => x.onchange = () => go({ act: 'rank', memberId: +x.dataset.grk, rank: x.value }));
+  b.querySelectorAll('[data-gkk]').forEach(x => x.onclick = async () => { if (await askConfirm('把這個團員踢出軍團？', { ok: '踢除' })) go({ act: 'kick', memberId: +x.dataset.gkk }); });
+  b.querySelectorAll('[data-gtf]').forEach(x => x.onclick = async () => { if (await askConfirm('把首長轉讓給這個團員？（你會變成一般團員）', { ok: '轉讓' })) go({ act: 'transfer', memberId: +x.dataset.gtf }); });
+  $('#gLeave')?.addEventListener('click', async () => { const lead = V.me?.rank === 'leader'; if (await askConfirm(lead ? `解散軍團？所有團員都會離開，${GDD.GUILD_REMAKE_DAYS} 天內不能再建立。` : '退出軍團？', { ok: lead ? '解散' : '退出' })) go({ act: 'leave' }); });
+}
+// PC 情侶（2u id=61）：異性才能結成；兩人同時在線每 24 分鐘＝1 天、情侶點數 +1；情侶點數 × 等級倍率換玫瑰花；主動分手付費
+async function openCouple() {
+  let V; try { V = await call('GET', '/api/couple?charId=' + CHAR.id); } catch (e) { return toast(e.message); }
+  const go = async b => { try { const r = await call('POST', '/api/couple', { charId: CHAR.id, ...b }); toast(r.msg); await refreshChar?.(); openCouple(); } catch (e) { toast(e.message); } };
+  let h = '';
+  if (V.reqs?.length) h += `<div class="sec"><h4>情侶申請</h4>${V.reqs.map(q => `<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span style="flex:1">${esc(q.name)}（${esc(q.job)} Job ${q.jobLv}）</span><button class="btn primary" data-cac="${q.id}">同意</button><button class="btn" data-cde="${q.id}">拒絕</button></div>`).join('')}</div>`;
+  if (!V.couple) h += `<p><small>輸入對方角色名字申請情侶，對方同意後結成情侶（照 PC：只有異性角色可以）。兩人同時在線時，每 24 分鐘累積 1 天交往天數和 1 點情侶點數。</small></p><div style="display:flex;gap:6px"><input id="cpName" placeholder="角色名字" style="flex:1"><button class="btn primary" id="cpAsk">申請情侶</button></div>`;
+  else { const C = V.couple;
+    h += `<div class="sec" style="text-align:center"><div style="font-size:28px">💕</div><b style="font-size:18px">${esc(C.name)}</b> <small>${esc(C.job)} Job ${C.jobLv}　${C.online ? '🟢 在線' : '⚪ 離線'}</small><br>交往 <b>${C.days}</b> 天（${new Date(C.since).toLocaleDateString()} 起）</div>
+      <div class="sec"><h4>情侶商店</h4><small>情侶點數 <b>${C.pts}</b> / ${GDD.COUPLE_PTS_MAX}（兩人同時在線每 24 分鐘 +1）。點數 × 等級倍率（Job Lv ${CHAR.jobLv}：×${GDD.roseMul(CHAR.jobLv || 1).toFixed(2)}）＝ 玫瑰花。</small><div style="margin-top:6px"><button class="btn primary" id="cpRose" ${C.pts < 1 ? 'disabled' : ''}>領取 ${C.roses} 朵玫瑰花</button></div></div>
+      <div style="text-align:right"><button class="btn" id="cpBreak">情侶分手（費用 ${C.fee} 金幣）</button></div>`; }
+  openDlg('情侶', h, [], true);
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-cac]').forEach(x => x.onclick = () => go({ act: 'accept', fromId: +x.dataset.cac }));
+  b.querySelectorAll('[data-cde]').forEach(x => x.onclick = () => go({ act: 'decline', fromId: +x.dataset.cde }));
+  $('#cpAsk')?.addEventListener('click', () => go({ act: 'propose', name: $('#cpName').value }));
+  $('#cpRose')?.addEventListener('click', () => go({ act: 'roses' }));
+  $('#cpBreak')?.addEventListener('click', async () => { if (await askConfirm(`跟 ${V.couple.name} 分手？要付 ${V.couple.fee} 金幣分手費用（照 PC：天數 × 200 ÷10）。`, { ok: '分手' })) go({ act: 'break' }); });
+}
 // PC 希望藍圖（2u id=78）：依 Job 等級列成長型任務；收取 → 「移動」到任務地圖出征 → 收取獎勵（每個只能完成一次）
 let bpLv = null;
 function openBlueprint(lv) {

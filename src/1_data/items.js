@@ -221,6 +221,7 @@ export const ORES = {
   macaron: { name: '特級全能馬卡龍', icon: 31, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +15、飢餓 −25', scroll: true, noshop: true },
   clkInherit: { name: '發條屬性繼承卷軸', icon: 4336, price: 10000, desc: '把一件裝備的發條屬性移到同部位的另一件裝備上（原本那件的發條屬性會消失）', scroll: true },
   ...CHEST_ORES,
+  rose: { name: '玫瑰花', icon: 766, price: 0, desc: '情侶商店用情侶點數換的（PC 拿去換情侶商店道具；割草版情侶商店內容 2u 沒列，先收著）', scroll: true, noshop: true },
   rToken: { name: 'R代幣', icon: 2610, price: 0, desc: '希望藍圖任務獎勵（PC 拿去 R 幣商店換道具；割草版 R 幣商店還沒做）', scroll: true, noshop: true },
   ...FORTUNE_ORES,
 };
