@@ -91,7 +91,7 @@ let floor = 1; // 塔的目前樓層
 const DIFF_BASE = stageBaseLv(STAGE); // 地圖本身的怪物等級（難度＝選更高的 PC 怪物等級）
 let DIFF = cleanDiff(null, DIFF_BASE); if (!TOWER) { try { DIFF = cleanDiff(JSON.parse(sessionStorage.getItem('ss_diff')), DIFF_BASE); } catch {} }
 const DM = diffMods(DIFF, DIFF_BASE);
-const GAP_DROP = TOWER ? 1 : gapDrop((CHAR.baseLv || 1) - DM.monLv, CHAR.job); // PC 等差掉寶率：等級差太多，菁英掉裝備寶箱的機率打折（經驗在伺服器算）
+const GAP_DROP = TOWER ? 1 : gapDrop((CHAR.jobLv || 1) - DM.monLv, CHAR.job); // 11/21：等差改看 Job Lv（Base＝轉生階段） // PC 等差掉寶率：等級差太多，菁英掉裝備寶箱的機率打折（經驗在伺服器算）
 const ST = { ...defaultStats(), ...(CHAR.stats || {}) };
 for (const k of ['str', 'agi', 'int', 'vit', 'wis', 'luk']) ST[k] += Math.round(CHAR.bonus?.[k] || 0); // 項目 32：裝備詞綴的素質
 // 坐騎租約期間五項素質 +5
@@ -502,7 +502,7 @@ async function askResume() {
   clearRun();
   let token = null; try { token = localStorage.getItem('ss_token'); } catch {}
   if (token && CHAR.id) submitRun(token, { charId: CHAR.id, secs: Math.floor(snap.t), kills: snap.kills | 0, lv: snap.lv | 0, cleared: false, chests: snap.chests | 0, bossChests: snap.bossChests | 0, stage: snap.stageKey, spent: snap.spent | 0 })
-    .then(j => showBanner(`<small>上一局已結算</small><b>經驗 +${j.gain}　金幣 +${j.gold}</b>`, 2200)).catch(() => {});
+    .then(j => showBanner(`<small>上一局已結算</small><b>Job 經驗 +${j.gain}　金幣 +${j.gold}</b>`, 2200)).catch(() => {});
   return false;
 }
 // 瀏覽器不讓沒點過的頁面自動放音樂 → 第一次按鍵／點畫面時補播
@@ -1113,7 +1113,7 @@ function drawGage() {
   txt(nb > 0 ? `${TOWER ? '下一層' : '下一王'} ${String(nb / 60 | 0).padStart(2, '0')}:${String(nb % 60 | 0).padStart(2, '0')}` : (TOWER ? '' : '首領都出現了'), 388, 29); txt(`📦${chests}`, 122, 43);
 }
 // ===== 寵物 v3（11/20 照 PC）：寵物是裝備欄裡的道具，不會出現在地圖上、也不會攻擊；能力（PC 攻擊／魔攻／防禦）加在角色身上，畫面左上顯示原版圖示 =====
-const PET = (CHAR.pets || []).find(p => p.id === CHAR.pet && PC_PETS[p.pc] && (CHAR.baseLv || 1) >= PC_PETS[p.pc].req) || null;
+const PET = (CHAR.pets || []).find(p => p.id === CHAR.pet && PC_PETS[p.pc]) || null; // 11/21 Base 等級門檻拿掉
 const pet = { g: null };
 if (PET) { const D = PC_PETS[PET.pc], el = document.createElement('div'); el.id = 'petBadge';
   el.style.cssText = 'position:fixed;left:12px;top:calc(env(safe-area-inset-top) + 92px);z-index:6;display:flex;align-items:center;gap:4px;padding:2px 8px 2px 2px;border-radius:20px;background:#0b1430b0;border:1px solid #fff5;color:#fff;font:700 11px sans-serif;pointer-events:none';
@@ -1122,7 +1122,7 @@ if (PET) { const D = PC_PETS[PET.pc], el = document.createElement('div'); el.id 
 function petTick() {}
 // ===== 戰寵（11/20 照 PC：服務端 bpet*.xml）：跟在主角斜後方、自動攻擊（自己的屬性走相剋表）、自動放學會的戰寵技能；有自己的 HP／防禦，被怪碰到會扣血，倒下這局就不再出來
 // 戰寵自己殺的怪才算戰寵經驗（結算回報 bpetKills）；原版 E_Bpet_* 模型只有幾片卡片（靠原版特效系統畫）→ 用屬性特效貼圖做發光精靈球，覺醒階段越高越大越亮
-const BP = (CHAR.bpets || []).find(b => b.id === CHAR.bpet && !b.dead && BPETS[b.kind] && (CHAR.baseLv || 1) >= BPET_REQ_LV) || null;
+const BP = (CHAR.bpets || []).find(b => b.id === CHAR.bpet && !b.dead && BPETS[b.kind]) || null;
 const bpet = { g: null, hp: 0, max: 0, kills: 0, dead: false, ht: 0, buffT: 0, acts: [] };
 if (BP) { const D = BPETS[BP.kind], st = BP.stage || 0, S = bpetStats(BP); bpet.S = S; bpet.max = bpet.hp = S.hp; bpet.h = 1 + st * 0.3;
   bpet.acts = bpetActives(BP).map((a, i) => ({ ...a, cd: Math.max(0.3, a.cd * (a.basic ? 1 : 1 - S.cdCut)), t: 1 + i * 0.7 }));
@@ -1263,7 +1263,7 @@ async function saveRun() {
   try {
     const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done, combos: CB.done || 0, party: NET?.n || 1, bpetKills: bpet.kills, bpetDead: bpet.dead });
     const F = j.fame; // 項目 47
-    out.innerHTML = (F?.gain ? `🏅 名聲 +${F.gain}${F.up ? `　<b>名聲 Lv${F.lv}！</b>` : ''}${F.newTitles?.length ? `　新稱號：${F.newTitles.map(t => `【${t}】`).join('')}` : ''}${F.gear?.length ? `　名聲裝備已寄到信箱` : ''}<br>` : '') + (j.tower ? `<b>分數 ${j.tower.score.toLocaleString()}</b>${j.tower.newBest ? '　🏆 新紀錄！' : ''}${j.tower.newFloor ? `　最高樓層更新（塔點數 ${j.tower.points}）` : ''}<br>` : '') + (j.bonus ? `通關獎勵 ×1.5！　` : '') + `經驗 +${j.gain}　金幣 +${j.gold}${j.spent ? `（菁英寶箱 −${j.spent}）` : ''}${j.gemUps?.length ? `<br>💎 連續技融合：技能寶石升級 ${j.gemUps.map(g => ['N', 'G', 'DG', 'XG'][g]).join('、')}！` : ''}` + (j.levelUps ? `<br>角色升級！Lv ${j.baseLv}（素質點 +${j.levelUps * 3}）` : `　（${j.exp} / ${j.need}）`) + (j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}` : '') + (j.gems?.length ? `<br>拿到技能寶石 ${j.gems.length} 顆（主城「寶石」開放後裝備）` : '')
+    out.innerHTML = (F?.gain ? `🏅 名聲 +${F.gain}${F.up ? `　<b>名聲 Lv${F.lv}！</b>` : ''}${F.newTitles?.length ? `　新稱號：${F.newTitles.map(t => `【${t}】`).join('')}` : ''}${F.gear?.length ? `　名聲裝備已寄到信箱` : ''}<br>` : '') + (j.tower ? `<b>分數 ${j.tower.score.toLocaleString()}</b>${j.tower.newBest ? '　🏆 新紀錄！' : ''}${j.tower.newFloor ? `　最高樓層更新（塔點數 ${j.tower.points}）` : ''}<br>` : '') + (j.bonus ? `通關獎勵 ×1.5！　` : '') + `Job 經驗 +${j.gain}　金幣 +${j.gold}${j.spent ? `（菁英寶箱 −${j.spent}）` : ''}${j.gemUps?.length ? `<br>💎 連續技融合：技能寶石升級 ${j.gemUps.map(g => ['N', 'G', 'DG', 'XG'][g]).join('、')}！` : ''}` + (j.need ? `　（${j.exp} / ${j.need}）` : '') + (j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}（素質點 +${j.jobUps * 3}、天賦點 +${j.jobUps}）` : '') + (j.gems?.length ? `<br>拿到技能寶石 ${j.gems.length} 顆（主城「寶石」開放後裝備）` : '')
       + (j.newStage ? `<br>🔓 解鎖新地圖：${j.newStage}` : '') + (j.items.length ? `<div class="loot">${j.items.map(it => `<span class="${it.rarity >= 3 ? 'glow' : ''}" style="border-color:${RARITY[it.rarity].color};${it.rarity >= 3 ? `color:${RARITY[it.rarity].color}` : ''}"><img src="${itemIcon(it)}" alt=""><em style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</em></span>`).join('')}</div>` : '')
       + (j.filtered ? `<br><small>🔍 撿取篩選（${LOOT_F[lootMin]}）：${j.filtered} 件不要，沒進背包</small>` : '')
       + (j.bagFull ? '<br><small>背包滿了，有些寶箱沒打開</small>' : '');

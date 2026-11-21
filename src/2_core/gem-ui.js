@@ -75,7 +75,7 @@ export function openGems(ctx, tab = 'equip', mode = 'gem') {
       for (let i = 0; i < 5; i++) {
         if (i >= (c.gemOpen || 0)) {
           const nx = i === (c.gemOpen || 0);
-          h += `<div class="ge-row lock"><div class="ge-box x">🔒</div><div class="ge-mid"><b style="color:#ff8a80">開放條件</b><small>Lv：${SLOT_LV[i]}（Base）　希幣：${SLOT_COST[i].toLocaleString()}</small></div>${nx ? `<button class="btn primary" id="gmSlot" ${c.baseLv < SLOT_LV[i] || c.gold < SLOT_COST[i] ? 'disabled' : ''}>欄位開放</button>` : ''}</div>`; continue;
+          h += `<div class="ge-row lock"><div class="ge-box x">🔒</div><div class="ge-mid"><b style="color:#ff8a80">開放條件</b><small>希幣：${SLOT_COST[i].toLocaleString()}</small></div>${nx ? `<button class="btn primary" id="gmSlot" ${c.gold < SLOT_COST[i] ? 'disabled' : ''}>欄位開放</button>` : ''}</div>`; continue;
         }
         const s = slots[i], g = s && gems.find(x => x.id === s.gem);
         h += `<div class="ge-row"><div class="ge-box">${s?.skill ? ico(s.skill) : ''}</div><div class="ge-mid"><select data-sk="${i}"><option value="">（選技能）</option>${skills.map(k => `<option value="${k}" ${s?.skill === k ? 'selected' : ''}>${D.skills[k].name}</option>`).join('')}${s?.skill && !skills.includes(s.skill) ? `<option value="${s.skill}" selected>${D.skills[s.skill]?.name || s.skill}（目前不能用：換了二轉）</option>` : ''}</select>

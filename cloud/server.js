@@ -150,7 +150,12 @@ const STASH_PAGES = 6, STASH_SIZE = 40, STASH_FREE = 2, STASH_COST = [0, 0, 5000
 const stashInfo = uid => { const a = db.prepare('SELECT stash FROM accounts WHERE id=?').get(uid); const s = a?.stash ? JSON.parse(a.stash) : {};
   return { unlocked: Math.max(STASH_FREE, s.unlocked || 0), names: Array.from({ length: STASH_PAGES }, (_, i) => s.names?.[i] || `倉庫 ${i + 1}`) }; };
 // 項目 21：轉生師
-const JOB_STAT_PTS = 3; // 11/21：Job 每升 1 級給的素質點（原本是 Base 每升 1 級 3 點）
+const JOB_STAT_PTS = 3;
+// 11/21 使用者：「Base 等級是 0，轉生才會進到 1」→ Base＝轉生後的階段（0～10），沒有 Base 經驗；舊角色全部從 Base 0 開始（原本的 Base／經驗存在 d.oldBase／d.oldExp）
+if (!metaGet('base2rebirth')) {
+  for (const c of db.prepare('SELECT id, base_lv, exp, data FROM characters').all()) { const d = JSON.parse(c.data || '{}'); if (d.oldBase == null) { d.oldBase = c.base_lv; d.oldExp = c.exp; } db.prepare('UPDATE characters SET base_lv=0, exp=0, data=? WHERE id=?').run(JSON.stringify(d), c.id); }
+  metaSet('base2rebirth', 1);
+} // 11/21：Job 每升 1 級給的素質點（原本是 Base 每升 1 級 3 點）
 const REBIRTH_LV = 70 /* Job Lv（11/21 改，原本 Base Lv） */, REBIRTH_MAX = 10, REBIRTH_BONUS = 75;
 if (!metaGet('fixPoints1')) {
   for (const c of db.prepare('SELECT id, base_lv, data FROM characters').all()) {
@@ -230,6 +235,11 @@ function auth(req) {
   return s.account_id;
 }
 const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0, pwRank: pwRankOf(c.id), poly: d.poly || null, bestSecs: d.bestSecs || {}, msGot: d.msGot || {}, patrol: patrolView(d, c) }; };
+function gainJob(c, d, amt) { // 加 Job 經驗（升級照 jobNeed、每升 1 級 +3 素質點）；回傳新的 Job Lv 與升了幾級，呼叫的人負責寫回 job_lv 與 data
+  const JM = jobMaxOf(d); let job = c.job_lv, jexp = (d.jobExp || 0) + Math.max(0, amt | 0), ups = 0;
+  while (job < JM && jexp >= jobNeed(job)) { jexp -= jobNeed(job); job++; ups++; } if (job >= JM) jexp = 0;
+  d.jobExp = jexp; d.points = (d.points || 0) + ups * JOB_STAT_PTS; return { job, ups };
+}
 const jobNeedOf = c => { const d = JSON.parse(c.data || '{}'); return c.job_lv >= jobMaxOf(d) ? 0 : jobNeed(c.job_lv); };
 const itemView = r => ({ id: r.id, slot: r.slot, base: r.base, rarity: r.rarity, roll: r.roll, refine: r.refine, gup: r.gup || 0, aff: r.aff ? JSON.parse(r.aff) : null, pc: r.pc || null, elem: r.elem || 0, look: r.look || null, setk: r.setk || null, clk: r.clk ? JSON.parse(r.clk) : null, clkp: r.clkp ? JSON.parse(r.clkp) : null, locked: !!r.locked, equipped: !!r.equipped, bound: !!r.bound, ident: r.ident ? JSON.parse(r.ident) : null });
 const itemsOf = cid => db.prepare('SELECT * FROM items WHERE char_id=? ORDER BY equipped DESC, rarity DESC, id DESC').all(cid).map(itemView);
@@ -245,7 +255,7 @@ function patrolView(d, c) {
   const P = d.patrol || {}, n = ML.clearedCount(d.cleared), secs = P.t ? Math.min(ML.PATROL_CAP, (Date.now() - P.t) / 1000) : 0, y = ML.patrolYield(secs, n);
   return { secs: Math.floor(secs), n, ...y, exp: patrolExp(y.hours, d, c), quick: P.day === ATT.twDay() ? P.quick || 0 : 0 };
 }
-function patrolExp(h, d, c) { const n = ML.clearedCount(d.cleared), st = STAGES[Math.max(0, n - 1)]; return Math.floor(h * runExp(60, stageBaseLv(st), c.base_lv)); }
+function patrolExp(h, d, c) { const n = ML.clearedCount(d.cleared), st = STAGES[Math.max(0, n - 1)]; return Math.floor(h * 1200 * (st?.reward || 1)); } // 11/21：改給 Job 經驗；🔢 暫定 每小時＝一局 15 分鐘 Job 經驗的約 1/4（1200 × 地圖倍率）
 // PC 戰鬥力排名：每天 0 點（台灣）統計一次「同職業」戰鬥力名次（meta 'pwrank'）；前 50 名有 BUFF（rank-buff.js）
 let PWR = null;
 function pwRankOf(cid) {
@@ -318,7 +328,7 @@ const api = {
   'POST /api/job1': async (req, res, _, uid) => {
     const { charId, job } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     if (c.job !== NOVICE) return send(res, 400, { error: '已經一轉了' });
-    if (c.base_lv < JOB1_AT || c.job_lv < 10) return send(res, 400, { error: `要 Base Lv ${JOB1_AT} 而且 Job Lv 10 才能一轉（目前 Base ${c.base_lv}／Job ${c.job_lv}）` }); // 11/19 使用者企劃：雙條件
+    if (c.job_lv < 10) return send(res, 400, { error: `要 Job Lv 10 才能一轉（目前 Job ${c.job_lv}）` }); // 11/21 Base 門檻拿掉 // 11/19 使用者企劃：雙條件
     if (!FIRST_JOBS.includes(job)) return send(res, 400, { error: '沒有這個職業' });
     const d = JSON.parse(c.data || '{}'); delete d.novice; d.jobExp = 0; d.talents = {};
     db.prepare('UPDATE characters SET job=?, job_lv=1, data=? WHERE id=?').run(job, JSON.stringify(d), c.id);
@@ -335,7 +345,7 @@ const api = {
     const job0 = NOVICE;
     if (!validateStats(stats)) return send(res, 400, { error: '素質點數不對' });
     if (!validLook(hair, hairColor, outfit)) return send(res, 400, { error: '髮型或顏色不對' });
-    try { const r = db.prepare('INSERT INTO characters (account_id, slot, name, gender, job, data, created) VALUES (?,?,?,?,?,?,?)').run(uid, slot, n, gender, job0, JSON.stringify({ stats, points: FREE_POINTS - statsUsed(stats), outfit, hair, hairColor, novice: true }), Date.now());
+    try { const r = db.prepare('INSERT INTO characters (account_id, slot, name, gender, job, base_lv, data, created) VALUES (?,?,?,?,?,0,?,?)').run(uid, slot, n, gender, job0, JSON.stringify({ stats, points: FREE_POINTS - statsUsed(stats), outfit, hair, hairColor, novice: true }), Date.now());
       send(res, 200, charView(db.prepare('SELECT * FROM characters WHERE id=?').get(r.lastInsertRowid))); }
     catch (e) { send(res, 409, { error: String(e.message).includes('name') ? '這個角色名稱已經有人用了' : '這個欄位已經有角色了' }); }
   },
@@ -367,10 +377,8 @@ const api = {
     // 項目 51：難度經驗加成（階梯式）：敵人數量、事件數量每多一階（×2、×3…）Base／Job 經驗 +12%；塔不套用
     const DX = isTower ? null : cleanDiff(diff, stB), expBonus = (DX ? 1 + 0.12 * ((DX.count - 1) + (DX.event - 1)) : 1) * (1 + 0.1 * (Math.max(1, Math.min(4, party | 0)) - 1)); // 組隊副本 v1.1：每多 1 個隊友經驗 +10%
     const jobGain = Math.floor((secs / 3 + kills / 4 + lv * 5) * mul * expBonus); // Job 經驗維持原本算法（第 25／27 項的 Job 曲線是照這個調的）
-    const gain = Math.floor((runExp(Math.max(0, +kills | 0) + huntExtra(Math.max(0, Math.min(20000, +kills | 0)), (party | 0) > 1), monLvExp, c.base_lv) * mul + lv * 5 * mul) * expBonus); // 項目 33：Base 經驗照怪物等級（PC）
-    let base = c.base_lv, exp = c.exp + gain, ups = 0;
-    while (exp >= needExp(base) && base < BASE_MAX) { exp -= needExp(base); base++; ups++; }
-    if (base >= BASE_MAX) exp = 0;
+    const gain = Math.floor((runExp(Math.max(0, +kills | 0) + huntExtra(Math.max(0, Math.min(20000, +kills | 0)), (party | 0) > 1), monLvExp, c.job_lv) * mul + lv * 5 * mul) * expBonus); // 11/21 沒有 Base 經驗了；這個值只拿來算戰寵經驗（等差改看 Job）
+    const base = c.base_lv, exp = 0, ups = 0; // 11/21：Base＝轉生階段，出征不加
     // 金幣與寶箱（伺服器自己擲裝備；數量依存活時間設上限）
     const gold = Math.floor((kills / 3 + secs / 2) * mul);
     const nChest = Math.max(0, Math.min(+chests | 0, Math.floor(secs / 40) + 1, 100)); // 項目 42：一般寶箱每局最多 100 個
@@ -419,7 +427,7 @@ const api = {
       else { petUp = addPetExp(ap, Math.floor(gain * 0.3)); if (petStage9(ap.lv) === 9) ap.s9 = (ap.s9 || 0) + secs; } }
     // 戰寵（照 PC）：戰寵自己殺的怪才給經驗（本局經驗 × 戰寵擊殺比例 × 10% × 角色等級/250）；親密度照出征時間；死掉＝經驗懲罰 30%＋親密度歸 0
     let bpetRes = null; { const bp = (d.bpets || []).find(b => b.id === d.bpet && !b.dead);
-      if (bp) { bpetTime(bp, Date.now(), secs); const up = addBpetExp(bp, bpetExpFrom(gain, (+bpetKills || 0) / Math.max(1, +kills || 0), c.base_lv, bp)); if (bpetDead) bpetDie(bp);
+      if (bp) { bpetTime(bp, Date.now(), secs); const up = addBpetExp(bp, bpetExpFrom(gain, (+bpetKills || 0) / Math.max(1, +kills || 0), c.job_lv, bp)); if (bpetDead) bpetDie(bp);
         bpetRes = { name: bpetName(bp), lv: bp.lv, up, dead: !!bp.dead, close: bp.close }; } }
     // 11/19 使用者企劃 指令 3：每打完一套 A→S→D 連續技，身上鑲著的技能寶石各 +20 融合經驗，滿 100 升一級（N → G → DG → XG）
     d.cbTotal = (d.cbTotal || 0) + Math.max(0, Math.min(30, combos | 0)); // 項目 52 連續技熟練度（局外縮減門檻）
@@ -435,7 +443,7 @@ const api = {
     if (isTower) { const before = towerBest(c.id), score = towerScore(floor, kills, curse);
       db.prepare('INSERT INTO towers (char_id, month, floor, score, curse, kills, created) VALUES (?,?,?,?,?,?,?)').run(c.id, monthKey(), floor, score, curse, kills, Date.now());
       tower = { floor, score, newBest: score > before.score, newFloor: floor > before.floor, points: towerPoints(Math.max(floor, before.floor)) }; }
-    send(res, 200, { gain, bonus, baseLv: base, exp, need: needExp(base), levelUps: ups, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, petStarve, petDied, bpet: bpetRes, pet: ap && !petDied ? { name: petName(ap), hunger: Math.round(ap.hunger), lv: ap.lv, up: petUp } : null, petEgg: null, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, souls, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
+    send(res, 200, { gain: jobGain, bonus, baseLv: base, exp: jexp, need: job >= JM ? 0 : jobNeed(job), levelUps: 0, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, petStarve, petDied, bpet: bpetRes, pet: ap && !petDied ? { name: petName(ap), hunger: Math.round(ap.hunger), lv: ap.lv, up: petUp } : null, petEgg: null, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, souls, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
   },
   // ===== 背包、商店、強化、素質 =====
   'POST /api/equip': async (req, res, _, uid) => {
@@ -676,9 +684,9 @@ const api = {
       else { const it = itemFromPc(id); if (it && bagCount(c.id) < BAG_MAX) { const { name, ...rest } = it; giveItem(c.id, rest); got = { kind: 'gear', name, rare: true }; } else { F.junk ??= {}; F.junk[41] = (F.junk[41] || 0) + 1; got = { kind: 'junk', name: '廢鐵罐（背包滿了）' }; } }
     }
     // EXP 釣魚：每竿（成功或失敗都算一次垂釣）拿經驗，用掉 1 次
-    let expGot = 0, base = c.base_lv, exp = c.exp;
-    if (F.expFish > 0) { F.expFish--; expGot = expFishGain(base); exp += expGot; let ups = 0; while (exp >= needExp(base) && base < BASE_MAX) { exp -= needExp(base); base++; ups++; } if (base >= BASE_MAX) exp = 0; }
-    db.prepare('UPDATE characters SET data=?, base_lv=?, exp=? WHERE id=?').run(JSON.stringify(d), base, exp, c.id);
+    let expGot = 0, job = c.job_lv; // 11/21：經驗魚改給 Job 經驗（沒有 Base 經驗了）
+    if (F.expFish > 0) { F.expFish--; expGot = expFishGain(job); job = gainJob(c, d, expGot).job; }
+    db.prepare('UPDATE characters SET data=?, job_lv=? WHERE id=?').run(JSON.stringify(d), job, c.id);
     send(res, 200, { got, exp: expGot, tier: tierOf(price), next: manual ? 0 : AUTO_SECS, char: fullChar(ownChar(uid, c.id)) });
   },
   // 項目 55：稀有魚 2 條 → 艾彼斯的祝福 1 個（白金金魚、鯉魚、綢緞鯉魚任意組合）
@@ -800,7 +808,6 @@ const api = {
     const { charId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}'), n = d.gemOpen ?? 0;
     if (n >= 5) return send(res, 400, { error: '5 格都開了' });
-    if (c.base_lv < SLOT_LV[n]) return send(res, 400, { error: `第 ${n + 1} 格要 Base Lv ${SLOT_LV[n]}` });
     if ((c.gold ?? 0) < SLOT_COST[n]) return send(res, 400, { error: `金幣不夠（要 ${SLOT_COST[n]}）` });
     d.gemOpen = n + 1;
     db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(SLOT_COST[n], JSON.stringify(d), c.id);
@@ -995,11 +1002,11 @@ const api = {
   'POST /api/rebirth': async (req, res, _, uid) => {
     const { charId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}'), n = (d.rebirth || 0) + 1;
-    if (n > REBIRTH_MAX) return send(res, 400, { error: `最多轉生 ${REBIRTH_MAX} 次` });
+    if (n > REBIRTH_MAX || c.base_lv >= REBIRTH_MAX) return send(res, 400, { error: `最多轉生 ${REBIRTH_MAX} 次` });
     if (c.job_lv < REBIRTH_LV || c.job === NOVICE) return send(res, 400, { error: `要 Job Lv ${REBIRTH_LV} 才能轉生（目前 Job ${c.job_lv}）` }); // 11/21 使用者：「Job 70 等可以轉生、轉生後回到 1 等」
     // 11/21 使用者：「轉生後 job 要重置、轉生完回到初心者、base 等級不變」→ Base／經驗／素質不動，職業回初心者、Job Lv 1、二轉三轉與天賦清空；每次多 75 點素質
     d.rebirth = n; d.novice = true; d.jobExp = 0; d.talents = {}; d.talents2 = {}; delete d.job2; delete d.job3; d.points = (d.points || 0) + REBIRTH_BONUS;
-    db.prepare('UPDATE characters SET job=?, job_lv=1, data=? WHERE id=?').run(NOVICE, JSON.stringify(d), c.id);
+    db.prepare('UPDATE characters SET job=?, job_lv=1, base_lv=base_lv+1, data=? WHERE id=?').run(NOVICE, JSON.stringify(d), c.id); // Base＋1（轉生階段）
     for (const it of db.prepare('SELECT * FROM items WHERE char_id=? AND equipped=1').all(c.id)) if (wearBlock(it, { job: NOVICE, job2: null, jobLv: 1 })) db.prepare('UPDATE items SET equipped=0 WHERE id=?').run(it.id); // 初心者穿不了的職業裝備自動脫下（留在背包）
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
@@ -1025,7 +1032,7 @@ const api = {
     let msg;
     try {
       switch (cmd) {
-        case 'lv': { const v = int(0, 1, 99); db.prepare('UPDATE characters SET base_lv=?, exp=0 WHERE id=?').run(v, c.id); msg = `Base Lv → ${v}`; break; }
+        case 'lv': { const v = int(0, 0, REBIRTH_MAX); db.prepare('UPDATE characters SET base_lv=?, exp=0 WHERE id=?').run(v, c.id); msg = `Base（轉生階段）→ ${v}`; break; }
         case 'bpet': { const b = (d.bpets || []).find(x => x.id === d.bpet) || (d.bpets || [])[0]; if (!b) throw new Error('沒有戰寵'); b.lv = int(0, 1, 100); b.exp = 0; if (args[1] && args[1] !== '-') b.grade = String(args[1]).toUpperCase(); if (args[2] != null) { b.loyal = Math.max(0, +args[2] || 0); b.close = 100; } saveD(); msg = `戰寵 Lv → ${b.lv}${b.grade ? ' ' + b.grade : ''}${args[2] != null ? `・忠誠度 ${b.loyal}` : ''}`; break; } // 戰寵等級（測試用）：bpet <等級> [GRADE 或 -] [忠誠度]
         case 'job': { const max = jobMaxOf(d), v = int(0, 1, max); d.jobExp = 0; if (v > c.job_lv) d.points = (d.points || 0) + (v - c.job_lv) * JOB_STAT_PTS; saveD(); db.prepare('UPDATE characters SET job_lv=? WHERE id=?').run(v, c.id); msg = `Job Lv → ${v}`; break; }
         case 'resetpw': { // 11/20 使用者：「忘記密碼怎麼辦」→ 沒有信箱，GM 幫忙重設；舊的登入全部登出
@@ -1068,7 +1075,6 @@ const api = {
     const d = JSON.parse(c.data || '{}'), B = d.job2 && branchOf(TALENTS(), c.job, d.job2);
     if (!B) return send(res, 400, { error: '要先二轉' });
     if (d.job3) return send(res, 400, { error: `你已經是${B.third}了` });
-    if (c.base_lv < 70) return send(res, 400, { error: '要 Base Lv 70' });
     if (c.job_lv < JOB2_MAX) return send(res, 400, { error: `要二轉 Job Lv ${JOB2_MAX}` });
     if (!(d.cleared || []).includes(STAGES.at(-1).key)) return send(res, 400, { error: `要打倒 ${STAGES.at(-1).bosses.at(-1)[1]}（通關${STAGES.at(-1).name}）` });
     d.job3 = true; d.jobExp = 0;
@@ -1094,12 +1100,10 @@ const api = {
     const b = d.bpets.find(x => x.id === +id);
     if (act === 'adopt') {
       if (!BPETS[kind]) return send(res, 400, { error: '沒有這種戰寵' });
-      if (c.base_lv < BPET_REQ_LV) return send(res, 400, { error: `戰寵要 Base Lv ${BPET_REQ_LV}（PC 需求等級 70）` });
       if (d.bpets.some(x => x.kind === kind)) return send(res, 400, { error: '這種戰寵已經有了' });
       d.bpets.push({ id: Date.now(), kind, lv: 1, exp: 0, stage: 0, grade: null, close: 0, loyal: 0, seen: Date.now(), skills: {} }); msg = `領養了${BPETS[kind].name}`;
     } else if (act === 'summon') {
       if (!b) return send(res, 400, { error: '找不到戰寵' }); if (b.dead) return send(res, 400, { error: '戰寵死掉了，要先復活' });
-      if (c.base_lv < BPET_REQ_LV) return send(res, 400, { error: `戰寵要 Base Lv ${BPET_REQ_LV}` });
       const old = d.bpets.find(x => x.id === d.bpet); if (old && old !== b) old.close = 0; // PC：封印＝親密度歸 0
       d.bpet = b.id; b.seen = Date.now(); msg = `召喚了${bpetName(b)}`;
     } else if (act === 'seal') {
@@ -1160,11 +1164,11 @@ const api = {
     else { secs = Math.min(ML.PATROL_CAP, (now - P.t) / 1000); if (secs < 60) return send(res, 400, { error: '巡邏不到 1 分鐘，還沒有收穫' }); P.t = now; }
     const n = ML.clearedCount(d.cleared), y = ML.patrolYield(secs, n), exp = patrolExp(y.hours, d, c), nGear = act === 'quick' && n >= 4 ? 4 : y.gear;
     d.mats ??= {}; if (y.ore1) d.mats.ore1 = (d.mats.ore1 || 0) + y.ore1;
-    let base = c.base_lv, e = c.exp + exp; while (e >= needExp(base) && base < BASE_MAX) { e -= needExp(base); base++; } if (base >= BASE_MAX) e = 0;
-    db.prepare('UPDATE characters SET base_lv=?, exp=?, gold=gold+?, data=? WHERE id=?').run(base, e, y.gold - cost, JSON.stringify(d), c.id);
+    const JG = gainJob(c, d, exp); // 11/21：巡邏經驗改給 Job
+    db.prepare('UPDATE characters SET job_lv=?, gold=gold+?, data=? WHERE id=?').run(JG.job, y.gold - cost, JSON.stringify(d), c.id);
     const lvMon = stageBaseLv(STAGES[Math.max(0, n - 1)]), items = Array.from({ length: nGear }, () => ({ ...rollItem(Math.random, 0, null, lvMon, c.job), rarity: ML.patrolGear(n) }));
     if (items.length) sendMail(c.id, { sender: '巡邏隊', title: `${act === 'quick' ? '快速巡邏' : '巡邏'}帶回 ${items.length} 件裝備`, body: '巡邏途中撿到的裝備。', items });
-    send(res, 200, { got: { hours: +y.hours.toFixed(2), gold: y.gold, ore1: y.ore1, exp, gear: items.length, cost, ups: base - c.base_lv }, char: fullChar(ownChar(uid, c.id)) });
+    send(res, 200, { got: { hours: +y.hours.toFixed(2), gold: y.gold, ore1: y.ore1, exp, gear: items.length, cost, ups: JG.ups }, char: fullChar(ownChar(uid, c.id)) });
   },
   // ===== PC 變身系統（2u id=67、polymorph.scr）：喝藥水 → 下一次出征整局變身；恢復原狀藥水解除 =====
   'POST /api/poly': async (req, res, _, uid) => {
@@ -1273,7 +1277,6 @@ const api = {
     const d = JSON.parse(c.data || '{}'); migratePets(d); const np = petId != null ? (d.pets || []).find(x => x.id === petId) : null;
     if (petId != null && !np) return send(res, 404, { error: '找不到寵物' });
     if (np?.sit) return send(res, 400, { error: '代養中的寵物要先領回' });
-    if (np && c.base_lv < (PC_PETS[np.pc]?.req || 0)) return send(res, 400, { error: `${PC_PETS[np.pc].name} 要 Base Lv ${PC_PETS[np.pc].req} 才能飼養` });
     const old = (d.pets || []).find(x => x.id === d.pet); if (old && old !== np) { old.lv = 1; old.exp = 0; old.s9 = 0; }
     d.pet = petId ?? null; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
     send(res, 200, fullChar(ownChar(uid, c.id)));
@@ -1403,16 +1406,16 @@ const api = {
     const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
     const v = charView(c);
     const eq = itemsOf(c.id).filter(i => i.equipped), d = JSON.parse(c.data || '{}');
-    send(res, 200, { charId: c.id, name: c.name, job: c.job, jobName: v.jobName, gender: c.gender, baseLv: c.base_lv, power: powerOf(eq), hair: v.hair, hairColor: v.hairColor, outfit: v.outfit, costume: d.costume || null, items: eq.map(i => ({ slot: i.slot, base: i.base, pc: i.pc, look: i.look, equipped: true, gup: i.gup })) }); // 隊友畫面要畫你的外觀
+    send(res, 200, { charId: c.id, name: c.name, job: c.job, jobName: v.jobName, gender: c.gender, baseLv: c.base_lv, jobLv: c.job_lv, power: powerOf(eq), hair: v.hair, hairColor: v.hairColor, outfit: v.outfit, costume: d.costume || null, items: eq.map(i => ({ slot: i.slot, base: i.base, pc: i.pc, look: i.look, equipped: true, gup: i.gup })) }); // 隊友畫面要畫你的外觀
   },
   'GET /api/friends': async (req, res, _, uid) => {
     const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
     const now = Date.now();
-    const rows = db.prepare('SELECT c.id, c.name, c.job, c.base_lv, c.seen FROM friends f JOIN characters c ON c.id=f.friend_char WHERE f.owner_char=? ORDER BY c.seen DESC').all(c.id);
-    const inc = db.prepare('SELECT q.id, c.name, c.job, c.base_lv FROM friendreqs q JOIN characters c ON c.id=q.from_char WHERE q.to_char=? ORDER BY q.created DESC').all(c.id);
-    const out = db.prepare('SELECT q.id, c.name, c.job, c.base_lv FROM friendreqs q JOIN characters c ON c.id=q.to_char WHERE q.from_char=? ORDER BY q.created DESC').all(c.id);
-    const v = r => ({ id: r.id, name: r.name, job: r.job, baseLv: r.base_lv });
-    send(res, 200, { friends: rows.map(r => ({ id: r.id, name: r.name, job: r.job, baseLv: r.base_lv, online: now - (r.seen || 0) < 120e3 })), incoming: inc.map(v), outgoing: out.map(v) });
+    const rows = db.prepare('SELECT c.id, c.name, c.job, c.base_lv, c.job_lv, c.seen FROM friends f JOIN characters c ON c.id=f.friend_char WHERE f.owner_char=? ORDER BY c.seen DESC').all(c.id);
+    const inc = db.prepare('SELECT q.id, c.name, c.job, c.base_lv, c.job_lv FROM friendreqs q JOIN characters c ON c.id=q.from_char WHERE q.to_char=? ORDER BY q.created DESC').all(c.id);
+    const out = db.prepare('SELECT q.id, c.name, c.job, c.base_lv, c.job_lv FROM friendreqs q JOIN characters c ON c.id=q.to_char WHERE q.from_char=? ORDER BY q.created DESC').all(c.id);
+    const v = r => ({ id: r.id, name: r.name, job: r.job, baseLv: r.base_lv, jobLv: r.job_lv });
+    send(res, 200, { friends: rows.map(r => ({ id: r.id, name: r.name, job: r.job, baseLv: r.base_lv, jobLv: r.job_lv, online: now - (r.seen || 0) < 120e3 })), incoming: inc.map(v), outgoing: out.map(v) });
   },
   'POST /api/friendadd': async (req, res, _, uid) => { // 寄好友邀請；對方已經寄給你 → 直接成為好友
     const { charId, name } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
