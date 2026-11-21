@@ -170,6 +170,12 @@
     .card b{font-size:18px}.card .kind{margin-top:0}.card hr{display:none}.card small{font-size:13px;line-height:1.45}
     .card .num{display:none}.card .rb{left:10px;transform:none;border-radius:0 0 10px 10px}
     .card .fhint{margin-top:4px;font-size:11px}
+    /* 11/21 使用者：「三選一還是會有大有小」→ 三張卡一樣高（以最高那張為準）、數值排兩欄、超武提示的技能名不放大 */
+    #cards{display:grid;grid-auto-rows:1fr;gap:10px}
+    #levelup{z-index:12;overflow-y:auto;justify-content:flex-start;gap:10px}#levelup>:first-child{margin-top:auto}#levelup>:last-child{margin-bottom:auto}#levelup h1{margin:0;font-size:30px} /* 蓋過右下大招鈕；小螢幕放不下就可以捲 */
+    .card{padding:20px 12px 10px;align-content:center}
+    .card>small{columns:2;column-gap:14px;line-height:1.4}
+    .card .fhint b{font-size:inherit}
   }
   /* 項目 54：手機右側拇指位置的馬頭鈕（冷卻好了發光）；電腦維持原本按鈕 */
   #mountBtn{--cd:0}#mountBtn.ready{box-shadow:0 0 0 3px #fff6,0 0 16px #ffd36b}
