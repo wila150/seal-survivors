@@ -90,7 +90,7 @@ const CURSE = CURSES[TSET?.curse || 'none'] || CURSES.none;
 const RULA = new URLSearchParams(location.search).has('rula'); let RSET = null; if (RULA) { try { RSET = JSON.parse(sessionStorage.getItem('ss_rula')); } catch {} } // PC 嚕啦生死鬥
 const ARENA = new URLSearchParams(location.search).has('arena') && new URLSearchParams(location.search).has('party'); // 古代競技場（PVP，組隊房間開打）
 if (TOWER || RULA || ARENA) STAGE_IDX = -1; // 塔、嚕啦生死鬥不存「未完成的一局」
-const STAGE = ARENA ? { ...STAGES[0], key: 'arena', name: ARENA_NAME, lv: '∞', bosses: [] } : RULA ? { ...STAGES[0], key: 'rula', name: RULA_NAME, lv: '∞', bosses: [[1e9, '飛越廣場']] } : TOWER ? { ...STAGES[2], key: 'tower', name: TOWER_NAME, lv: '∞', bosses: [] } : (S0 => ({ ...S0, bosses: bossTimes(S0) }))(STAGES[STAGE_IDX] || STAGES[0]); // 項目 31：首領時間照 Tier 時長換算
+const STAGE = ARENA ? { ...STAGES[0], key: 'arena', name: ARENA_NAME, lv: '∞', bosses: [[1e9, ARENA_NAME]] } : RULA ? { ...STAGES[0], key: 'rula', name: RULA_NAME, lv: '∞', bosses: [[1e9, '飛越廣場']] } : TOWER ? { ...STAGES[2], key: 'tower', name: TOWER_NAME, lv: '∞', bosses: [] } : (S0 => ({ ...S0, bosses: bossTimes(S0) }))(STAGES[STAGE_IDX] || STAGES[0]); // 項目 31：首領時間照 Tier 時長換算
 let floor = 1; // 塔的目前樓層
 // 項目 41：難度滑桿（遠征視窗設定，存 sessionStorage ss_diff；塔不套用）
 const DIFF_BASE = stageBaseLv(STAGE); // 地圖本身的怪物等級（難度＝選更高的 PC 怪物等級）
