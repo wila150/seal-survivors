@@ -150,7 +150,7 @@ const STASH_PAGES = 6, STASH_SIZE = 40, STASH_FREE = 2, STASH_COST = [0, 0, 5000
 const stashInfo = uid => { const a = db.prepare('SELECT stash FROM accounts WHERE id=?').get(uid); const s = a?.stash ? JSON.parse(a.stash) : {};
   return { unlocked: Math.max(STASH_FREE, s.unlocked || 0), names: Array.from({ length: STASH_PAGES }, (_, i) => s.names?.[i] || `倉庫 ${i + 1}`) }; };
 // 項目 21：轉生師
-const REBIRTH_LV = 70, REBIRTH_MAX = 10, REBIRTH_BONUS = 75;
+const REBIRTH_LV = 70 /* Job Lv（11/21 改，原本 Base Lv） */, REBIRTH_MAX = 10, REBIRTH_BONUS = 75;
 if (!metaGet('fixPoints1')) {
   for (const c of db.prepare('SELECT id, base_lv, data FROM characters').all()) {
     const d = JSON.parse(c.data || '{}'), should = FREE_POINTS + REBIRTH_BONUS * (d.rebirth || 0) + 3 * (c.base_lv - 1) - statsUsed(d.stats);
@@ -439,7 +439,7 @@ const api = {
   'POST /api/equip': async (req, res, _, uid) => {
     const { itemId } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
     // 照 PC：武器看職業、盾只有騎士、防具看服務端 item.scr 職業位元（第 71 欄）、需求等級（第 3 欄）—— 11/20 使用者「PC 那邊沒有裝備的限制嗎？」
-    { const c = ownChar(uid, it.char_id), cd = JSON.parse(c?.data || '{}'), why = wearBlock(it, { job: c?.job, job2: cd.job2, baseLv: c?.base_lv }); if (why) return send(res, 400, { error: `不能裝備：${why}` }); }
+    { const c = ownChar(uid, it.char_id), cd = JSON.parse(c?.data || '{}'), why = wearBlock(it, { job: c?.job, job2: cd.job2, jobLv: c?.job_lv }); if (why) return send(res, 400, { error: `不能裝備：${why}` }); }
     db.prepare('UPDATE items SET equipped=0 WHERE char_id=? AND slot=?').run(it.char_id, it.slot);
     db.prepare('UPDATE items SET equipped=1 WHERE id=?').run(it.id);
     send(res, 200, fullChar(ownChar(uid, it.char_id)));
@@ -994,12 +994,11 @@ const api = {
     const { charId } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     const d = JSON.parse(c.data || '{}'), n = (d.rebirth || 0) + 1;
     if (n > REBIRTH_MAX) return send(res, 400, { error: `最多轉生 ${REBIRTH_MAX} 次` });
-    if (c.base_lv < REBIRTH_LV) return send(res, 400, { error: `要 Base Lv ${REBIRTH_LV} 才能轉生` });
-    if (c.job === NOVICE) return send(res, 400, { error: '要先一轉才能轉生（轉生會回到初心者）' });
+    if (c.job_lv < REBIRTH_LV || c.job === NOVICE) return send(res, 400, { error: `要 Job Lv ${REBIRTH_LV} 才能轉生（目前 Job ${c.job_lv}）` }); // 11/21 使用者：「Job 70 等可以轉生、轉生後回到 1 等」
     // 11/21 使用者：「轉生後 job 要重置、轉生完回到初心者、base 等級不變」→ Base／經驗／素質不動，職業回初心者、Job Lv 1、二轉三轉與天賦清空；每次多 75 點素質
     d.rebirth = n; d.novice = true; d.jobExp = 0; d.talents = {}; d.talents2 = {}; delete d.job2; delete d.job3; d.points = (d.points || 0) + REBIRTH_BONUS;
     db.prepare('UPDATE characters SET job=?, job_lv=1, data=? WHERE id=?').run(NOVICE, JSON.stringify(d), c.id);
-    for (const it of db.prepare('SELECT * FROM items WHERE char_id=? AND equipped=1').all(c.id)) if (wearBlock(it, { job: NOVICE, job2: null, baseLv: c.base_lv })) db.prepare('UPDATE items SET equipped=0 WHERE id=?').run(it.id); // 初心者穿不了的職業裝備自動脫下（留在背包）
+    for (const it of db.prepare('SELECT * FROM items WHERE char_id=? AND equipped=1').all(c.id)) if (wearBlock(it, { job: NOVICE, job2: null, jobLv: 1 })) db.prepare('UPDATE items SET equipped=0 WHERE id=?').run(it.id); // 初心者穿不了的職業裝備自動脫下（留在背包）
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
   // ===== GM 指令（本機連線，或 GM 帳號：環境變數 GM_USERS＝逗號分隔的帳號；雲端在 cloud/wrangler.toml 的 [vars]）=====

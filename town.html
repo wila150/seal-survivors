@@ -1002,11 +1002,11 @@ function openPets() {
 }
 
 // ===== 項目 21：轉生師 =====
-function openRebirth() { // 11/21 使用者：轉生＝職業回初心者、Job 重置、Base 等級不變
-  const c = CHAR, n = c.rebirth || 0, nov = c.job === '初心者', ok = c.baseLv >= 70 && n < 10 && !nov;
-  const html = `<p>「到了 Base Lv 70，就能放下現在的職業、從初心者重新修行。等級不會掉，每轉生一次還會多 <b>75</b> 點素質。」</p>
-    <p>目前轉生 <b>${n} / 10</b> 次　Base Lv <b>${c.baseLv}</b>${c.baseLv >= 70 ? ' <b style="color:#2e8b57">✔</b>' : ' <small style="color:#c0392b">（要 70）</small>'}　職業 <b>${esc(c.jobName || c.job)}</b>${nov ? ' <small style="color:#c0392b">（要先一轉）</small>' : ' <b style="color:#2e8b57">✔</b>'}</p>
-    <div class="detail"><b>轉生後：</b><br>・職業回到<b>初心者</b>、Job Lv 回到 1（二轉／三轉、天賦全部清空）→ 要重新練 Job、找百業宗師轉職<br>・素質點 +75（第 ${n + 1} 次轉生）<br>・初心者穿不了的職業裝備會自動脫下放回背包<br>・<b>不變</b>：Base 等級與經驗、已分配的素質、裝備、背包、倉庫、寶石、鑲嵌石、金幣</div>`;
+function openRebirth() { // 11/21 使用者：Job Lv 70 可以轉生，轉生＝職業回初心者、Job 回 1、Base 等級不變
+  const c = CHAR, n = c.rebirth || 0, ok = c.jobLv >= 70 && c.job !== '初心者' && n < 10;
+  const html = `<p>「Job 練到 <b>Lv 70</b>，就能放下現在的職業、從初心者重新修行。Base 等級不會掉，每轉生一次還會多 <b>75</b> 點素質。」</p>
+    <p>目前轉生 <b>${n} / 10</b> 次　Job Lv <b>${c.jobLv}</b>${c.jobLv >= 70 && c.job !== '初心者' ? ' <b style="color:#2e8b57">✔</b>' : ' <small style="color:#c0392b">（要 Job 70）</small>'}</p>
+    <div class="detail"><b>轉生後：</b><br>・職業回到<b>初心者</b>、Job Lv 回到 1（二轉／三轉、天賦全部清空）→ 要重新練 Job、找百業宗師轉職<br>・素質點 +75（第 ${n + 1} 次轉生）<br>・初心者穿不了的職業裝備、需求 Job Lv 超過 1 的裝備會自動脫下放回背包<br>・<b>不變</b>：Base 等級與經驗、已分配的素質、背包（含脫下的裝備）、倉庫、寶石、鑲嵌石、金幣</div>`;
   openDlg('轉生師', html, ok ? [[`轉生（第 ${n + 1} 次）`, async () => {
     if (!(await askConfirm(`確定轉生？職業會回到初心者、Job Lv 回到 1、天賦清空。`, { danger: true }))) return;
     try { const c2 = await call('POST', '/api/rebirth', { charId: CHAR.id }); showChar(c2); refreshChar(); if (typeof loadPlayer === 'function') loadPlayer();
@@ -2022,7 +2022,7 @@ function compareHtml(it) {
 function itemDetail(it) {
   // 項目 32：★ 特性與詞綴另外列一行（數值已經算進上面的總數值）
   const T = traitOf(it), AF = it.aff?.a || [], affHtml = (T || AF.length) ? `<div class="affx">${T ? `<span class="trait">${T.name} ${STAT_NAMES[T.k]} ${fmtStat(T.k, T.v)}</span>` : ''}${AF.map(([k, v]) => `<span>${STAT_NAMES[k]} ${fmtStat(k, v)}</span>`).join('')}</div>` : '';
-  let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${pcMask(it) || pcReqLv(it) ? `<small style="color:${wearBlock(it, CHAR) && !it.equipped ? '#c0392b' : '#5a6478'}">職業：${maskJobs(pcMask(it))}${pcReqLv(it) ? `・需求等級 ${pcReqLv(it)}` : ''}</small><br>` : ''}${statLine(it)}${affHtml}${clkHtml(it)}<div class="acts">`;
+  let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${pcMask(it) || pcReqLv(it) ? `<small style="color:${wearBlock(it, CHAR) && !it.equipped ? '#c0392b' : '#5a6478'}">職業：${maskJobs(pcMask(it))}${pcReqLv(it) ? `・需求 Job Lv ${pcReqLv(it)}` : ''}</small><br>` : ''}${statLine(it)}${affHtml}${clkHtml(it)}<div class="acts">`;
   if (bagMode === 'smith') {
     if (it.refine >= REFINE_MAX) h += '<small>已經強化到最高了</small>';
     else h += `<button class="btn primary" data-act="refine" data-item="${it.id}">精煉 +${it.refine} → +${it.refine + 1}（${Math.round(REFINE_RATE[it.refine] * 100)}%，用 1 個${ORES[oreFor(it)].name}，持有 ${CHAR.mats?.[oreFor(it)] || 0}）</button>${refineBreaks(it.refine) ? '<small style="color:#c0392b">失敗會碎</small>' : it.refine >= 3 ? '<small>失敗會降一級</small>' : ''}`;

@@ -107,13 +107,14 @@ export const pcMask = it => pcOf(it)?.[6] || 0;
 // 職業位元能不能穿：0＝全職業；有一轉職業位元＝看自己的職業；只有二轉以上位元的（幻魔、龍皇…套裝）＝二轉以後才能穿
 export const maskWearable = (mask, job, job2 = false) => !mask || !!(mask & (JOB_BIT[job] || 0)) || (!(mask & FIRST_BITS) && job2);
 export const maskJobs = mask => !mask ? '全職業' : (mask & FIRST_BITS) ? Object.entries(JOB_BIT).filter(([, b]) => mask & b).map(([j]) => j).join('・') : '二轉以上';
-// 能不能裝備（回傳不能的原因，可以就回傳空字串）；c＝角色 { job, job2, baseLv }
+// 能不能裝備（回傳不能的原因，可以就回傳空字串）；c＝角色 { job, job2, jobLv }
+// 11/21 使用者：「裝備要看 job 等級」→ 需求等級比 Job Lv（原本比 Base Lv）
 export function wearBlock(it, c) {
   if (!it || !c) return '';
   if (it.slot === 'shield' && c.job !== '騎士') return '盾牌只有騎士能裝備';
   if (it.slot === 'weapon' && JOB_WEAPON[c.job] && it.base !== JOB_WEAPON[c.job]) return `${c.job}不能裝備這種武器`;
   const m = pcMask(it); if (!maskWearable(m, c.job, !!c.job2)) return `這是${maskJobs(m)}的裝備`;
-  const lv = pcReqLv(it); if (lv > (c.baseLv || 1)) return `要 Base Lv ${lv}`;
+  const lv = pcReqLv(it); if (lv > (c.jobLv || 1)) return `要 Job Lv ${lv}`;
   return '';
 }
 // 依怪物等級挑一件：需求等級 ≤ lv 的最高幾件裡隨機（越接近 lv 越常出）；有給職業＝只挑這職業能穿的，沒給＝一轉職業能穿的（不出二轉套裝）
