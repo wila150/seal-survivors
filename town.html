@@ -290,6 +290,7 @@ import { weakList } from './src/2_core/stun.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import * as BPD from './src/1_data/blueprint.js'; // PC 希望藍圖
 import * as GDD from './src/1_data/guild.js'; // PC 軍團＋情侶
+import { ARENA_LV as AR_LV, ARENA_SECS as AR_SECS, ARENA_NAME as AR_NAME } from './src/1_data/arena.js'; // PC 古代競技場
 import { COSTUMES, FASHION_SLOTS, isOnePiece, fashionPrice, fashionText, costumeStats, shopList, STAT_LABEL } from './src/1_data/fashion.js'; // PC 時裝（#15）
 import * as TRD from './src/1_data/trade.js';
 import { RULA_NAME, RULA_MAX, RULA_SECS, rulaScore } from './src/1_data/rula.js'; // PC 嚕啦生死鬥（#22） // PC 交易＋擺攤（#18）
@@ -1143,13 +1144,13 @@ function openRebirth() { // 11/21 使用者：Job Lv 70 可以轉生，轉生＝
 
 // ===== 項目 19：排行榜（六個分頁、職業篩選、前三名金銀銅、自己的角色藍框、每 30 秒更新）=====
 let rTab = 'power', rJob = '', rTimer = 0;
-const RANK_TABS = [['power', '戰力'], ['base', 'Base 等級'], ['job', 'Job 等級'], ['stage', '關卡進度'], ['kills', '擊殺數'], ['tower', '無盡塔'], ['party', '組隊通關']];
+const RANK_TABS = [['power', '戰力'], ['base', 'Base 等級'], ['job', 'Job 等級'], ['stage', '關卡進度'], ['kills', '擊殺數'], ['tower', '無盡塔'], ['party', '組隊通關'], ['pvp', 'PVP']];
 async function openRank(quiet = false) {
   clearTimeout(rTimer);
   let r; try { r = await call('GET', `/api/rank?tab=${rTab}&job=${encodeURIComponent(rJob)}`); } catch (e) { return toast(e.message); }
   if (quiet && !dlgOpen) return; // 背景更新時視窗已關就不再打開
   const fmt = s => `${String(s / 60 | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-  const col = { power: ['戰力', x => x.power], base: ['Base', x => `Lv ${x.baseLv}`], job: ['Job', x => `Lv ${x.jobLv}`], stage: ['通關', x => `${x.stages} 張・最久 ${fmt(x.best)}`], kills: ['總擊殺', x => x.kills], tower: ['本月最佳', x => `${x.towerScore.toLocaleString()} 分・第 ${x.towerFloor} 層`], party: ['組隊通關', x => `${x.partyClears} 次`] }[rTab];
+  const col = { power: ['戰力', x => x.power], base: ['Base', x => `Lv ${x.baseLv}`], job: ['Job', x => `Lv ${x.jobLv}`], stage: ['通關', x => `${x.stages} 張・最久 ${fmt(x.best)}`], kills: ['總擊殺', x => x.kills], tower: ['本月最佳', x => `${x.towerScore.toLocaleString()} 分・第 ${x.towerFloor} 層`], party: ['組隊通關', x => `${x.partyClears} 次`], pvp: ['WIN', x => x.pvpWins] }[rTab];
   const medal = n => ['🥇', '🥈', '🥉'][n - 1] || n;
   // PC 原版 RANKING 視窗（interface/ranking_win.tex）：梯形分頁、米色欄位列、深淺相間的列
   const row = x => `<tr class="${x.mine ? 'me' : ''}${x.rank <= 3 ? ' top' : ''}"><td>${medal(x.rank)}</td><td>${esc(x.name)}</td><td>${esc(x.jobName)}</td><td>${col[1](x)}</td></tr>`;
@@ -1322,7 +1323,7 @@ function ptyConnect(code, opt = {}) {
     .on('idle', () => { saveCode(''); PTY = null; ptyRedraw(); openDlg(PTY_T, '<p>你已閒置 5 分鐘，離開了隊伍。</p>', [], true); })
     .on('start', o => { // 隊長按出發 → 全員一起進遊戲
       try { sessionStorage.setItem('ss_stage', String(o.setup.stage)); sessionStorage.setItem('ss_diff', JSON.stringify(o.setup.diff || null)); } catch {}
-      saveRun({ code, seed: o.seed, members: o.members, leader: o.leader, me: CHAR.id, exp: PTY.room?.exp || 'own' }); PTY.drop(); location.href = 'game.html?party=1'; });
+      const arn = !!o.setup?.arena; saveRun({ code, seed: o.seed, members: o.members, leader: o.leader, me: CHAR.id, exp: PTY.room?.exp || 'own', arena: arn }); PTY.drop(); location.href = arn ? 'game.html?party=1&arena=1' : 'game.html?party=1'; });
 }
 const boxOpen = t => dlgBoxes().some(b => !b.hidden && b.dataset.k === dlgKey(t));
 function ptyRedraw() { redrawBg(() => { if (boxOpen(PTY_T)) openParty(); if (boxOpen(FR_T)) openFriends(); }); updatePartyBtn(); }
@@ -1371,15 +1372,15 @@ function openCreateParty() {
   draw();
 }
 function openPartyRoom() {
-  const R = PTY.room, lead = ptyLead(), S = R?.setup ? STAGES[R.setup.stage] : null, n = R?.members.length || 1;
+  const R = PTY.room, lead = ptyLead(), ARN = !!R?.setup?.arena, S = R?.setup && !ARN ? STAGES[R.setup.stage] : null, n = R?.members.length || 1;
   let h = `<div class="pty-code"><span>${esc(R?.name || '隊伍')}</span><small>${R?.exp === 'even' ? '均等分配' : '各自分配'}</small><span style="flex:1"></span>代碼 <b>${PTY.code}</b><button class="btn" id="ptyCopy">複製邀請連結</button></div>`;
   if (!R) h += '<p>連線中…</p>';
   else {
     h += `<table class="ps-table"><thead><tr><th></th><th>名稱</th><th>職業</th><th>Job</th><th>狀態</th></tr></thead><tbody>${R.members.map(m => `<tr class="${m.charId === ptyMe() ? 'on' : ''}"><td>${m.charId === R.leader ? '👑' : ''}</td><td>${esc(m.name)}</td><td>${esc(m.jobName || m.job)}</td><td>${m.jobLv ?? m.baseLv}</td>
       <td>${m.charId === R.leader ? '隊長' : m.ready ? '<b style="color:#2e7d32">✓ 準備</b>' : '未準備'}${lead && m.charId !== ptyMe() ? ` <button class="btn" data-plead="${m.charId}">給隊長</button><button class="btn" data-pkick="${m.charId}">踢出</button>` : ''}</td></tr>`).join('')}
       ${Array.from({ length: Math.max(0, R.max - R.members.length) }, () => '<tr class="empty"><td></td><td colspan="4"><small>空位：給朋友代碼／邀請連結，或從「好友」邀請</small></td></tr>').join('')}</tbody></table>
-      <div class="sec"><h4>地圖</h4>${S ? `<b>${S.name}</b>　<small>怪物 Lv${R.setup.diff?.monLv ?? S.lv}　${n} 人：怪物數量 ×${(1 + 0.5 * (n - 1)).toFixed(1)}・血量 ×${(1 + 0.6 * (n - 1)).toFixed(1)}・攻擊 ×${(1 + 0.25 * (n - 1)).toFixed(2)}・經驗 +${10 * (n - 1)}%</small>` : '<small>隊長還沒選地圖</small>'}
-        ${lead ? `<button class="btn" id="ptyPick" style="margin-left:8px">${S ? '換地圖' : '選地圖'}</button>` : ''}</div>
+      <div class="sec"><h4>地圖</h4>${ARN ? `<b>⚔ ${AR_NAME}（PVP）</b>　<small>隊員互打 ${AR_SECS} 秒、場上沒有怪、擊倒一次 WIN +1、倒下 3 秒復活；沒有懲罰也沒有經驗道具；全員要 Job Lv ${AR_LV}</small>` : S ? `<b>${S.name}</b>　<small>怪物 Lv${R.setup.diff?.monLv ?? S.lv}　${n} 人：怪物數量 ×${(1 + 0.5 * (n - 1)).toFixed(1)}・血量 ×${(1 + 0.6 * (n - 1)).toFixed(1)}・攻擊 ×${(1 + 0.25 * (n - 1)).toFixed(2)}・經驗 +${10 * (n - 1)}%</small>` : '<small>隊長還沒選地圖</small>'}
+        ${lead ? `<button class="btn" id="ptyPick" style="margin-left:8px">${S ? '換地圖' : '選地圖'}</button><button class="btn" id="ptyArena" style="margin-left:6px">⚔ ${AR_NAME}</button>` : ''}</div>
       ${(() => { const L = partyBuffs(R.members.map(m => m.job)); return `<div class="sec"><h4>組隊 BUFF</h4>${L.length ? L.map(b => `<div><b>${esc(b.name)}</b>（${esc(b.job)}）<small>${esc(b.text)}</small></div>`).join('') : `<small>${n < 2 ? '2 人以上才有：隊上每種職業給全隊一種增益，隊友越多越強' : '隊上的職業沒有組隊 BUFF（初心者沒有，一轉後才有）'}</small>`}</div>`; })()}`;
   }
   const meReady = R?.members.find(m => m.charId === ptyMe())?.ready;
@@ -1387,6 +1388,7 @@ function openPartyRoom() {
   const B = $('#dlgBody'), q = s => B.querySelector(s);
   q('#ptyCopy')?.addEventListener('click', async () => { const link = inviteLink(PTY.code); try { await navigator.clipboard.writeText(link); toast('邀請連結已複製，貼給朋友'); } catch { toast(link); } });
   q('#ptyPick')?.addEventListener('click', () => { partyPick = true; openExpedition(); });
+  q('#ptyArena')?.addEventListener('click', () => { const low = (R?.members || []).filter(m => (m.jobLv || 1) < AR_LV); if (low.length) return toast(`古代競技場要 Job Lv ${AR_LV}：${low.map(m => m.name).join('、')} 等級不夠`); PTY.send({ t: 'setup', setup: { stage: 0, arena: true, name: AR_NAME } }); });
   B.querySelectorAll('[data-pkick]').forEach(b => b.onclick = async () => { if (await askConfirm('把這個隊員移出隊伍？')) PTY.send({ t: 'kick', charId: +b.dataset.pkick }); });
   B.querySelectorAll('[data-plead]').forEach(b => b.onclick = () => PTY.send({ t: 'lead', charId: +b.dataset.plead }));
 }

@@ -16,7 +16,7 @@ export function createPartyGame(G) {
   const R = runInfo(); if (!R?.code || !window.SS_CLOUD) return null;
   let token = null; try { token = localStorage.getItem('ss_token'); } catch {}
   const me = G.CHAR.id, host = R.leader === me, n = Math.max(1, R.members?.length || 1), exp = R.exp === 'even' ? 'even' : 'own';
-  const NET = { host, guest: !host, me, n, jobs: (R.members || []).map(m => m.job || '初心者'), mul: PARTY_MUL(n), exp, seq: 0, remotes: new Map(), over: false };
+  const NET = { arena: !!R.arena, host, guest: !host, me, n, jobs: (R.members || []).map(m => m.job || '初心者'), mul: PARTY_MUL(n), exp, seq: 0, remotes: new Map(), over: false };
   const conn = new PartyConn(R.code, { token, charId: me });
   const send = (k, d) => conn.send({ t: 'g', k, d }), toHost = (k, d) => conn.send({ t: 'h', k, d });
   const byNid = new Map(); let newSpawns = [], fullResend = 0, sendAcc = 0, hitQ = [];
@@ -30,7 +30,7 @@ export function createPartyGame(G) {
     r.el.className = 'pty-tag'; r.el.innerHTML = `<b>${String(m.name).replace(/[<>&]/g, '')}</b><i><s></s></i><em></em>`; labelBox.appendChild(r.el);
     NET.remotes.set(id, r);
     const L = playerLook(m.job, m.gender, m.hair ?? 0, m.hairColor ?? 0, m.outfit ?? 0, m.items || [], m.costume || null);
-    sealActor(playerModelId(m.job, m.gender), playerAnimSet(m.job, m.gender), 1.7, L.gear, L.opts).then(g => { g.children[0].rotation.y = Math.PI; g.position.set(r.x, 0, r.z); G.scene.add(g); r.g = g; }).catch(() => {});
+    sealActor(playerModelId(m.job, m.gender), playerAnimSet(m.job, m.gender), 1.7, L.gear, L.opts).then(g => { g.children[0].rotation.y = Math.PI; g.position.set(r.x, 0, r.z); G.scene.add(g); r.g = g; if (NET.arena) G.addPvpTarget?.(r); /* 古代競技場：對手變成打得到的目標 */ }).catch(() => {});
     return r;
   }
   const alive = r => r && !r.down && !r.dead && !r.gone;
@@ -83,6 +83,8 @@ export function createPartyGame(G) {
       case 'end': if (!NET.over) { NET.end(!!d?.win); G.gameOver(!!d?.win, false, d?.reason === 'leader' ? '隊長離開了，這局結束' : null); } break;
       case 'drop': { const r = NET.remotes.get(from); if (r) r.gone = true; break; }
       case 'rejoin': fullResend = 1; break;
+      case 'pvp': if (NET.arena && d.to === me) G.arenaHurt?.(d.amt, from); break; /* 古代競技場：別人的招式打到我 */
+      case 'ko': if (NET.arena) G.arenaKo?.(from, d.by); break;
     }
   });
   conn.on('h', o => { if (!host || o.k !== 'hit') return; for (const [nid, amt] of o.d || []) { const e = byNid.get(nid); if (!e || e.dead) continue; G.netDamage(e, amt, o.from); } });
@@ -102,7 +104,7 @@ export function createPartyGame(G) {
       if (r.down && !P.down && !P.dead && Math.hypot(r.tx - pp.x, r.tz - pp.z) < REVIVE_R) { r.revT += dt; if (!r.revHint || now - r.revHint > 900) { r.revHint = now; G.showBanner(`<small>救援中</small><b>扶起 ${r.m.name}</b><span>站著別走 ${Math.max(0, REVIVE_SECS - r.revT).toFixed(1)} 秒</span>`, 1000); } if (r.revT >= REVIVE_SECS) { r.revT = 0; send('rev', { to: r.id }); setTimeout(() => send('rev', { to: r.id }), 300); } } else r.revT = 0;
     }
     // 隊員：鏡像的怪跟著隊長的位置走、碰到自己就受傷
-    if (!host) for (const e of G.enemies()) { if (e.dead || e.netX == null) continue; const p = e.mesh.position, ox = p.x, oz = p.z;
+    if (!host) for (const e of G.enemies()) { if (e.dead || e.netX == null || e.pvp) continue; const p = e.mesh.position, ox = p.x, oz = p.z;
       p.x += (e.netX - p.x) * Math.min(1, dt * 10); p.z += (e.netZ - p.z) * Math.min(1, dt * 10);
       const mv = Math.hypot(p.x - ox, p.z - oz) > dt * 0.2; if (mv) e.mesh.rotation.y = Math.atan2(p.x - ox, p.z - oz);
       e.mesh.userData.actor?.move(mv); p.y = e.fly ? 0.8 + Math.sin(G.t() * 6 + e.ph) * 0.2 : 0;
@@ -115,7 +117,7 @@ export function createPartyGame(G) {
         const s = (fullResend ? list : newSpawns.filter(e => !e.dead)).map(spawnInfo); fullResend = 0; newSpawns = [];
         send('snap', { t: +G.t().toFixed(2), s, p });
         // 全隊倒下（隊長自己也倒了／觀戰）＝結束
-        if (!NET.alivePlayers().length && G.state() === 'play') { G.gameOver(false); }
+        if (!NET.arena && !NET.alivePlayers().length && G.state() === 'play') { G.gameOver(false); }
       } else if (hitQ.length) { toHost('hit', hitQ); hitQ = []; } }
   };
   // 名牌＋血條（render 時呼叫）
@@ -133,6 +135,8 @@ export function createPartyGame(G) {
   NET.aoe = (x, z, r, dmg) => send('aoe', { x: +x.toFixed(2), z: +z.toFixed(2), r, dmg: Math.round(dmg) });
   NET.shot = (x, z, vx, vz, dmg) => send('shot', { x: +x.toFixed(2), z: +z.toFixed(2), vx: +vx.toFixed(2), vz: +vz.toFixed(2), dmg: Math.round(dmg) });
   NET.conn = conn; NET._THREE = G.THREE;
+  // 古代競技場（PVP，#21）：打到對手就把傷害送給對方，對方自己扣血；倒下＝廣播 ko（誰打倒的），3 秒後原地附近復活
+  if (NET.arena) { NET.pvpHit = (id, amt) => send('pvp', { to: id, amt: Math.round(amt) }); NET.ko = by => send('ko', { by }); NET.down = () => G.arenaDie?.(); }
   // 隊友攻擊動作：自己出招（rig.swing）就廣播，最多每 0.25 秒一次；對方畫面上的隊友播同一個原版動作
   if (G.rig) { const sw = G.rig.swing; let lastSw = 0; G.rig.swing = (face, motion = null) => { sw(face, motion); const now = performance.now(); if (now - lastSw > 250) { lastSw = now; send('sw', { f: face == null ? null : +face.toFixed(2), m: motion }); } }; }
   conn.on('err', o => { if (o.fatal) G.showBanner(`<small>組隊</small><b>${o.msg}</b>`, 3000, true); });

@@ -30,6 +30,7 @@ import { POLY } from '../1_data/polymorph.js';
 import * as BC from '../1_data/bosschest.js'; // PC 首領寶箱＋鑰匙
 import * as BP from '../1_data/blueprint.js'; // PC 希望藍圖（成長型任務）
 import * as GD from '../1_data/guild.js'; // PC 軍團＋情侶
+import * as AR from '../1_data/arena.js'; // PC 古代競技場
 import { huntExtra } from '../1_data/hunt.js';
 import * as ML from '../1_data/mainline.js'; // 主線獎勵：時間寶箱、巡邏 // PC 狩獵系統 // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../1_data/fishing.js';
@@ -223,7 +224,7 @@ const MAIL_MAX = 100;
 const isTowerKey = k => k === 'tower';
 const RARITY_N = ['普通', '精良', '稀有', '史詩', '傳說'];
 // 項目 19：戰力＝穿著裝備的數值換算成分數（權重暫定）
-const RANK_TABS = ['power', 'base', 'job', 'stage', 'kills', 'tower', 'party']; // party＝組隊通關次數（組隊副本 v1.1 決定 6）
+const RANK_TABS = ['power', 'base', 'job', 'stage', 'kills', 'tower', 'party', 'pvp']; // pvp＝古代競技場 WIN 值（PC 聯盟排名） // party＝組隊通關次數（組隊副本 v1.1 決定 6）
 const POWER_W = { atk: 1000, crit: 1000, haste: 800, speed: 500, magnet: 100, hp: 2, armor: 20 };
 const powerOf = items => Math.round(Object.entries(totalBonus(items)).reduce((t, [k, v]) => t + v * (POWER_W[k] || 0), 0));
 function sendMail(cid, { sender = '系統', title, body = '', gold = 0, items = [], mats = {} }) {
@@ -1616,6 +1617,15 @@ const api = {
       .filter(Boolean).sort((a, b) => b.best - a.best || a.secs - b.secs).slice(0, 20);
     send(res, 200, { best: R.best || 0, total: R.total || 0, used: R.day === day, rank });
   },
+  // ===== PC 古代競技場（#21，src/1_data/arena.js）：對戰結束回報擊倒數 → WIN 值（排行榜 PVP）；沒有經驗、道具、懲罰 =====
+  'POST /api/arena': async (req, res, _, uid) => {
+    const { charId, kills } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    if (c.job_lv < AR.ARENA_LV) return send(res, 400, { error: `古代競技場要 Job Lv ${AR.ARENA_LV} 以上` });
+    const d = JSON.parse(c.data || '{}'), last = d.pvpLast || 0, now = Date.now();
+    const gain = now - last < 60e3 ? 0 : Math.max(0, Math.min(30, +kills | 0)); // 一場最多算 30 次擊倒、一分鐘內重複回報不算 🔢
+    d.pvpWins = (d.pvpWins || 0) + gain; d.pvpLast = now; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    send(res, 200, { gain, wins: d.pvpWins });
+  },
   'POST /api/rula': async (req, res, _, uid) => {
     const { charId, act, start, ticket, from, to, secs, kills, lv } = await body(req); const c0 = ownChar(uid, charId); if (!c0) return send(res, 404, { error: '找不到角色' });
     const out = tx(() => {
@@ -1709,11 +1719,12 @@ const api = {
       const d = JSON.parse(c.data || '{}'), eq = db.prepare('SELECT * FROM items WHERE char_id=? AND equipped=1').all(c.id).map(itemView);
       const tw = tab === 'tower' ? db.prepare('SELECT floor, score FROM towers WHERE char_id=? AND month=? ORDER BY score DESC LIMIT 1').get(c.id, monthKey()) : null;
       return { id: c.id, name: c.name, job: c.job, towerFloor: tw?.floor || 0, towerScore: tw?.score || 0, jobName: (d.job2 && branchOf(T, c.job, d.job2)?.name) || c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp,
-        power: powerOf(eq), partyClears: d.partyClears || 0, stages: (d.cleared || []).length, best: kills[c.id]?.s || 0, kills: kills[c.id]?.k || 0, mine: c.account_id === uid };
+        power: powerOf(eq), partyClears: d.partyClears || 0, pvpWins: d.pvpWins || 0, stages: (d.cleared || []).length, best: kills[c.id]?.s || 0, kills: kills[c.id]?.k || 0, mine: c.account_id === uid };
     });
-    const key = { power: r => [r.power, r.baseLv], base: r => [r.baseLv, r.exp], job: r => [r.jobLv, r.baseLv], stage: r => [r.stages, r.best], kills: r => [r.kills, r.baseLv], tower: r => [r.towerScore, r.towerFloor], party: r => [r.partyClears, r.baseLv] }[tab];
+    const key = { power: r => [r.power, r.baseLv], base: r => [r.baseLv, r.exp], job: r => [r.jobLv, r.baseLv], stage: r => [r.stages, r.best], kills: r => [r.kills, r.baseLv], tower: r => [r.towerScore, r.towerFloor], party: r => [r.partyClears, r.baseLv], pvp: r => [r.pvpWins, r.jobLv] }[tab];
     if (tab === 'tower') rows = rows.filter(r => r.towerScore > 0);
     if (tab === 'party') rows = rows.filter(r => r.partyClears > 0);
+    if (tab === 'pvp') rows = rows.filter(r => r.pvpWins > 0);
     rows.sort((a, b) => { const x = key(a), y = key(b); return y[0] - x[0] || y[1] - x[1] || a.id - b.id; });
     rows.forEach((r, i) => r.rank = i + 1);
     send(res, 200, { tab, month: monthKey(), rows: rows.slice(0, 50), mine: rows.filter(r => r.mine && r.rank > 50), total: rows.length, at: Date.now() });
