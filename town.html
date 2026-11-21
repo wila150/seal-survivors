@@ -1002,15 +1002,15 @@ function openPets() {
 }
 
 // ===== 項目 21：轉生師 =====
-function openRebirth() {
-  const c = CHAR, n = c.rebirth || 0, ok = c.baseLv >= 70 && n < 10;
-  const html = `<p>「到了 Base Lv 70，就能捨棄等級重新出發。轉生之後素質全部重新分配，還會多 <b>75</b> 點。」</p>
-    <p>目前轉生 <b>${n} / 10</b> 次　Base Lv <b>${c.baseLv}</b>${c.baseLv >= 70 ? ' <b style="color:#2e8b57">✔</b>' : ' <small style="color:#c0392b">（要 70）</small>'}</p>
-    <div class="detail"><b>轉生後：</b><br>・Base Lv 回到 1、經驗歸零<br>・素質全部回到 1，可重配點數＝${20 + 75 * (n + 1)}（20＋75×${n + 1}）；升級拿到的素質點會清掉<br>・<b>保留</b>：職業／二轉、Job 等級、天賦、裝備、背包、倉庫、寶石、鑲嵌石、金幣</div>`;
+function openRebirth() { // 11/21 使用者：轉生＝職業回初心者、Job 重置、Base 等級不變
+  const c = CHAR, n = c.rebirth || 0, nov = c.job === '初心者', ok = c.baseLv >= 70 && n < 10 && !nov;
+  const html = `<p>「到了 Base Lv 70，就能放下現在的職業、從初心者重新修行。等級不會掉，每轉生一次還會多 <b>75</b> 點素質。」</p>
+    <p>目前轉生 <b>${n} / 10</b> 次　Base Lv <b>${c.baseLv}</b>${c.baseLv >= 70 ? ' <b style="color:#2e8b57">✔</b>' : ' <small style="color:#c0392b">（要 70）</small>'}　職業 <b>${esc(c.jobName || c.job)}</b>${nov ? ' <small style="color:#c0392b">（要先一轉）</small>' : ' <b style="color:#2e8b57">✔</b>'}</p>
+    <div class="detail"><b>轉生後：</b><br>・職業回到<b>初心者</b>、Job Lv 回到 1（二轉／三轉、天賦全部清空）→ 要重新練 Job、找百業宗師轉職<br>・素質點 +75（第 ${n + 1} 次轉生）<br>・初心者穿不了的職業裝備會自動脫下放回背包<br>・<b>不變</b>：Base 等級與經驗、已分配的素質、裝備、背包、倉庫、寶石、鑲嵌石、金幣</div>`;
   openDlg('轉生師', html, ok ? [[`轉生（第 ${n + 1} 次）`, async () => {
-    if (!(await askConfirm(`確定轉生？Base Lv 會回到 1、素質全部重配。`, { danger: true }))) return;
-    try { const c2 = await call('POST', '/api/rebirth', { charId: CHAR.id }); showChar(c2); refreshChar();
-      openDlg('轉生師', `<p>轉生完成！這是你的第 <b>${c2.rebirth}</b> 次轉生。</p><p>你有 <b>${c2.points}</b> 點素質可以分配。</p>`, [['去分配素質', () => openCharInfo(), true]]);
+    if (!(await askConfirm(`確定轉生？職業會回到初心者、Job Lv 回到 1、天賦清空。`, { danger: true }))) return;
+    try { const c2 = await call('POST', '/api/rebirth', { charId: CHAR.id }); showChar(c2); refreshChar(); if (typeof loadPlayer === 'function') loadPlayer();
+      openDlg('轉生師', `<p>轉生完成！這是你的第 <b>${c2.rebirth}</b> 次轉生，現在是<b>初心者</b>。</p><p>你有 <b>${c2.points}</b> 點素質可以分配。Job 練到 10 再去找百業宗師轉職。</p>`, [['去分配素質', () => openCharInfo(), true]]);
     } catch (e) { toast(e.message); }
   }, true]] : []);
 }

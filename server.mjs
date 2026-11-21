@@ -998,8 +998,11 @@ const api = {
     const d = JSON.parse(c.data || '{}'), n = (d.rebirth || 0) + 1;
     if (n > REBIRTH_MAX) return send(res, 400, { error: `最多轉生 ${REBIRTH_MAX} 次` });
     if (c.base_lv < REBIRTH_LV) return send(res, 400, { error: `要 Base Lv ${REBIRTH_LV} 才能轉生` });
-    d.rebirth = n; d.stats = defaultStats(); d.points = FREE_POINTS + REBIRTH_BONUS * n;
-    db.prepare('UPDATE characters SET base_lv=1, exp=0, data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    if (c.job === NOVICE) return send(res, 400, { error: '要先一轉才能轉生（轉生會回到初心者）' });
+    // 11/21 使用者：「轉生後 job 要重置、轉生完回到初心者、base 等級不變」→ Base／經驗／素質不動，職業回初心者、Job Lv 1、二轉三轉與天賦清空；每次多 75 點素質
+    d.rebirth = n; d.novice = true; d.jobExp = 0; d.talents = {}; d.talents2 = {}; delete d.job2; delete d.job3; d.points = (d.points || 0) + REBIRTH_BONUS;
+    db.prepare('UPDATE characters SET job=?, job_lv=1, data=? WHERE id=?').run(NOVICE, JSON.stringify(d), c.id);
+    for (const it of db.prepare('SELECT * FROM items WHERE char_id=? AND equipped=1').all(c.id)) if (wearBlock(it, { job: NOVICE, job2: null, baseLv: c.base_lv })) db.prepare('UPDATE items SET equipped=0 WHERE id=?').run(it.id); // 初心者穿不了的職業裝備自動脫下（留在背包）
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
   // ===== GM 指令（本機連線，或 GM 帳號：環境變數 GM_USERS＝逗號分隔的帳號；雲端在 cloud/wrangler.toml 的 [vars]）=====
