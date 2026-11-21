@@ -940,7 +940,7 @@ const fmtK = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).t
 function drawMeter() {
   const el = document.getElementById('dmgPanel'); el.classList.toggle('off', !opts.meter); if (!opts.meter) return;
   const rows = Object.entries(dmgStats).sort((a, b) => b[1].dmg - a[1].dmg), tot = rows.reduce((a, [, d]) => a + d.dmg, 0) || 1;
-  document.getElementById('dmgRows').innerHTML = rows.map(([k, d], i) => `<div class="dr"><i style="width:${d.dmg / tot * 100}%"></i><span>${i + 1}. ${skillName(k)}</span><span>${fmtK(d.dmg)} (${d.hits}, ${(d.dmg / tot * 100).toFixed(0)}%)</span></div>`).join('') || '<div class="dr"><span>還沒有傷害</span></div>';
+  document.getElementById('dmgRows').innerHTML = rows.map(([k, d], i) => `<div class="dr"><i style="width:${d.dmg / tot * 100}%"></i><span>${i + 1}. ${skillName(k)}</span><span>${fmtK(d.dmg)} <em class="dh">(${d.hits}, ${(d.dmg / tot * 100).toFixed(0)}%)</em><em class="dp">${(d.dmg / tot * 100).toFixed(0)}%</em></span></div>`).join('') || '<div class="dr"><span>還沒有傷害</span></div>';
   document.getElementById('dmgTot').innerHTML = `<span>總計</span><span>${fmtK(tot)}・${Math.round(tot / Math.max(1, t))} DPS</span>`;
 }
 // 傷害數字（DOM 物件池，最多同時 40 個）

@@ -44,7 +44,7 @@
   .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
   .chips span{font-size:13px;padding:3px 12px}
   #topr{position:absolute;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));display:flex;gap:8px;align-items:flex-start}
-  #dmgPanel{width:230px;font-size:12px}#dmgPanel.off{display:none}
+  #dmgPanel{width:230px;font-size:12px}#dmgPanel em{font-style:normal}#dmgPanel .dp{display:none}#dmgPanel.off{display:none}
   .dr{position:relative;margin:3px 6px;padding:2px 6px;border-radius:5px;overflow:hidden;display:flex;justify-content:space-between}
   .dr i{position:absolute;left:0;top:0;bottom:0;background:#6f8fd855;z-index:0}.dr span{position:relative;z-index:1}
   .dr:first-child{color:#fff}.dr:first-child i{background:#3a5bbf}
@@ -84,7 +84,7 @@
   .dn{position:absolute;font:900 20px/1 system-ui,sans-serif;color:#fff;-webkit-text-stroke:1px #000;text-shadow:0 2px 0 #000;transform:translate(-50%,-50%);white-space:nowrap}
   .dn.crit{color:#ffd23f;font-size:28px}.dn.hurt{color:#ff5a5a}
   #php{position:absolute;width:56px;height:7px;background:#222;border:1px solid #000;border-radius:4px;overflow:hidden;transform:translate(-50%,0)}#php i{display:block;height:100%;background:#4cd44c}
-  @media (max-width:720px){#dmgPanel{display:none}#mmPanel{width:110px}#mm{width:100px;height:100px}#time{font-size:20px}#face{width:48px;height:48px}.pfr{width:36vw}#topc{top:calc(max(10px,env(safe-area-inset-top)) + 84px)}}
+  @media (max-width:720px){#dmgPanel{position:fixed;left:max(8px,env(safe-area-inset-left));top:calc(max(8px,env(safe-area-inset-top)) + 150px);width:136px;font-size:10px;opacity:.92;pointer-events:none}#dmgPanel header{font-size:10px;padding:2px 8px}#dmgPanel .dr{margin:1px 3px;padding:1px 4px;gap:4px}#dmgPanel .dr span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#dmgPanel .dr span:last-child{flex:none}#dmgPanel .dh{display:none}#dmgPanel .dp{display:inline;opacity:.8}#dmgRows .dr:nth-child(n+6){display:none}#dmgTot{padding:2px 6px;white-space:nowrap}#mmPanel{width:110px}#mm{width:100px;height:100px}#time{font-size:20px}#face{width:48px;height:48px}.pfr{width:36vw}#topc{top:calc(max(10px,env(safe-area-inset-top)) + 84px)}}
   #luInfo{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:-6px}
   #luInfo .lv{background:#eef2fb;color:#3a5bbf;border-radius:12px;padding:2px 12px;font-size:13px;font-weight:800}
   #luInfo .strip{display:flex;align-items:center;gap:6px;background:#eef2fbee;border:1px solid #9db4ee;border-radius:12px;padding:5px 8px;color:#26324d;font-size:12px;font-weight:700}
