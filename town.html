@@ -217,7 +217,7 @@
 <!-- 進城載入畫面：玩家模型和 NPC 載完才拿掉（11/18 使用者：載入時會先看到紅色膠囊人偶） -->
 <div id="labels"></div>
 <button id="stoneBtn" title="石頭鑲嵌（強化／分解）"><i style="background:#e8453c"></i><i style="background:#f0a030"></i><i style="background:#f5d442"></i></button>
-<div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Base 0</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">JOB<div class="bar"><i id="meJExp" style="background:linear-gradient(90deg,#7ee07a,#e0c04a)"></i></div><span id="jxpPct">0%</span></div></div></div>
+<div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Job 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">JOB<div class="bar"><i id="meJExp" style="background:linear-gradient(90deg,#7ee07a,#e0c04a)"></i></div><span id="jxpPct">0%</span></div></div></div>
 <div id="place" class="chip">希望之城<small>中央廣場</small></div>
 <!-- PC 原版主選單按鈕列（assets/ui/btn_*：tools/build-ui.mjs 從客戶端 mainbutton_all.tex 切）；原版沒有的功能用同色系文字鈕 -->
 <div id="escMenu" hidden><button id="escQm" title="快速選單（自訂左邊側邊欄）"><b>Quick Menu</b><span>快速選單</span></button><div class="esc-ring">
@@ -325,7 +325,7 @@ async function refreshChar(tries = 0) {
   showChar(c);
 }
 function showLv(c) { // 11/21 使用者：「應該要顯示 job 等級」→ 職業名後面加 Job Lv、JOB 經驗條；Base＝轉生階段（沒有 Base 經驗 → EXP 條拿掉）
-  $('#meLv').textContent = c.jobNeed ? `Job 經驗 ${c.jobExp ?? 0} / ${c.jobNeed}` : 'Job 經驗 MAX'; $('#lv').textContent = `Base ${c.baseLv}`; $('#meJob').textContent = `${c.jobName || c.job || ''} Job ${c.jobLv ?? 1}`; 
+  $('#meLv').textContent = c.jobNeed ? `Job 經驗 ${c.jobExp ?? 0} / ${c.jobNeed}` : 'Job 經驗 MAX'; $('#lv').textContent = `Job ${c.jobLv ?? 1}`; $('#meJob').textContent = `${c.jobName || c.job || ''} Base ${c.baseLv ?? 0}`; // 11/21 使用者：Job 跟 Base 顯示位置交換 
   const jp = c.jobNeed ? Math.min(100, (c.jobExp || 0) / c.jobNeed * 100) : 100; $('#meJExp').style.width = jp + '%'; $('#jxpPct').textContent = c.jobNeed ? jp.toFixed(1) + '%' : 'MAX';
 }
 let wearKey = null; // 穿著外觀（武器、盾、頭、上衣、下衣、鞋的 PC 編號）變了就重載角色模型
