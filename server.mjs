@@ -258,7 +258,7 @@ function patrolView(d, c) {
   const P = d.patrol || {}, n = ML.clearedCount(d.cleared), secs = P.t ? Math.min(ML.PATROL_CAP, (Date.now() - P.t) / 1000) : 0, y = ML.patrolYield(secs, n);
   return { secs: Math.floor(secs), n, ...y, exp: patrolExp(y.hours, d, c), quick: P.day === ATT.twDay() ? P.quick || 0 : 0 };
 }
-function patrolExp(h, d, c) { const n = ML.clearedCount(d.cleared); return n ? Math.floor(h * 300 * n * STAGES[n - 1].reward) : 0; } // 11/21 使用者：「巡邏應該看通關程度」→ Job 經驗每小時＝300 × 通關張數 × 最高通關地圖倍率（0 張＝0、1 張 300、2 張 960、3 張 2160、4 張 4200）🔢 暫定
+function patrolExp(h, d, c) { return ML.patrolYield(h * 3600, ML.clearedCount(d.cleared)).jexp; } // 11/21：Job 經驗只看打到的那張圖（mainline.js PATROL_STAGE）
 // PC 戰鬥力排名：每天 0 點（台灣）統計一次「同職業」戰鬥力名次（meta 'pwrank'）；前 50 名有 BUFF（rank-buff.js）
 let PWR = null;
 function pwRankOf(cid) {

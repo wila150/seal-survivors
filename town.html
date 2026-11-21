@@ -441,7 +441,7 @@ async function openPatrol() {
     <div class="sec"><h4>巡邏中</h4>已經巡邏 <b>${h} 小時 ${mm} 分</b>（最多累積 12 小時）　通關地圖 <b>${n}</b> / ${STAGES.length}
       <div style="height:10px;border-radius:5px;background:#e3e8f3;overflow:hidden;margin:6px 0"><i style="display:block;height:100%;width:${Math.min(100, (V.secs || 0) / ML.PATROL_CAP * 100)}%;background:linear-gradient(90deg,#7bd389,#2e9e4a)"></i></div>
       目前收穫：💰 ${V.gold || 0} 金幣・Job 經驗 ${(V.exp || 0).toLocaleString()}・強化金屬・一 ×${V.ore1 || 0}・裝備 ${V.gear || 0} 件
-      <br><small>每小時：金幣 ${60 + 60 * n}、強化金屬・一 ${1 + n}、Job 經驗 ${n ? Math.floor(300 * n * STAGES[n - 1].reward) : '0（還沒通關任何地圖）'}；每 2 小時 1 件${RARITY[ML.patrolGear(n)].name}裝備（裝備寄信箱）</small>
+      <br><small>巡邏地點：<b>${STAGES[ML.patrolStage(n)].name}</b>（打到哪張圖就拿那張圖的收益）　每小時：金幣 ${ML.PATROL_STAGE[ML.patrolStage(n)].gold}、強化金屬・一 ${ML.PATROL_STAGE[ML.patrolStage(n)].ore1}、Job 經驗 ${ML.PATROL_STAGE[ML.patrolStage(n)].exp}；每 2 小時 1 件${RARITY[ML.patrolGear(n)].name}裝備（裝備寄信箱）</small>
       <div style="margin-top:8px"><button class="btn primary" id="ptClaim" ${(V.secs || 0) >= 60 ? '' : 'disabled'}>領取巡邏收穫</button></div></div>
     <div class="sec"><h4>快速巡邏</h4>馬上拿到 2 小時的收穫${n >= 4 ? '，<b>四張地圖都通關：固定 4 件裝備</b>' : ''}。今天剩 <b>${ML.PATROL_QUICK.length - q}</b> 次
       <div style="margin-top:8px"><button class="btn primary" id="ptQuick" ${next == null || c.gold < next ? 'disabled' : ''}>${next == null ? '今天用完了' : next ? `快速巡邏（${next} 金幣）` : '快速巡邏（免費）'}</button></div></div>`, [], true);
