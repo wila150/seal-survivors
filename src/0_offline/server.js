@@ -150,7 +150,7 @@ const STASH_PAGES = 6, STASH_SIZE = 40, STASH_FREE = 2, STASH_COST = [0, 0, 5000
 const stashInfo = uid => { const a = db.prepare('SELECT stash FROM accounts WHERE id=?').get(uid); const s = a?.stash ? JSON.parse(a.stash) : {};
   return { unlocked: Math.max(STASH_FREE, s.unlocked || 0), names: Array.from({ length: STASH_PAGES }, (_, i) => s.names?.[i] || `倉庫 ${i + 1}`) }; };
 // 項目 21：轉生師
-const JOB_STAT_PTS = 3;
+const JOB_STAT_PTS = 3, SWEEP_DAILY = 3;
 // 11/21 使用者：「Base 等級是 0，轉生才會進到 1」→ Base＝轉生後的階段（0～10），沒有 Base 經驗；舊角色全部從 Base 0 開始（原本的 Base／經驗存在 d.oldBase／d.oldExp）
 if (!metaGet('base2rebirth')) {
   for (const c of db.prepare('SELECT id, base_lv, exp, data FROM characters').all()) { const d = JSON.parse(c.data || '{}'); if (d.oldBase == null) { d.oldBase = c.base_lv; d.oldExp = c.exp; } db.prepare('UPDATE characters SET base_lv=0, exp=0, data=? WHERE id=?').run(JSON.stringify(d), c.id); }
@@ -234,7 +234,7 @@ function auth(req) {
   if (!s || s.expires < Date.now()) return null;
   return s.account_id;
 }
-const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0, pwRank: pwRankOf(c.id), poly: d.poly || null, bestSecs: d.bestSecs || {}, msGot: d.msGot || {}, patrol: patrolView(d, c) }; };
+const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0, pwRank: pwRankOf(c.id), poly: d.poly || null, bestSecs: d.bestSecs || {}, msGot: d.msGot || {}, sweepLeft: SWEEP_DAILY - (d.sweep?.day === ATT.twDay() ? d.sweep.n : 0), sweepRef: d.sweepRef || {}, patrol: patrolView(d, c) }; };
 function gainJob(c, d, amt) { // 加 Job 經驗（升級照 jobNeed、每升 1 級 +3 素質點）；回傳新的 Job Lv 與升了幾級，呼叫的人負責寫回 job_lv 與 data
   const JM = jobMaxOf(d); let job = c.job_lv, jexp = (d.jobExp || 0) + Math.max(0, amt | 0), ups = 0;
   while (job < JM && jexp >= jobNeed(job)) { jexp -= jobNeed(job); job++; ups++; } if (job >= JM) jexp = 0;
@@ -403,6 +403,7 @@ const api = {
     d.points = (d.points || 0) + jobUps * JOB_STAT_PTS;
     if (job >= JM) jexp = 0;
     d.jobExp = jexp;
+    if (!isTower && STAGES[si] && cleared === true && (party | 0) <= 1) { d.sweepRef ??= {}; const k0 = Math.max(0, Math.min(20000, +kills | 0)), o = d.sweepRef[S.key]; if (!o || k0 > o.kills) d.sweepRef[S.key] = { kills: k0, lv: Math.max(1, Math.min(200, lv | 0)) }; } // 掃蕩用：單人通關這張圖最多擊殺的那一局
     if (!isTower && STAGES[si]) { d.bestSecs ??= {}; d.bestSecs[S.key] = Math.max(d.bestSecs[S.key] || 0, Math.max(0, Math.min(stageTime(S) + 60, +secs | 0))); } // 主線時間寶箱：這張地圖最久活多久
     let newStage = null; d.cleared ??= [];
     const firstClear = bonus && !d.cleared.includes(S.key);
@@ -1153,6 +1154,22 @@ const api = {
     const R = ML.msReward(si, i), items = R.gear != null ? [{ ...rollItem(Math.random, 0, null, Math.max(1, stageBaseLv(S)), c.job), rarity: R.gear }] : [];
     sendMail(c.id, { sender: '主線獎勵', title: `${S.name}・存活 ${need / 60} 分鐘寶箱`, body: `恭喜在${S.name}撐過 ${need / 60} 分鐘！`, gold: R.gold, mats: R.mats, items });
     send(res, 200, fullChar(ownChar(uid, c.id)));
+  },
+  // 11/21 使用者：「可以掃蕩該地圖」→ 已通關的地圖直接拿一局結算（不用打）：Job 經驗、金幣照出征公式（不含 MVP ×1.5、難度加成），
+  //   擊殺數／局內等級＝自己單人通關這張圖最多擊殺的那一局（沒紀錄：時長秒數 ×2 隻、Lv 30）；裝備＝一般寶箱 3＋首領寶箱 1（至少精良）；每天 3 次（台灣 0 點重算）🔢 暫定
+  'POST /api/sweep': async (req, res, _, uid) => {
+    const { charId, stage } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const si = STAGES.findIndex(x => x.key === stage), S = STAGES[si]; if (!S) return send(res, 400, { error: '沒有這張地圖' });
+    const d = JSON.parse(c.data || '{}'); if (!(d.cleared || []).includes(S.key)) return send(res, 400, { error: `要先通關${S.name}才能掃蕩` });
+    const day = ATT.twDay(); d.sweep ??= {}; if (d.sweep.day !== day) d.sweep = { day, n: 0 };
+    if (d.sweep.n >= SWEEP_DAILY) return send(res, 400, { error: `今天的掃蕩用完了（每天 ${SWEEP_DAILY} 次）` });
+    if (bagCount(c.id) + 4 > BAG_MAX) return send(res, 400, { error: '背包快滿了，先清出 4 格再掃蕩' });
+    const T = stageTime(S), ref = d.sweepRef?.[S.key] || { kills: T * 2, lv: 30 };
+    const jexp = Math.floor((T / 3 + ref.kills / 4 + ref.lv * 5) * S.reward), gold = Math.floor((ref.kills / 3 + T / 2) * S.reward);
+    d.sweep.n++; const JG = gainJob(c, d, jexp), got = [];
+    for (let i = 0; i < 4; i++) { const boss = i === 3, it = rollItem(Math.random, (boss ? 2 : 0.3) + si * 0.4, undefined, Math.max(1, JG.job), boss || Math.random() < 0.5 ? c.job : null); if (boss && it.rarity < 1) it.rarity = 1; got.push(giveItem(c.id, it)); }
+    db.prepare('UPDATE characters SET job_lv=?, gold=gold+?, data=? WHERE id=?').run(JG.job, gold, JSON.stringify(d), c.id);
+    send(res, 200, { got: { stage: S.name, jexp, gold, jobUps: JG.ups, items: got.length, left: SWEEP_DAILY - d.sweep.n, kills: ref.kills }, char: fullChar(ownChar(uid, c.id)) });
   },
   'POST /api/patrol': async (req, res, _, uid) => {
     const { charId, act } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });

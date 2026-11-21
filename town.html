@@ -339,7 +339,7 @@ function showChar(c) {
 }
 // 模組裡有 top-level await（主城地圖），要等整個模組跑完才執行開場（不然 townMount 等變數還沒宣告，11/18 修）
 let moduleReady; const moduleDone = new Promise(r => moduleReady = r);
-Promise.all([refreshChar(), moduleDone]).then(() => { if (CHAR.unreadMail) toast(`📬 你有 ${CHAR.unreadMail} 封新信，去找郵差`); loadTownMount(); checkUnfinishedRun(); const h = location.hash.slice(1); ({ talent: () => $('#talentBtn').click(), gem: () => $('#gemBtn').click(), mail: () => openMail(), stash: () => openStash(), rank: () => openRank(), rebirth: () => openRebirth(), ident: () => openIdent(), zaro: () => openZaro(), job2: () => openJob2(), guide: () => openGuide(), tower: () => openTower(), pet: () => openPets(), fishing: () => openFishing() })[h]?.(); if (['bag', 'smith'].includes(h)) openBag(h); if (h === 'shop') openMerchant('sell'); if (h === 'stylist') openStylist(); if (h === 'stock') openMerchant('stock'); if (h === 'exp') openExpedition(); if (h === 'mount') openMount(); if (h === 'library') { bSel = 7; openBestiary(); } if (h === 'auction') openAuction('browse'); }).catch(e => console.error(e));
+Promise.all([refreshChar(), moduleDone]).then(() => { if (CHAR.unreadMail) toast(`📬 你有 ${CHAR.unreadMail} 封新信，去找郵差`); loadTownMount(); checkUnfinishedRun(); const h = location.hash.slice(1); ({ talent: () => $('#talentBtn').click(), gem: () => $('#gemBtn').click(), mail: () => openMail(), stash: () => openStash(), rank: () => openRank(), rebirth: () => openRebirth(), ident: () => openIdent(), zaro: () => openZaro(), job2: () => openJob2(), guide: () => openGuide(), tower: () => openTower(), pet: () => openPets(), fishing: () => openFishing(), expedition: () => openExpedition() })[h]?.(); if (['bag', 'smith'].includes(h)) openBag(h); if (h === 'shop') openMerchant('sell'); if (h === 'stylist') openStylist(); if (h === 'stock') openMerchant('stock'); if (h === 'exp') openExpedition(); if (h === 'mount') openMount(); if (h === 'library') { bSel = 7; openBestiary(); } if (h === 'auction') openAuction('browse'); }).catch(e => console.error(e));
 $('#charsBtn').onclick = () => location.href = './';
 // 右上選單（項目 14）：技能＝本職業 PC 版技能一覽、角色＝素質頁、⚙＝設定
 $('#statBtn').onclick = () => openCharInfo(); // 11/19 使用者附 PC「CHARACTER INFO」截圖：照 PC 版改
@@ -1310,6 +1310,8 @@ function openExpedition() {
     <div class="sec"><h4>時間寶箱</h4><div style="display:flex;gap:8px;flex-wrap:wrap">${ML.msTimes(S).map((sec, i) => { const got = CHAR.msGot?.[S.key]?.[i], ok = (CHAR.bestSecs?.[S.key] || 0) >= sec, R = ML.msReward(expSel, i);
         return `<button class="btn ${ok && !got ? 'primary' : ''}" data-ms="${i}" ${ok && !got ? '' : 'disabled'} style="flex:1;min-width:90px;line-height:1.35"><img src="assets/items/${i === 2 ? 1352 : 2315}.png" alt="" style="width:24px;height:24px;vertical-align:middle"> <b>${sec / 60} 分鐘</b><br><small>${got ? '已領取' : ok ? '可以領！' : '未達成'}・${R.gold} 金幣${R.gear != null ? `・${RARITY[R.gear].name}裝備` : ''}</small></button>`; }).join('')}</div>
       <small style="color:#6b7896">在這張地圖活到該時間就能領（每個只能領一次，寄到信箱）；最久紀錄 ${fmtT(CHAR.bestSecs?.[S.key] || 0)}。越後面的地圖寶箱越好</small></div>
+    ${cl.includes(S.key) ? `<div class="sec"><h4>掃蕩</h4><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn ${CHAR.sweepLeft > 0 ? 'primary' : ''}" id="sweepGo" ${CHAR.sweepLeft > 0 ? '' : 'disabled'}>⚡ 掃蕩${S.name}</button><small>今天剩 <b>${CHAR.sweepLeft ?? 3}</b> / 3 次</small></div>
+      <small style="color:#6b7896">不用打，直接拿一局結算：Job 經驗、金幣照你單人通關這張圖最多擊殺的那一局（${CHAR.sweepRef?.[S.key] ? `${CHAR.sweepRef[S.key].kills} 隻` : '還沒紀錄，先用預設'}），沒有 MVP ×1.5；裝備＝一般寶箱 3 件＋首領寶箱 1 件</small></div>` : ''}
     <div class="sec"><h4>頭目</h4><div class="row">${bossTimes(S).map(([sec, n, k]) => `<div class="mon ${k}"><img data-mon="${n}" alt="">${n}<small>${k === 'mvp' ? 'MVP' : '小王'}・${fmtT(sec)}</small></div>`).join('')}</div></div>
     <div class="sec"><h4>怪物</h4><div class="row">${S.monsters.map(n => `<div class="mon"><img data-mon="${n}" alt="">${n}</div>`).join('')}</div></div>
     <div class="sec"><h4>獎勵</h4>經驗、金幣 ×${S.reward}　・　打倒小王和 MVP 必掉首領寶箱（至少精良）<br>精英怪 40% 掉寶箱　・　打倒 MVP 通關，獎勵再 ×1.5${STAGES[expSel + 1] ? `，並解鎖「${STAGES[expSel + 1].name}」` : ''}</div>`;
@@ -1348,6 +1350,8 @@ function openExpedition() {
   openDlg('遠征', `<div class="exp"><div class="list">${list}</div><div class="info">${dshort}${info}</div></div>`,
     [...(unlocked ? [['出發', openDiff, true]] : [])], true); // 賢者之塔改成找主城的「越過次元的修道士」（官方 wiki 83；不在遠征視窗跳轉）
   $('#dlgBody').querySelectorAll('[data-ms]').forEach(el => el.onclick = async () => { try { showChar(await call('POST', '/api/milestone', { charId: CHAR.id, stage: STAGES[expSel].key, m: +el.dataset.ms })); toast('寶箱寄到信箱了，去找郵差領'); openExpedition(); } catch (e) { toast(e.message); } });
+  $('#sweepGo')?.addEventListener('click', async () => { try { const r = await call('POST', '/api/sweep', { charId: CHAR.id, stage: STAGES[expSel].key }); showChar(r.char); refreshChar(); const g = r.got;
+    toast(`掃蕩${g.stage}：Job 經驗 +${g.jexp}、金幣 +${g.gold}、裝備 ${g.items} 件${g.jobUps ? `、Job 升 ${g.jobUps} 級` : ''}（今天剩 ${g.left} 次）`); openExpedition(); } catch (e) { toast(e.message); } });
   $('#dlgBody').querySelectorAll('[data-st]').forEach(el => el.onclick = () => { const i = +el.dataset.st; if (!stageUnlocked(i, cl)) return toast('先通關前一張地圖才會解鎖'); expSel = i; openExpedition(); });
   fillThumbs($('#dlgBody'));
 }
