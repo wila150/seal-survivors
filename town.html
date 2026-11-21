@@ -267,7 +267,8 @@ import { view, enableOrbit } from './src/2_core/camera.js';
 const TOWN = 80; // 看門狗用的範圍（離廣場中心）
 import { wearBlock, pcMask, maskJobs, pcReqLv, CLK_KINDS, CLK_COLOR, clkText, offJob, dismantleYield, itemJob } from './src/1_data/items.js';
 import { PC_ITEMS } from './src/1_data/pc-items.js';
-import { JOB_WEAPON, traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
+import { refineRate, refineFail, failText, stonesFor, MELT_STONES, AUTO_TO, MELT_MIN, FORGE_MIN, forgeCost, forgeRate } from './src/1_data/refine.js';
+import { JOB_WEAPON, traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
 import { STATS, HAIR_COLORS, statTotal, statPer, STAT_CAPS } from './src/1_data/jobs.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime, bossTimes, GS_REQ, EARLY_WEAK } from './src/1_data/stages.js';
 import { MONSTER_MODELS } from './src/1_data/monsters.js';
@@ -1834,6 +1835,7 @@ async function sellIds(ids) {
 }
 
 // ===== 背包／商店／強化／素質 =====
+let wuStones = new Set(); // 11/21 PC 進階合成：這次一起放的熔解石
 let wuProtect = false; // WEAPON UP 的 CASH 格（艾彼斯的祝福）有沒有放上去
 let bagMode = 'bag', bagTab = 'items', selItem = null, smithTab = 'weapon'; // smithTab：強化師分頁（武器／防具，項目 29）
 const smithOk = it => smithTab === 'weapon' ? it.slot === 'weapon' : it.slot !== 'weapon';
@@ -1912,7 +1914,7 @@ function renderBag() {
   const c = CHAR, items = c.items || [];
   const title = bagMode === 'bag' && bagTab === 'stats' ? '角色' : { bag: '背包', shop: '裝備商人', smith: '強化師' }[bagMode];
   const intro = { bag: '', shop: '<p>「看看我的貨吧！每件 <b class="gold">150</b> 金幣，品質是普通到精良。不要的裝備也可以賣給我。」</p>',
-    smith: `<p>「選一件裝備精煉，每次用掉 1 個礦石；也可以用寶石 <b>G 化</b>（一般 → G → DG → XG，紅寶石／鑽石／粉紅鑽）。+6 以上失敗可是會<b style="color:#c0392b">碎掉</b>的喔。」<br><small>持有：${Object.entries(ORES).filter(([, o]) => !o.scroll).map(([k, o]) => `${o.name} ${c.mats?.[k] || 0}`).join('　')}</small></p>` }[bagMode];
+    smith: `<p>「合成最高 <b>+12</b>：+1～+3 用水晶、+4～+6 紅寶石、+7～+9 鑽石、+10～+12 粉紅鑽；放熔解石可以加成功率。+6 失敗降到 +3、+7 失敗降到 +2、+8 以上失敗裝備會<b style="color:#c0392b">消失</b>喔。也可以用寶石 <b>G 化</b>（一般 → G → DG → XG）。」<br><small>持有：${['quartz', 'ruby', 'diamond', 'pinkdia', ...Object.keys(MELT_STONES)].map(k => `${ORES[k].name} ${c.mats?.[k] || 0}`).join('　')}${Object.entries(ORES).filter(([k, o]) => !o.scroll && c.mats?.[k]).map(([k, o]) => `　${o.name} ${c.mats[k]}`).join('')}</small></p>` }[bagMode];
   // 背包＝PC 原版 ITEM 視窗：只有希幣列＋道具格，不放分頁、不放跳到別的視窗的按鈕（11/19 使用者：按鈕不要東串西串）
   let html = bagMode === 'bag' ? '' : intro + `<div class="tabs2">${bagMode === 'smith' ? '' : `<button class="btn ${bagTab === 'items' ? 'primary' : ''}" data-tab="items">裝備</button>`}${bagMode === 'smith' ? ['weapon', 'armor'].map(k => `<button class="btn ${smithTab === k ? 'primary' : ''}" data-smt="${k}">${k === 'weapon' ? '武器' : '防具'}</button>`).join('') : ''}${bagMode === 'bag' ? `<button class="btn ${bagTab === 'stats' ? 'primary' : ''}" data-tab="stats">素質${c.points ? `（${c.points}）` : ''}</button>` : ''}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
   if (bagTab === 'stats') {
@@ -1935,11 +1937,11 @@ function renderBag() {
       return `<div class="pcshop-row"><span class="ic">${b0 ? `<img src="assets/items/${b0.icon}.png" alt="">` : ''}</span><b>${v}</b><small>普通～精良・照你的等級挑 PC 原版道具</small><span class="pr">150</span><button class="btn primary" data-buy="${k}">購買</button></div>`; }).join('')}</div>`;
     // 背包＝PC 原版 ITEM 視窗（只有道具格＋希幣）；穿著的裝備在「狀態」CHARACTER INFO
     // 強化師＝PC 原版 WEAPON UP 視窗（interface/weaponupgrade.tex）：ITEM（選的裝備）＋GEM（這次要用的強化金屬）＋CASH（艾彼斯的祝福，點一下放上／拿下），按確認精煉
-    if (bagMode === 'smith') { const s1 = items.find(i => i.id === selItem), ore = s1 && s1.refine < REFINE_MAX ? oreFor(s1) : null, hasP = (c.mats?.abis || 0) > 0;
+    if (bagMode === 'smith') { const s1 = items.find(i => i.id === selItem), ore = s1 && s1.refine < REFINE_MAX ? oreFor(s1, c.mats) : null, hasP = (c.mats?.abis || 0) > 0, stOk = s1 ? stonesFor(s1.refine).filter(k => wuStones.has(k) && (c.mats?.[k] || 0) > 0) : [], risky = s1 && refineFail(s1) !== s1.refine;
       html += `<div class="wu"><div class="wu-item">${s1 ? `<img src="${itemIcon(s1)}" alt="">${s1.refine ? `<i>+${s1.refine}</i>` : ''}` : ''}</div><div class="wu-gem">${ore ? `<img src="assets/items/${ORES[ore].icon}.png" alt=""><i>${c.mats?.[ore] || 0}</i>` : ''}</div>
-        <div class="wu-cash ${wuProtect && hasP ? 'on' : ''}" id="wuCash" title="艾彼斯的祝福：+6 以上失敗不碎、只降 1 級（持有 ${c.mats?.abis || 0}）">${wuProtect && hasP ? '<img src="assets/items/1351.png" alt="">' : ''}</div>
-        <div class="wu-info">${s1 ? (s1.refine >= REFINE_MAX ? '已經強化到最高了' : `<b>${esc(itemName(s1))}</b><br>+${s1.refine} → +${s1.refine + 1}　成功率 ${Math.round(REFINE_RATE[s1.refine] * 100)}%<br>${refineBreaks(s1.refine) ? (wuProtect && hasP ? '<span style="color:#2e7d32">祝福保護中：失敗只降 1 級</span>' : '<span style="color:#c0392b">失敗會碎掉</span>') : s1.refine >= 3 ? '失敗會降一級' : ''}`) : '從下面挑一件裝備'}</div>
-        <button class="wu-ok" ${s1 && s1.refine < REFINE_MAX && (c.mats?.[ore] || 0) > 0 ? '' : 'disabled'} data-act="refine" data-item="${s1?.id || ''}" ${wuProtect && hasP && s1 && refineBreaks(s1.refine) ? 'data-protect="1"' : ''}></button></div>`; }
+        <div class="wu-cash ${wuProtect && hasP ? 'on' : ''}" id="wuCash" title="艾彼斯的祝福：會消失／降級的階段失敗時只降 1 級（持有 ${c.mats?.abis || 0}）">${wuProtect && hasP ? '<img src="assets/items/1351.png" alt="">' : ''}</div>
+        <div class="wu-info">${s1 ? (s1.refine >= REFINE_MAX ? '已經強化到最高了' : `<b>${esc(itemName(s1))}</b><br>+${s1.refine} → +${s1.refine + 1}　成功率 ${Math.round(refineRate(s1.refine, stOk) * 100)}%　用 ${ORES[ore].name}（${c.mats?.[ore] || 0}）<br>${risky ? (wuProtect && hasP ? '<span style="color:#2e7d32">祝福保護中：失敗只降 1 級</span>' : `<span style="color:#c0392b">${failText(s1)}</span>`) : failText(s1)}${stonesFor(s1.refine).length ? `<div class="wu-st">${stonesFor(s1.refine).map(k => `<button class="btn ${wuStones.has(k) ? 'primary' : ''}" data-wust="${k}" ${(c.mats?.[k] || 0) > 0 ? '' : 'disabled'} title="${MELT_STONES[k].name}：成功率 +${Math.round(MELT_STONES[k].add * 100)}%"><img src="assets/items/${MELT_STONES[k].icon}.png" alt="">+${Math.round(MELT_STONES[k].add * 100)}% ×${c.mats?.[k] || 0}</button>`).join('')}</div>` : ''}${s1.refine < AUTO_TO ? `<button class="btn" data-act="refineAuto" data-item="${s1.id}">自動合成至 +${AUTO_TO}</button>` : ''}`) : '從下面挑一件裝備'}</div>
+        <button class="wu-ok" ${s1 && s1.refine < REFINE_MAX && (c.mats?.[ore] || 0) > 0 ? '' : 'disabled'} data-act="refine" data-item="${s1?.id || ''}" data-stones="${stOk.join(',')}" ${wuProtect && hasP && risky ? 'data-protect="1"' : ''}></button></div>`; }
     if (bagMode !== 'bag') html += `<div class="slots pc">${Object.entries(SLOTS).filter(([k]) => (bagMode !== 'smith' || smithOk({ slot: k })) && (k !== 'shield' || CHAR.job === '騎士')).map(([k, v]) => { const it = items.find(i => i.equipped && i.slot === k);
       return `<div class="eq" data-id="${it?.id || ''}" title="${it ? esc(itemName(it)) : v + '：沒有裝備'}"><span class="sl">${v}</span><div class="ico" ${it ? `style="border-color:${RARITY[it.rarity].color}!important"` : ''}>${it ? `<img src="${itemIcon(it)}" alt="">` : ''}</div>${it ? `<b style="color:${RARITY[it.rarity].color}">${itemName(it)}</b><small>${statLine(it)}</small>` : `<b>${v}</b><small>沒有裝備</small>`}</div>`; }).join('')}</div>`;
     const shown = items.filter(it => bagMode !== 'smith' || smithOk(it)), BAG_CAP = 40; // 伺服器 BAG_MAX＝40；PC 背包空格也畫出來
@@ -1960,6 +1962,7 @@ function renderBag() {
   }
   openDlg(title, html, [], bagMode !== 'bag'); // 背包＝小視窗（PC ITEM 大小）
   const body = $('#dlgBody');
+  body.querySelectorAll('[data-wust]').forEach(b => b.onclick = () => { const k = b.dataset.wust; wuStones.has(k) ? wuStones.delete(k) : wuStones.add(k); renderBag(); });
   body.querySelector('#wuCash')?.addEventListener('click', () => { if (!(c.mats?.abis > 0)) return toast('沒有艾彼斯的祝福（跟釣魚老人用稀有魚換）'); wuProtect = !wuProtect; renderBag(); });
   body.querySelectorAll('[data-mat]').forEach(el => el.onclick = () => { selItem = selItem === 'm:' + el.dataset.mat ? null : 'm:' + el.dataset.mat; renderBag(); });
   body.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bagTab = b.dataset.tab; renderBag(); });
@@ -1986,9 +1989,14 @@ function renderBag() {
     if (a === 'refine') {
       const cur = (CHAR.items || []).find(i => i.id === id);
       const protect = b.dataset.protect === '1';
-      if (refineBreaks(cur.refine) && !protect && !(await askConfirm(`+${cur.refine} → +${cur.refine + 1} 失敗會碎掉，確定要強化？`, { danger: true }))) return;
-      act('/api/refine', { itemId: id, protect }, r => { if (r.result === 'broken') selItem = null; return { ok: '強化成功！', down: '強化失敗，降了一級…', broken: '強化失敗，裝備碎掉了！' }[r.result]; });
+      const stones = (b.dataset.stones || '').split(',').filter(Boolean);
+      if (refineFail(cur) !== cur.refine && !protect && !(await askConfirm(`+${cur.refine} → +${cur.refine + 1}：${failText(cur)}，確定要合成？`, { danger: true }))) return;
+      act('/api/refine', { itemId: id, protect, stones }, r => { if (r.result === 'broken') selItem = null; wuStones.clear(); return { ok: `合成成功！+${r.refine}`, same: '合成失敗（等級不變）', down: `合成失敗，降到 +${r.refine}…`, broken: '合成失敗，裝備消失了！' }[r.result]; });
     }
+    if (a === 'refineAuto') act('/api/refine', { itemId: id, auto: true }, r => `自動合成：試 ${r.tries} 次 → +${r.refine}（用掉 ${Object.entries(r.used).map(([k, v]) => `${ORES[k].name} ${v}`).join('、')}）`);
+    if (a === 'melt' || a === 'forge') { const it2 = (CHAR.items || []).find(x => x.id === id), forge = a === 'forge';
+      if (!(await askConfirm(forge ? `鑄煉熔解「${itemName(it2)}」？\n花 ${forgeCost(it2)} 希幣，${Math.round(forgeRate(it2) * 100)}% 得到 1 個熔解石；不管成功失敗裝備都會消失。` : `熔解「${itemName(it2)}」？\n可能得到 水晶／紅寶石／鑽石（也可能什麼都沒有），裝備會消失。`, { ok: forge ? '鑄煉熔解' : '熔解', danger: true }))) return;
+      act('/api/melt', { itemId: id, forge }, r => { selItem = null; const g = Object.entries(r.got).filter(([, v]) => v); return g.length ? `${forge ? '鑄煉熔解' : '熔解'}得到：${g.map(([k, v]) => `${ORES[k].name} ×${v}`).join('、')}` : `${forge ? '鑄煉熔解' : '熔解'}失敗，什麼都沒有`; }); }
     if (a === 'elem') act('/api/elemsynth', { itemId: id, elem: +b.dataset.el }, () => `屬性合成成功：${['', '火', '水', '木', '金', '土', '光', '暗'][+b.dataset.el]}屬性`);
     if (a === 'lookcopy') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把這件的外觀改成「${itemName(from)}」？\n「${itemName(from)}」會消失，花 1000 希幣。`, { ok: '複製外觀' }))) return; act('/api/lookcopy', { fromId: from.id, toId: id }, () => '外觀複製完成！'); }
     if (a === 'inherit') { const from = (CHAR.items || []).find(x => x.id === +b.dataset.from); if (!(await askConfirm(`把「${itemName(from)}」的精煉 +${from.refine || 0}、G 化 ${GUP[from.gup || 0]?.tag || '一般'} 繼承到這件？\n「${itemName(from)}」會消失，花 ${inheritCost(from)} 希幣。`, { ok: '繼承' }))) return; act('/api/inherit', { fromId: from.id, toId: id }, () => '繼承完成！'); }
@@ -2034,8 +2042,11 @@ function itemDetail(it) {
   let h = `<b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</b>　<small>${SLOTS[it.slot]}${it.bound ? '　🔒 綁定帳號（不能交易）' : ''}</small><br>${identLine(it)}${pcMask(it) || pcReqLv(it) ? `<small style="color:${wearBlock(it, CHAR) && !it.equipped ? '#c0392b' : '#5a6478'}">職業：${maskJobs(pcMask(it))}${pcReqLv(it) ? `・需求 Job Lv ${pcReqLv(it)}` : ''}</small><br>` : ''}${statLine(it)}${affHtml}${clkHtml(it)}<div class="acts">`;
   if (bagMode === 'smith') {
     if (it.refine >= REFINE_MAX) h += '<small>已經強化到最高了</small>';
-    else h += `<button class="btn primary" data-act="refine" data-item="${it.id}">精煉 +${it.refine} → +${it.refine + 1}（${Math.round(REFINE_RATE[it.refine] * 100)}%，用 1 個${ORES[oreFor(it)].name}，持有 ${CHAR.mats?.[oreFor(it)] || 0}）</button>${refineBreaks(it.refine) ? '<small style="color:#c0392b">失敗會碎</small>' : it.refine >= 3 ? '<small>失敗會降一級</small>' : ''}`;
-    if (it.refine < REFINE_MAX && refineBreaks(it.refine)) h += `<button class="btn" data-act="refine" data-protect="1" data-item="${it.id}" ${CHAR.mats?.abis > 0 ? '' : 'disabled'}>🛡 用艾彼斯的祝福精煉（失敗不碎、降 1 級；持有 ${CHAR.mats?.abis || 0}）</button>`; // 項目 55
+    else { const o = oreFor(it, CHAR.mats); h += `<button class="btn primary" data-act="refine" data-item="${it.id}">合成 +${it.refine} → +${it.refine + 1}（${Math.round(REFINE_RATE[it.refine] * 100)}%，用 1 個${ORES[o].name}，持有 ${CHAR.mats?.[o] || 0}）</button><small ${refineFail(it) !== it.refine ? 'style="color:#c0392b"' : ''}>${failText(it)}</small>`; }
+    if (it.refine < REFINE_MAX && refineFail(it) !== it.refine) h += `<button class="btn" data-act="refine" data-protect="1" data-item="${it.id}" ${CHAR.mats?.abis > 0 ? '' : 'disabled'}>🛡 用艾彼斯的祝福合成（失敗只降 1 級；持有 ${CHAR.mats?.abis || 0}）</button>`; // 項目 55
+    if (it.refine < AUTO_TO) h += `<button class="btn" data-act="refineAuto" data-item="${it.id}">自動合成至 +${AUTO_TO}</button>`;
+    if (!it.equipped && !it.locked && (it.refine || 0) >= FORGE_MIN) h += `<button class="btn" data-act="forge" data-item="${it.id}">🔥 鑄煉熔解（${forgeCost(it)} 希幣・${Math.round(forgeRate(it) * 100)}% 得熔解石）</button>`;
+    if (!it.equipped && !it.locked && (it.refine || 0) >= MELT_MIN) h += `<button class="btn" data-act="melt" data-item="${it.id}" ${CHAR.job === '鐵匠' ? '' : 'disabled title="鐵匠的技能"'}>⚒ 熔解（得水晶／紅寶石／鑽石${CHAR.job === '鐵匠' ? '' : '・鐵匠限定'}）</button>`;
     // 項目 46：G 化（一般 → G → DG → XG），寶石在裝備商人「購買」分頁；有 G 化工具箱可以一起用
     if ((it.gup || 0) >= GUP_MAX) h += '<small>已經是 XG（最高）</small>';
     else { const nx = GUP[(it.gup || 0) + 1], have = CHAR.mats?.[nx.gem] || 0, pct = Math.round(gupRate(it) * 100);
@@ -2123,7 +2134,7 @@ function loop(now) {
   raf = requestAnimationFrame(loop);
 }
 raf = requestAnimationFrame(loop);
-window.__town = { player, map: TMAP, center: TC }; // 測試用（無頭截圖）
+window.__town = { player, map: TMAP, center: TC, openBag }; // 測試用（無頭截圖）
 moduleReady();
 // 切到背景就停
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(loop); } });

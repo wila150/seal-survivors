@@ -26,7 +26,8 @@ import { POLY } from '../1_data/polymorph.js';
 import { huntExtra } from '../1_data/hunt.js';
 import * as ML from '../1_data/mainline.js'; // 主線獎勵：時間寶箱、巡邏 // PC 狩獵系統 // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../1_data/fishing.js';
-import { itemFromPc, wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../1_data/items.js';
+import { AUTO_TO, refineFail, refineRate, stonesFor, meltYield, forgeStone, forgeCost, MELT_MIN, FORGE_MIN } from '../1_data/refine.js';
+import { itemFromPc, wearBlock, rollClock, CLK_KINDS, JOB_WEAPON, itemJob, rollAffix, rollItem, totalBonus, sellPrice, dismantleYield, pcReqLv as pcReqLvR, REFINE_RATE, REFINE_MAX, refineBreaks, SLOTS, BASES, ORES, oreFor, stockFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from '../1_data/items.js';
 
 const PORT = +process.env.PORT || 8765;
 let _skills = null; const SKILLS = () => (_skills ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'data', 'skills.json'), 'utf8')));
@@ -494,19 +495,53 @@ const api = {
     const got = giveItem(c.id, it);
     send(res, 200, { item: got, char: fullChar(ownChar(uid, c.id)) });
   },
+  // 11/21 合成照 PC +12（src/1_data/refine.js）：寶石＋可選熔解石（stones）；auto＝自動合成至 +6；艾彼斯的祝福＝會消失／降級時改成只降 1 級
   'POST /api/refine': async (req, res, _, uid) => {
-    const { itemId, protect = false } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
-    if (it.refine >= REFINE_MAX) return send(res, 400, { error: '已經強化到最高了' });
-    const c = ownChar(uid, it.char_id), ore = oreFor(it), d = JSON.parse(c.data || '{}'); d.mats ??= {};
-    if (!(d.mats[ore] > 0)) return send(res, 400, { error: `需要 1 個「${ORES[ore].name}」，去裝備商人那裡買` });
-    // 項目 55：艾彼斯的祝福（防爆）：有勾選而且這次會碎才用掉 1 個；失敗改成降 1 級
-    const guard = !!protect && refineBreaks(it.refine) && d.mats.abis > 0; if (protect && refineBreaks(it.refine) && !guard) return send(res, 400, { error: '沒有艾彼斯的祝福' });
-    d.mats[ore]--; if (guard) d.mats.abis--; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
-    let result;
-    if (Math.random() < REFINE_RATE[it.refine]) { db.prepare('UPDATE items SET refine=refine+1 WHERE id=?').run(it.id); result = 'ok'; }
-    else if (refineBreaks(it.refine) && !guard) { db.prepare('DELETE FROM items WHERE id=?').run(it.id); result = 'broken'; }
-    else { db.prepare('UPDATE items SET refine=MAX(0, refine-1) WHERE id=?').run(it.id); result = 'down'; }
-    send(res, 200, { result, char: fullChar(ownChar(uid, c.id)) });
+    const { itemId, protect = false, stones = [], auto = false } = await body(req); const it0 = ownItem(uid, itemId); if (!it0) return send(res, 404, { error: '找不到裝備' });
+    if (it0.refine >= REFINE_MAX) return send(res, 400, { error: '已經強化到最高了' });
+    if (auto && it0.refine >= AUTO_TO) return send(res, 400, { error: `自動合成只到 +${AUTO_TO}` });
+    if (!Array.isArray(stones) || stones.length > 5) return send(res, 400, { error: '熔解石不對' });
+    const out = tx(() => {
+      const c = ownChar(uid, it0.char_id), d = JSON.parse(c.data || '{}'); d.mats ??= {};
+      let it = { ...it0 }, result = null, n = 0, used = {};
+      do {
+        const ore = oreFor(it, d.mats);
+        if (!(d.mats[ore] > 0)) { if (n) break; return { err: `需要 1 個「${ORES[ore].name}」（+${it.refine}→+${it.refine + 1}）` }; }
+        const st = auto ? [] : [...new Set(stones)].filter(k => stonesFor(it.refine).includes(k));
+        for (const k of st) if (!(d.mats[k] > 0)) return { err: `沒有「${ORES[k].name}」` };
+        const fail = refineFail(it), risky = fail !== it.refine, guard = !auto && !!protect && risky && d.mats.abis > 0;
+        if (!auto && protect && risky && !guard) return { err: '沒有艾彼斯的祝福' };
+        d.mats[ore]--; used[ore] = (used[ore] || 0) + 1; for (const k of st) d.mats[k]--; if (guard) d.mats.abis--;
+        n++;
+        if (Math.random() < refineRate(it.refine, st)) { it.refine++; result = 'ok'; }
+        else if (guard) { it.refine = Math.max(0, it.refine - 1); result = 'down'; }
+        else if (fail < 0) { result = 'broken'; break; }
+        else { result = fail < it.refine ? 'down' : 'same'; it.refine = fail; }
+      } while (auto && it.refine < AUTO_TO);
+      if (result === 'broken') db.prepare('DELETE FROM items WHERE id=?').run(it.id); else db.prepare('UPDATE items SET refine=? WHERE id=?').run(it.refine, it.id);
+      db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+      return { result, refine: it.refine, tries: n, used, cid: c.id };
+    });
+    if (out.err) return send(res, 400, { error: out.err });
+    send(res, 200, { ...out, char: fullChar(ownChar(uid, out.cid)) });
+  },
+  // 11/21 熔解（PC 鐵匠技能，2u id=59）：+5 以上、沒穿沒鎖 → 水晶／紅寶石／鑽石；鑄煉熔解（NPC 雷）：+3 以上 → 機率得熔解石；兩種裝備都會消失
+  'POST /api/melt': async (req, res, _, uid) => {
+    const { itemId, forge = false } = await body(req); const it = ownItem(uid, itemId); if (!it) return send(res, 404, { error: '找不到裝備' });
+    if (it.equipped || it.locked) return send(res, 400, { error: '穿著或鎖定的裝備不能熔解' });
+    const min = forge ? FORGE_MIN : MELT_MIN; if ((it.refine || 0) < min) return send(res, 400, { error: `要 +${min} 以上的裝備才能${forge ? '鑄煉熔解' : '熔解'}` });
+    const out = tx(() => {
+      const c = ownChar(uid, it.char_id), d = JSON.parse(c.data || '{}'); d.mats ??= {};
+      if (!forge && c.job !== '鐵匠') return { err: '熔解是鐵匠的技能（其他職業可以用鑄煉熔解）' };
+      const cost = forge ? forgeCost(it) : 0; if ((c.gold || 0) < cost) return { err: `希幣不夠（要 ${cost}）` };
+      const got = forge ? (k => k ? { [k]: 1 } : {})(forgeStone(it)) : meltYield(it, pcReqLvR(itemView(it)) || 1);
+      for (const [k, v] of Object.entries(got)) if (v) d.mats[k] = (d.mats[k] || 0) + v;
+      db.prepare('DELETE FROM items WHERE id=?').run(it.id);
+      db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(cost, JSON.stringify(d), c.id);
+      return { got, cost, cid: c.id };
+    });
+    if (out.err) return send(res, 400, { error: out.err });
+    send(res, 200, { ...out, char: fullChar(ownChar(uid, out.cid)) });
   },
   // 項目 46：G 化（一般 → G → DG → XG）：用對應寶石（紅寶石／鑽石／粉紅鑽），可加 G 化工具箱（80%／100%）；失敗只消耗材料
   // 指令 4-2 裝備繼承：同部位、來源沒穿沒鎖；目標的精煉、G 化取兩件較高的；來源刪除；費用 300×精煉＋1000×G 化＋200

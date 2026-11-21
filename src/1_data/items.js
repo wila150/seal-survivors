@@ -85,10 +85,10 @@ export const traitOf = it => it?.aff ? TRAITS[it.aff.t] || null : null;
 export const fmtStat = (k, v) => PCT.has(k) ? `+${Math.round(v * 1000) / 10}%` : `+${Math.round(v)}`;
 
 // 強化：每 +1 數值多 12%；成功率；失敗時 +7 以上會碎，其他降 1 級
-export const REFINE_MAX = 10;
-export const REFINE_RATE = [1, 1, 1, 0.9, 0.8, 0.7, 0.55, 0.45, 0.35, 0.25];
+// 11/21 合成照 PC 改 +12（src/1_data/refine.js：2u news id=58）
+import { REFINE_MAX, REFINE_RATE, refineBreaks, refineMat, MELT_STONES } from './refine.js';
+export { REFINE_MAX, REFINE_RATE, refineBreaks };
 export const refineCost = lv => 60 * (lv + 1) * (lv + 1);
-export const refineBreaks = lv => lv >= 6; // 從 +6 往 +7 開始失敗會碎
 
 // ===== 道具照 PC（11/19 使用者：「道具數值也照 pc 去做」）=====
 // 每種底材對到一種 PC 道具類別（src/1_data/pc-items.js，tools/build-pc-items.mjs 從服務端 item.scr 轉出）；
@@ -176,10 +176,10 @@ export function totalBonus(items) {
 
 // ===== 精煉礦石（裝備商人販售；強化改成消耗礦石） =====
 export const ORES = {
-  ore1: { name: '強化金屬・一', icon: 36, price: 75,   desc: '可將任何裝備從 +0 精煉至 +4' },
-  ore2: { name: '強化金屬・二', icon: 37, price: 200,  desc: '可將任何裝備從 +4 精煉至 +7' },
-  god:  { name: '神之金屬',     icon: 42, price: 1750, desc: '可將武器從 +7 精煉至 +10' },
-  alu:  { name: '鋁',           icon: 34, price: 1250, desc: '可將防具、飾品從 +7 精煉至 +10' },
+  ore1: { name: '強化金屬・一', icon: 36, price: 75,   desc: '沒有水晶時可代替：+0 → +3' },
+  ore2: { name: '強化金屬・二', icon: 37, price: 200,  desc: '沒有紅寶石時可代替：+3 → +6' },
+  god:  { name: '神之金屬',     icon: 42, price: 1750, desc: '沒有鑽石／粉紅鑽時可代替：武器 +6 → +12' },
+  alu:  { name: '鋁',           icon: 34, price: 1250, desc: '沒有鑽石／粉紅鑽時可代替：防具、飾品 +6 → +12' },
   // 項目 28：不是礦石，但一樣放在 mats、在商人「購買」分頁賣（圖示＝服務端 item.scr 圖示欄：卷軸 2313）
   // 項目 55：防爆石（不在商店賣：釣魚老人用稀有魚換；圖示借服務端 item.scr「受祝福的金符咒」1351）
   abis: { name: '艾彼斯的祝福', icon: 1351, price: 0, desc: '精煉失敗時裝備不會碎掉，只降 1 級（+6 以上才用得到）；跟釣魚老人用稀有魚換', scroll: true, noshop: true },
@@ -191,9 +191,9 @@ export const ORES = {
   fixTicket:    { name: '石頭屬性固定券',       icon: 4256, price: 1000, desc: '變更鑲嵌石屬性時只重抽數值、不換屬性', scroll: true },
   chargeTicket: { name: '石頭屬性變更次數充值券', icon: 4257, price: 3000, desc: '鑲嵌石屬性變更次數 +50（上限 300）', scroll: true },
   // 項目 46 G 化材料（服務端 item.scr：紅寶石 433 售 980000、鑽石 434 售 1000000、粉紅鑽 3981 售 5000000 → 金幣 ÷1000；圖示＝item.scr 圖示欄）
-  ruby:    { name: '紅寶石', icon: 618, price: 980,  desc: 'G 化材料：一般 → G', scroll: true },
-  diamond: { name: '鑽石',   icon: 341, price: 1000, desc: 'G 化材料：G → DG', scroll: true },
-  pinkdia: { name: '粉紅鑽', icon: 380, price: 5000, desc: 'G 化材料：DG → XG', scroll: true },
+  ruby:    { name: '紅寶石', icon: 618, price: 980,  desc: '合成 +3 → +6；G 化材料：一般 → G', scroll: true },
+  diamond: { name: '鑽石',   icon: 341, price: 1000, desc: '合成 +6 → +9；G 化材料：G → DG', scroll: true },
+  pinkdia: { name: '粉紅鑽', icon: 380, price: 5000, desc: '合成 +9 → +12；G 化材料：DG → XG', scroll: true },
   gbox80:  { name: '艾彼雷歐的 G 化工具箱 80%',  icon: 3427, price: 3000, desc: 'G 化時一起用：成功率至少 80%', scroll: true },
   gbox100: { name: '艾彼雷歐的 G 化工具箱 100%', icon: 3428, price: 8000, desc: 'G 化時一起用：一定成功', scroll: true },
   // 指令 4-2 發條配件（服務端 item.txt 26731～26733、26948：實習生的發條 N～G、高手的發條 N～XG、武爾坎努斯的發條 N～XG＋可保留原屬性、發條屬性繼承卷軸；
@@ -210,7 +210,8 @@ export const ORES = {
   poly6: { name: '小妖姬變身藥水', icon: 2574, price: 6000, desc: '喝了下一次出征變身成小妖姬（名聲 41082 以上）：攻擊力 +20、魔法力 +5、防禦力 +5、必殺技 +15、回避率 +10、移動速度 +8、HP +350', scroll: true },
   unpoly: { name: '恢復原狀變身藥水', icon: 2575, price: 10, desc: '解除變身（喝了還沒出征的變身藥水也會取消，藥水不退）', scroll: true },
   // PC 在線與簽到獎勵（服務端 Attendance_Reward.scr／Reward_Time.scr；名稱、圖示、售價照 item.scr ÷1000）
-  quartz:  { name: '水晶', icon: 39, price: 0, desc: '合成用寶石（簽到、在線獎勵送的；PC 用在合成與 G 化）', scroll: true, noshop: true },
+  quartz:  { name: '水晶', icon: 39, price: 900, desc: '合成材料：裝備 +0 → +3（item.scr 售價 900000 ÷1000）', scroll: true },
+  ...Object.fromEntries(Object.entries(MELT_STONES).map(([k, m]) => [k, { name: m.name, icon: m.icon, price: m.price, desc: `進階合成輔助：+${m.from}→+${m.to + 1} 階段成功率 +${Math.round(m.add * 100)}%（成功失敗都會消失）`, scroll: true }])),
   petMilk: { name: '奶粉', icon: 759, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +50、飢餓 −25', scroll: true, noshop: true },
   petBaby: { name: '豪華的嬰兒副食品', icon: 760, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +100、飢餓 −25', scroll: true, noshop: true },
   petGugu: { name: '咕咕大力丸', icon: 761, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +150、飢餓 −25', scroll: true, noshop: true },
@@ -243,7 +244,7 @@ export const GUP = [
 export const GUP_MAX = GUP.length - 1;
 export const gupRate = it => { const g = GUP[(it.gup || 0) + 1]; if (!g) return 0; const k = (it.rarity || 0) / (RARITY.length - 1); return g.rate[0] + (g.rate[1] - g.rate[0]) * k; };
 // 這件裝備下一次精煉要用哪種礦石
-export const oreFor = it => it.refine < 4 ? 'ore1' : it.refine < 7 ? 'ore2' : it.slot === 'weapon' ? 'god' : 'alu';
+export const oreFor = (it, mats) => refineMat(it, mats); // 先 PC 寶石（水晶／紅寶石／鑽石／粉紅鑽），沒有才用舊強化金屬
 
 // ===== 限量商品：每小時換一批、每天限買 5 件（項目 29）；買到的裝備綁定帳號，不能上架拍賣 =====
 export const STOCK_SIZE = 8, STOCK_DAILY = 5;
