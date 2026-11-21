@@ -291,7 +291,8 @@ import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/a
 import * as BPD from './src/1_data/blueprint.js'; // PC 希望藍圖
 import * as GDD from './src/1_data/guild.js'; // PC 軍團＋情侶
 import { COSTUMES, FASHION_SLOTS, isOnePiece, fashionPrice, fashionText, costumeStats, shopList, STAT_LABEL } from './src/1_data/fashion.js'; // PC 時裝（#15）
-import * as TRD from './src/1_data/trade.js'; // PC 交易＋擺攤（#18）
+import * as TRD from './src/1_data/trade.js';
+import { RULA_NAME, RULA_MAX, RULA_SECS, rulaScore } from './src/1_data/rula.js'; // PC 嚕啦生死鬥（#22） // PC 交易＋擺攤（#18）
 import { BAGS as FT_BAGS, CHESTS as FT_CHESTS, KEY as FT_KEY, chestOdds, JACKPOT_TAKE } from './src/1_data/fortune.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
@@ -393,6 +394,7 @@ const QM = {
   guild:   { n: '軍團', c: '社群', i: 'qm/sword', f: 0, run: () => openGuild() },
   couple:  { n: '情侶', c: '社群', i: 'sys/couple', f: 0, run: () => openCouple() },
   trade:   { n: '交易', c: '社群', i: 'qm/shop', f: 1, run: () => openTrade() },
+  rula:    { n: '生死鬥', c: '活動', i: 'qm/sword', f: 1, run: () => openRula() },
   buyord:  { n: '收購攤', c: '活動', i: 'sys/stall', f: 0, run: () => openBuyOrders() },
   status:  { n: '狀態', c: '角色', i: 'qm/sword', f: 0, run: () => $('#statBtn').click() },
   bag:     { n: '背包', c: '角色', i: 'btn_bag_0', f: 1, run: () => $('#bagBtn').click() },
@@ -1545,6 +1547,23 @@ let aTab = 'browse', aQ = '', aSlot = 'all', aRar = -1, aSort = 'asc', aSel = nu
 const left = ms => { const m = Math.max(0, Math.floor(ms / 60000)); return `${Math.floor(m / 60)} 小時 ${m % 60} 分`; };
 const myEq = slot => (CHAR.items || []).find(i => i.equipped && i.slot === slot);
 const score = it => it ? Math.round(Object.entries(itemStats(it)).reduce((a, [k, v]) => a + (k === 'hp' ? v : k === 'armor' ? v * 8 : v * 400), 0)) : 0;
+// ===== PC 飛越廣場・嚕啦生死鬥（#22）：單人、每天 1 次、最多 200 關，每 5 關首領，每關 600 秒內打完並保護次元控制器 =====
+let rulaPick = null;
+async function openRula() {
+  let V; try { V = await call('GET', '/api/rula?charId=' + CHAR.id); } catch (e) { return toast(e.message); }
+  const max = Math.min(RULA_MAX, V.best + 1); rulaPick = Math.min(rulaPick ?? max, max);
+  const html = `<p>「歡迎來到嚕啦生死鬥！」　<small>生死鬥區主人</small></p>
+    <div class="sec"><small>・單人挑戰，每個角色每天 1 次（台灣時間 0 點重算）<br>・最多 ${RULA_MAX} 關，每 5 關是首領關；每關 ${RULA_SECS} 秒內打完全部怪，而且要保護中間的<b>次元控制器</b>（紫色光圈），被打壞或時間到就結束<br>
+      ・每過 2 關得分：第 1～2 關 12 分、3～4 關 24 分…199～200 關 1200 分；每天每個帳號第一個進場的角色先送 100 分<br>・打過的關卡可以從最高關接著打；分數 1 分＝1 金幣寄信箱，Job 經驗照擊殺數算</small></div>
+    <p>最高紀錄：<b>第 ${V.best} 關</b>　累積分數 <b>${V.total.toLocaleString()}</b>　今天：${V.used ? '<b style="color:#c0392b">已經挑戰過了</b>' : '<b style="color:#2e7d32">可以挑戰</b>'}</p>
+    <div class="tabs2"><span style="align-self:center">從第</span><input id="rlSt" type="number" min="1" max="${max}" value="${rulaPick}" style="width:80px"><span style="align-self:center">關開始（1～${max}）</span><button class="btn primary" id="rlGo" ${V.used ? 'disabled' : ''}>嚕啦生死鬥入場</button></div>
+    <h4 style="margin:10px 0 4px">排名（最高關卡＋時間）</h4>
+    <table class="ps-table"><thead><tr><th>#</th><th>名稱</th><th>職業</th><th>最高關</th><th>時間</th></tr></thead><tbody>${V.rank.map((r, i) => `<tr class="${r.me ? 'on' : ''}"><td>${i + 1}</td><td>${esc(r.name)}</td><td>${esc(r.job)}</td><td>${r.best}</td><td>${Math.floor(r.secs / 60)}:${String(r.secs % 60).padStart(2, '0')}</td></tr>`).join('') || '<tr><td colspan="5">還沒有人挑戰</td></tr>'}</tbody></table>`;
+  openDlg(RULA_NAME, html, [], true);
+  $('#rlSt').onchange = e => { rulaPick = Math.max(1, Math.min(max, +e.target.value || 1)); };
+  $('#rlGo').onclick = async () => { const st = Math.max(1, Math.min(max, +$('#rlSt').value || 1));
+    try { const r = await call('POST', '/api/rula', { charId: CHAR.id, act: 'start', start: st }); if (r.bonus) toast(`今天第一個進場：分數 +${r.bonus}`); try { sessionStorage.setItem('ss_rula', JSON.stringify({ start: st, ticket: r.ticket })); } catch {} location.href = 'game.html?rula=1'; } catch (e) { toast(e.message); } };
+}
 // ===== PC 交易＋擺攤（#18，src/1_data/trade.js）=====
 const matOpts = () => Object.entries(ORES).map(([k, o]) => `<option value="${k}">${o.name}</option>`).join('');
 const tradeable = it => !it.equipped && !it.locked && !it.bound;
@@ -2360,7 +2379,7 @@ function loop(now) {
   raf = requestAnimationFrame(loop);
 }
 raf = requestAnimationFrame(loop);
-window.__town = { player, map: TMAP, center: TC, openBag, openFortune, openFashionShop, openWardrobe, openTrade, openBuyOrders }; // 測試用（無頭截圖）
+window.__town = { player, map: TMAP, center: TC, openBag, openFortune, openFashionShop, openWardrobe, openTrade, openBuyOrders, openRula }; // 測試用（無頭截圖）
 moduleReady();
 // 切到背景就停
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(loop); } });

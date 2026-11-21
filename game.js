@@ -38,6 +38,7 @@ import { PC_PETS, petName, petBonus, petStage9 } from './src/1_data/pets.js';
 import { BPETS, BPET_REQ_LV, bpetStats, bpetAux, bpetName, bpetActives } from './src/1_data/bpets.js'; // 戰寵（11/20 照 PC）
 import { cleanDiff, diffMods, stageBaseLv } from './src/1_data/difficulty.js';
 import { ELEMS, ELEM_COLOR, elemMult, MONSTER_ELEM, skillElem } from './src/1_data/element.js';
+import { RULA_NAME, RULA_MAX, RULA_SECS, CTRL_HP, CTRL_DPS, CTRL_AGGRO, rulaSeg, rulaHpMul, rulaDmgMul, isBossStage, rulaCount } from './src/1_data/rula.js'; // PC 嚕啦生死鬥（#22）
 import { TOWER_NAME, towerFloor, towerSeg, towerHpMul, towerDmgMul, towerBossAt, CURSES } from './src/1_data/tower.js';
 import { loadSkills, SkillManager, FxPool, iconHtml, TYPE_NAMES, TAG_NAMES, ENH, ENH_Q } from './src/3_skills/skills.js';
 import { SealFx } from './src/3_skills/seal-fx.js';
@@ -85,8 +86,9 @@ let STAGE_IDX = 0; try { STAGE_IDX = +(new URLSearchParams(location.search).get(
 const TOWER = new URLSearchParams(location.search).has('tower');
 let TSET = null; if (TOWER) { try { TSET = JSON.parse(sessionStorage.getItem('ss_tower')); } catch {} }
 const CURSE = CURSES[TSET?.curse || 'none'] || CURSES.none;
-if (TOWER) STAGE_IDX = -1; // 塔不存「未完成的一局」
-const STAGE = TOWER ? { ...STAGES[2], key: 'tower', name: TOWER_NAME, lv: '∞', bosses: [] } : (S0 => ({ ...S0, bosses: bossTimes(S0) }))(STAGES[STAGE_IDX] || STAGES[0]); // 項目 31：首領時間照 Tier 時長換算
+const RULA = new URLSearchParams(location.search).has('rula'); let RSET = null; if (RULA) { try { RSET = JSON.parse(sessionStorage.getItem('ss_rula')); } catch {} } // PC 嚕啦生死鬥
+if (TOWER || RULA) STAGE_IDX = -1; // 塔、嚕啦生死鬥不存「未完成的一局」
+const STAGE = RULA ? { ...STAGES[0], key: 'rula', name: RULA_NAME, lv: '∞', bosses: [[1e9, '飛越廣場']] } : TOWER ? { ...STAGES[2], key: 'tower', name: TOWER_NAME, lv: '∞', bosses: [] } : (S0 => ({ ...S0, bosses: bossTimes(S0) }))(STAGES[STAGE_IDX] || STAGES[0]); // 項目 31：首領時間照 Tier 時長換算
 let floor = 1; // 塔的目前樓層
 // 項目 41：難度滑桿（遠征視窗設定，存 sessionStorage ss_diff；塔不套用）
 const DIFF_BASE = stageBaseLv(STAGE); // 地圖本身的怪物等級（難度＝選更高的 PC 怪物等級）
@@ -175,7 +177,7 @@ const NOVICE_RUN = CHAR.job === '初心者', NOVICE_NEED = [6, 9, 13, 17, 22, 27
 const needFor = lv => NOVICE_RUN && lv <= NOVICE_NEED.length ? NOVICE_NEED[lv - 1] : Math.floor(5 + lv * 3.5 + lv ** 1.5);
 let novWave = 0;
 function noviceWave(dt) {
-  if (!NOVICE_RUN || TOWER || t > 30 || state !== 'play') return; if ((novWave -= dt) > 0) return; novWave = 0.8;
+  if (!NOVICE_RUN || TOWER || RULA || t > 30 || state !== 'play') return; if ((novWave -= dt) > 0) return; novWave = 0.8;
   if (enemies.filter(e => !e.dead).length >= 12) return;
   const types = STAGE.monsters || []; const e = spawnEnemy(types[Math.random() * types.length | 0] || Object.keys(ENEMY_TYPES)[0]);
   const a = Math.random() * 6.283, r = 12 + Math.random() * 4, x = player.position.x + Math.cos(a) * r, z = player.position.z + Math.sin(a) * r;
@@ -397,7 +399,7 @@ function evEnd(ok) {
   EV.next = t + evEvery(); evHud.style.display = 'none';
 }
 function eventsUpdate(dt) {
-  if (TOWER) return; const mvpAt = STAGE.bosses.at(-1)?.[0] ?? 1e9;
+  if (TOWER || RULA) return; const mvpAt = STAGE.bosses.at(-1)?.[0] ?? 1e9;
   // MVP 護盾：出場時依完成事件數調整
   if (!EV.mvpDone) { const m = enemies.find(e => e.mvp && !e.dead); if (m) { EV.mvpDone = true; const layers = Math.max(0, 3 - EV.done);
     if (EV.done === 0) { m.hp = m.maxHp = m.maxHp * 1.3; m.dmg *= 1.3; showBanner('<small>一個事件都沒完成</small><b>MVP 狂暴！</b><span>HP、攻擊 ×1.3</span>', 1800); }
@@ -591,6 +593,29 @@ function reset() {
 }
 
 // ===== 生成 =====
+// ===== PC 嚕啦生死鬥（#22，src/1_data/rula.js）：關卡制，每關把怪打完而且保護次元控制器 =====
+const RU = { stage: 0, start: 0, cleared: 0, t: 0, hp: CTRL_HP, active: false, wait: 3, score: 0, pos: null, mark: null };
+function rulaStart(n) {
+  RU.stage = n; RU.t = 0; RU.hp = CTRL_HP; RU.active = true; const seg = STAGES[rulaSeg(n)], types = seg.monsters?.length ? seg.monsters : Object.keys(ENEMY_TYPES);
+  const mk = (type, asBoss) => { const e = spawnEnemy(type, false, asBoss), T = ENEMY_TYPES[type]; e.hp = e.maxHp = T.hp * rulaHpMul(n) * (seg.hp || 1) * (asBoss ? 45 : 1); e.dmg = T.dmg * rulaDmgMul(n) * (seg.dmg || 1) * (asBoss ? 1.6 : 1); return e; };
+  if (isBossStage(n)) mk(types[n % types.length], true);
+  for (let i = 0; i < rulaCount(n); i++) mk(types[i % types.length], false);
+  showBanner(`<small>${RULA_NAME}</small><b>第 ${n} 關${isBossStage(n) ? '・首領關' : ''}</b><span>${RULA_SECS} 秒內打完全部怪，保護次元控制器</span>`, 1600);
+}
+function rulaUpdate(dt) {
+  if (!RU.pos) { RU.pos = player.position.clone(); RU.mark = evMark(RU.pos, 0xb48cff, 1.6); RU.start = RU.cleared = Math.max(0, Math.min(RULA_MAX - 1, (RSET?.start || 1) - 1)); RU.stage = RU.start; }
+  let alive = 0, near = 0;
+  for (const e of enemies) { if (e.dead) continue; alive++; const d = Math.hypot(e.mesh.position.x - RU.pos.x, e.mesh.position.z - RU.pos.z); e.evT = d < CTRL_AGGRO ? RU.pos : null; if (d < 1.8) near++; }
+  if (!RU.active) { if ((RU.wait -= dt) <= 0) { if (RU.stage >= RULA_MAX) return gameOver(true, false, `打完全部 ${RULA_MAX} 關！`); rulaStart(RU.stage + 1); } }
+  else {
+    RU.t += dt; RU.hp -= near * CTRL_DPS * dt;
+    if (RU.hp <= 0) return gameOver(false, false, '次元控制器被打壞了');
+    if (RU.t >= RULA_SECS) return gameOver(false, false, '時間到了');
+    if (!alive) { RU.active = false; RU.wait = 3; RU.cleared = RU.stage; const add = RU.stage % 2 === 0 ? 6 * RU.stage : 0; RU.score += add; play('level', 0.6, 0);
+      showBanner(`<small>第 ${RU.stage} 關通過 ✔</small><b>${add ? `分數 +${add}` : '下一關準備'}</b><span>3 秒後第 ${RU.stage + 1} 關</span>`, 1500); }
+  }
+  evHud.style.display = 'block'; evHud.innerHTML = `<b>${RULA_NAME}・第 ${RU.stage} 關</b>　${RU.active ? `剩 ${alive} 隻・${Math.ceil(RULA_SECS - RU.t)} 秒` : '準備中'}　分數 ${RU.score}<div class="bar"><i style="width:${Math.round(Math.max(0, RU.hp / CTRL_HP) * 100)}%"></i></div><small>次元控制器 HP</small>`;
+}
 function spawnEnemy(type, elite = false, asBoss = false) {
   const T = ENEMY_TYPES[type], r = 22 + Math.random() * 6, isBoss = !!T.boss || asBoss;
   // 生在玩家周圍一圈，但要在地圖裡（靠邊時換個方向）
@@ -1018,10 +1043,10 @@ function update(dt) {
   // 換區域：跳區域名
   if (TOWER) { const f = towerFloor(t); if (f !== floor) { floor = f; towerFloorUp(); } }
   else { const z = zoneAt(MAP, pp.x, pp.z); if (z !== curZone) { curZone = z; const mon = z < 4 ? STAGE.zones[z].monsters.join('・') : 'MVP 領地';
-    showBanner(`<small>進入區域</small><b>${zoneName(STAGE, z)}</b><span>${mon}</span>`, 1300); drawMinimap(); } }
+    if (!RULA) showBanner(`<small>進入區域</small><b>${zoneName(STAGE, z)}</b><span>${mon}</span>`, 1300); drawMinimap(); } }
 
   // 生怪＋精英＋首領（game-manager.js）
-  if (!NET?.guest) spawner.tick(dt * (CURSE.spawn || 1) * (NET?.mul.count || 1), t, () => enemies.length, spawnEnemy, enterBoss); // 組隊：隊長生怪（人越多越多），隊員只畫隊長的怪
+  if (RULA) rulaUpdate(dt); else if (!NET?.guest) spawner.tick(dt * (CURSE.spawn || 1) * (NET?.mul.count || 1), t, () => enemies.length, spawnEnemy, enterBoss); // 組隊：隊長生怪（人越多越多），隊員只畫隊長的怪
   if (!CURSE.noRegen) P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   for (const k in P.tmp) if (P.tmp[k] > 0) P.tmp[k] -= dt; // 局內道具倒數
   if (P.aid && (P.aidT = (P.aidT ?? 10) - dt) <= 0) { P.aidT = 10; const h = P.maxHp * 0.06 * P.aid; P.hp = Math.min(P.maxHp, P.hp + h); dmgNum(player.position, Math.round(h), false, 2, true, '+' + Math.round(h)); } // 緊急治療
@@ -1105,14 +1130,14 @@ function drawGage() {
   const I = GAGE.img, clamp = v => Math.max(0, Math.min(1, v || 0));
   g.clearRect(0, 0, 485, 58); g.drawImage(I, 6, 1, 485, 58, 0, 0, 485, 58); // 外框（原圖 6,1 起）
   const fill = (sx, sy, sw, dx, dy, k) => { const w = Math.round(sw * clamp(k)); if (w > 0) g.drawImage(I, sx, sy, w, 12, dx, dy, w, 12); };
-  const nb = TOWER ? 60 - (t % 60) : (BOSSES[spawner.bossIdx] ? BOSSES[spawner.bossIdx][0] - t : 0), nbMax = TOWER ? 60 : (BOSSES[spawner.bossIdx] ? BOSSES[spawner.bossIdx][0] - (BOSSES[spawner.bossIdx - 1]?.[0] || 0) : 1);
+  const nb = RULA ? (RU.active ? RULA_SECS - RU.t : 0) : TOWER ? 60 - (t % 60) : (BOSSES[spawner.bossIdx] ? BOSSES[spawner.bossIdx][0] - t : 0), nbMax = TOWER ? 60 : (BOSSES[spawner.bossIdx] ? BOSSES[spawner.bossIdx][0] - (BOSSES[spawner.bossIdx - 1]?.[0] || 0) : 1);
   fill(106, 72, 377, 100, 11, P.xp / P.need); fill(97, 85, 179, 91, 23, P.hp / P.maxHp); fill(304, 85, 179, 298, 23, nb > 0 ? 1 - nb / nbMax : 1); fill(97, 98, 62, 91, 37, chests / LOOT_CAP);
   // 頭像（圓框中心 39,29）
   if (GAGE.face.complete && GAGE.face.naturalWidth) { g.save(); g.beginPath(); g.arc(39, 29, 19, 0, 7); g.clip(); g.drawImage(GAGE.face, 20, 10, 38, 38); g.restore(); }
   g.font = 'bold 11px sans-serif'; g.textBaseline = 'middle'; g.lineWidth = 3; g.strokeStyle = '#000a'; g.fillStyle = '#fff';
   const txt = (s, x, y, a = 'center') => { g.textAlign = a; g.strokeText(s, x, y); g.fillText(s, x, y); };
   txt(String(P.lv), 39, 51); txt(`${(P.xp / P.need * 100).toFixed(1)}%`, 290, 17); txt(`${Math.max(0, Math.ceil(P.hp))} / ${Math.round(P.maxHp)}`, 181, 29);
-  txt(nb > 0 ? `${TOWER ? '下一層' : '下一王'} ${String(nb / 60 | 0).padStart(2, '0')}:${String(nb % 60 | 0).padStart(2, '0')}` : (TOWER ? '' : '首領都出現了'), 388, 29); txt(`📦${chests}`, 122, 43);
+  txt(RULA ? `第 ${RU.stage} 關${RU.active ? ` ${String(nb / 60 | 0).padStart(2, '0')}:${String(nb % 60 | 0).padStart(2, '0')}` : ''}` : nb > 0 ? `${TOWER ? '下一層' : '下一王'} ${String(nb / 60 | 0).padStart(2, '0')}:${String(nb % 60 | 0).padStart(2, '0')}` : (TOWER ? '' : '首領都出現了'), 388, 29); txt(`📦${chests}`, 122, 43);
 }
 // ===== 寵物 v3（11/20 照 PC）：寵物是裝備欄裡的道具，不會出現在地圖上、也不會攻擊；能力（PC 攻擊／魔攻／防禦）加在角色身上，畫面左上顯示原版圖示 =====
 const PET = (CHAR.pets || []).find(p => p.id === CHAR.pet && PC_PETS[p.pc]) || null; // 11/21 Base 等級門檻拿掉
@@ -1249,7 +1274,7 @@ function gameOver(win = false, quit = false, why = null) { // quit＝暫停選�
   if (!win) rig.actor?.play('dd');
   state = 'over'; bgm.pause(); cleared = win;
   document.querySelector('#over h1').textContent = win ? '通關！' : quit ? '放棄並結算' : '倒下了';
-  document.getElementById('result').innerHTML = TOWER ? `${TOWER_NAME}<br>到達第 <b>${floor}</b> 層（${CURSE.name}）<br>撐了 ${hud.time.textContent}　Lv ${P.lv}　擊殺 ${kills}`
+  document.getElementById('result').innerHTML = RULA ? `${RULA_NAME}<br>${why ? why + '<br>' : ''}從第 ${RU.start + 1} 關開始，打到第 <b>${RU.cleared}</b> 關（過了 ${Math.max(0, RU.cleared - RU.start)} 關）<br>分數 +${RU.score}　撐了 ${hud.time.textContent}　擊殺 ${kills}` : TOWER ? `${TOWER_NAME}<br>到達第 <b>${floor}</b> 層（${CURSE.name}）<br>撐了 ${hud.time.textContent}　Lv ${P.lv}　擊殺 ${kills}`
     : `${STAGE.name}${NET ? `（組隊 ${NET.n} 人）` : ''}<br>${why ? `${why}<br>` : ''}${win ? `打倒了 ${BOSSES[BOSSES.length - 1][1]}！<br>` : ''}撐了 ${hud.time.textContent}　Lv ${P.lv}　擊殺 ${kills}`;
   document.getElementById('over').classList.add('on');
   if (win) play('level', 0.7, 0);
@@ -1262,6 +1287,7 @@ async function saveRun() {
   let token = null; try { token = localStorage.getItem('ss_token'); } catch {}
   if (!token || !CHAR.id) return;
   out.textContent = '結算中…';
+  if (RULA) { try { const j = await (async b => { const r = await fetch('/api/rula', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token }, body: JSON.stringify(b) }); const k = await r.json(); if (!r.ok) throw new Error(k.error); return k; })({ charId: CHAR.id, act: 'end', ticket: RSET?.ticket, from: RU.start, to: RU.cleared, secs: Math.floor(t), kills, lv: P.lv }); out.innerHTML = `Job 經驗 +${j.exp}　分數 +${j.score}（總分 ${j.total.toLocaleString()}）　金幣 +${j.gold}（寄信箱）${j.best ? `<br>🏆 最高紀錄：第 ${j.best} 關` : ''}`; } catch (e) { out.textContent = '結算失敗：' + e.message; } return; }
   try {
     const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, mobKills, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done, combos: CB.done || 0, party: NET?.n || 1, bpetKills: bpet.kills, bpetDead: bpet.dead });
     const F = j.fame; // 項目 47
@@ -1290,7 +1316,7 @@ reset();
 // 出征中每 5 秒、切走或關頁時把進度存到瀏覽器；回主城時問要不要繼續，放棄就先結算已拿到的部分
 const RUN_KEY = 'ss_run_' + (CHAR.id || 'guest');
 function snapshotRun() {
-  if (NET || TOWER || !P || !CHAR.id || !['play', 'level', 'pause'].includes(state) || t < 5) return;
+  if (NET || TOWER || RULA || !P || !CHAR.id || !['play', 'level', 'pause'].includes(state) || t < 5) return;
   const snap = { stage: STAGE_IDX, stageKey: STAGE.key, stageName: STAGE.name, t, kills, lv: P.lv, xp: P.xp, need: P.need, hp: P.hp / P.maxHp, chests, bossChests, bossIdx: spawner.bossIdx, px: player.position.x, pz: player.position.z,
     skills: Object.fromEntries(Object.entries(SM.skills).map(([k, w]) => [k, w.lv])), skmods: Object.fromEntries(Object.entries(SM.skills).filter(([, w]) => w.mods).map(([k, w]) => [k, w.mods])), passives: { ...passives }, egem: { ...P.egem }, bosses: [...runBosses], spent: goldSpent, events: EV.done, combos: CB.done || 0, chestN: { ...(P.chestN || {}) }, saved: Date.now() };
   try { localStorage.setItem(RUN_KEY, JSON.stringify(snap)); } catch {}

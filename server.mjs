@@ -24,7 +24,8 @@ import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, 
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from './src/1_data/talents.js';
 import * as ATT from './src/1_data/attendance.js';
 import * as FT from './src/1_data/fortune.js';
-import * as TR from './src/1_data/trade.js'; // PC 交易＋擺攤（#18）
+import * as TR from './src/1_data/trade.js';
+import * as RL from './src/1_data/rula.js'; // PC 嚕啦生死鬥（#22） // PC 交易＋擺攤（#18）
 import { COSTUMES, fashionPrice } from './src/1_data/fashion.js'; // PC 時裝（#15）
 import { rankBuffOf } from './src/1_data/rank-buff.js';
 import { gapExp } from './src/1_data/level-gap.js';
@@ -1604,6 +1605,42 @@ const api = {
         db.prepare('UPDATE buyorders SET lft=lft-? WHERE id=?').run(N, o.id);
         sendMail(o.char_id, { sender: '收購攤', title: `收購到 ${ORES[o.mat].name} ×${N}`, body: `${c.name} 賣給你 ${ORES[o.mat].name} ×${N}（單價 ${o.price}）。`, mats: { [o.mat]: N } });
         return { ok: 1, got };
+      }
+      return { err: '不認得的動作' };
+    });
+    if (out.err) return send(res, 400, { error: out.err });
+    send(res, 200, { ...out, char: fullChar(ownChar(uid, c0.id)) });
+  },
+  // ===== PC 飛越廣場・嚕啦生死鬥（#22，src/1_data/rula.js）：每角色每天 1 次；start 拿入場券 → 遊戲 → end 結算 =====
+  'GET /api/rula': async (req, res, _, uid) => {
+    const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
+    const R = JSON.parse(c.data || '{}').rula || {}, day = ATT.twDay();
+    const rank = db.prepare('SELECT id, name, job, data FROM characters').all().map(r => { const x = JSON.parse(r.data || '{}').rula; return x?.best ? { name: r.name, job: r.job, best: x.best, secs: x.bestSecs || 0, total: x.total || 0, me: r.id === c.id } : null; })
+      .filter(Boolean).sort((a, b) => b.best - a.best || a.secs - b.secs).slice(0, 20);
+    send(res, 200, { best: R.best || 0, total: R.total || 0, used: R.day === day, rank });
+  },
+  'POST /api/rula': async (req, res, _, uid) => {
+    const { charId, act, start, ticket, from, to, secs, kills, lv } = await body(req); const c0 = ownChar(uid, charId); if (!c0) return send(res, 404, { error: '找不到角色' });
+    const out = tx(() => {
+      const c = ownChar(uid, charId), d = JSON.parse(c.data || '{}'), R = d.rula ??= {}, day = ATT.twDay();
+      if (act === 'start') {
+        if (R.day === day) return { err: `${RL.RULA_NAME}每天只能挑戰 1 次（台灣時間 0 點重算）` };
+        const st = Math.floor(+start || 1); if (st < 1 || st > Math.min(RL.RULA_MAX, (R.best || 0) + 1)) return { err: `只能從第 1～${Math.min(RL.RULA_MAX, (R.best || 0) + 1)} 關開始` };
+        R.day = day; R.ticket = Math.random().toString(36).slice(2, 12); R.tStart = st; R.tAt = Date.now();
+        let bonus = 0; const key = `rula:${uid}`; if (metaGet(key) !== day) { metaSet(key, day); bonus = RL.RULA_ENTRY_BONUS; R.total = (R.total || 0) + bonus; } // 每天每帳號第一個進場的角色 +100 分
+        db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id); return { ticket: R.ticket, bonus };
+      }
+      if (act === 'end') {
+        if (!R.ticket || ticket !== R.ticket) return { err: '入場券不對（已經結算過了？）' };
+        const f = R.tStart - 1, T = Math.max(f, Math.min(RL.RULA_MAX, Math.floor(+to || 0))), S = Math.max(0, Math.floor(+secs || 0)), K = Math.max(0, Math.min(100000, Math.floor(+kills || 0)));
+        if (+from !== f) return { err: '起始關卡不對' };
+        if (T - f > S / 5 + 1 || S > (Date.now() - R.tAt) / 1000 + 30) return { err: '結算資料不合理' }; // 每關至少 5 秒、不能比實際經過的時間久
+        R.ticket = null; const score = RL.rulaScore(f, T);
+        const exp = Math.floor(runExp(K, Math.max(1, c.job_lv), c.job_lv)), JG = gainJob(c, d, exp);
+        R.total = (R.total || 0) + score; let best = 0; if (T > (R.best || 0) || (T === R.best && S < (R.bestSecs || 1e9))) { R.best = T; R.bestSecs = S; best = T; }
+        db.prepare('UPDATE characters SET job_lv=?, data=? WHERE id=?').run(JG.job, JSON.stringify(d), c.id);
+        if (score) sendMail(c.id, { sender: RL.RULA_NAME, title: `${RL.RULA_NAME}獎勵`, body: `打到第 ${T} 關，分數 +${score}（1 分＝1 金幣）。`, gold: score });
+        return { exp, score, gold: score, total: R.total, best, ups: JG.ups, cid: c.id };
       }
       return { err: '不認得的動作' };
     });
