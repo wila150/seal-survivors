@@ -268,7 +268,7 @@ const TOWN = 80; // 看門狗用的範圍（離廣場中心）
 import { wearBlock, pcMask, maskJobs, pcReqLv, CLK_KINDS, CLK_COLOR, clkText, offJob, dismantleYield, itemJob } from './src/1_data/items.js';
 import { PC_ITEMS } from './src/1_data/pc-items.js';
 import { JOB_WEAPON, traitOf, BASES, SLOTS, RARITY, STAT_NAMES, fmtStat, itemStats, itemName, itemIcon, sellPrice, REFINE_RATE, REFINE_MAX, refineBreaks, ORES, oreFor, STOCK_DAILY, GUP, GUP_MAX, gupRate } from './src/1_data/items.js';
-import { STATS, HAIR_COLORS } from './src/1_data/jobs.js';
+import { STATS, HAIR_COLORS, statTotal, statPer, STAT_CAPS } from './src/1_data/jobs.js';
 import { STAGES, stageUnlocked, stageGate, gearScore, stageTime, bossTimes, GS_REQ, EARLY_WEAK } from './src/1_data/stages.js';
 import { MONSTER_MODELS } from './src/1_data/monsters.js';
 import { createWatchdog } from './src/4_diagnostics/watchdog.js';
@@ -1839,6 +1839,7 @@ const statLine = it => Object.entries(itemStats(it)).map(([k, v]) => `${STAT_NAM
 // 空格畫原版剪影；騎士以外的盾牌格上鎖
 const LOOK_SIL = { head: [12, 81], top: [57, 81], bottom: [102, 81], shoes: [147, 81], costume: [192, 81], acc: [35, 125], neck: [80, 125], ring: [125, 125], weapon: [170, 125], earring: [125, 125], bracelet: [125, 125], deco: [12, 81] };
 let ciSel = null;
+let ciExplain = (() => { try { return !!localStorage.getItem('ss_ciExplain'); } catch { return false; } })(); // 11/21 素質說明切換（記在瀏覽器）
 function openCharInfo() {
   const c = CHAR, items = c.items || [], eq = k => items.find(i => i.equipped && i.slot === k), hex = n => '#' + (n ?? 0).toString(16).padStart(6, '0');
   const sil = (k, lock) => { const s = LOOK_SIL[k]; return s ? `<i class="sil${lock ? ' lock' : ''}" style="background-position:-${s[0]}px -${s[1]}px"></i>` : ''; };
@@ -1857,15 +1858,16 @@ function openCharInfo() {
   const T = titleOf(c.title), info = [['名稱', esc(c.name)], ['等級', `Base ${c.baseLv}　Job ${c.jobLv} / ${c.jobMax ?? 50}`], ['職業', esc(c.jobName || c.job)], ['名聲稱號', T ? `【${T.name}】` : '—'],
     ['名聲數值', `Lv ${c.fameLv ?? 0}　${(c.fame || 0).toLocaleString()}${c.fameNext ? ' / ' + c.fameNext.toLocaleString() : ''}`], ['WIN', `${(c.cleared || []).length}`], ['裝備分數', `<b style="color:#2a4fb8">${gearScore(items)}</b>`]]
     .map(([k, v]) => `<div class="ci-row"><span>${k}</span><b>${v}</b></div>`).join('');
-  const stat = Object.entries(STATS).map(([k, d]) => `<div class="ci-st"><span>${d.name}</span><b>${c.stats[k]}</b><button class="btn ci-plus" data-stat="${k}" ${c.points ? '' : 'disabled'} title="${d.desc}">＋</button><button class="btn ci-edit" data-sedit="${k}" ${c.points ? '' : 'disabled'}>EDIT</button></div>`).join('');
+  const stat = Object.entries(STATS).map(([k, d]) => `<div class="ci-st"><span>${d.name}</span><b>${c.stats[k]}</b><button class="btn ci-plus" data-stat="${k}" ${c.points ? '' : 'disabled'} title="${d.desc}">＋</button><button class="btn ci-edit" data-sedit="${k}" ${c.points ? '' : 'disabled'}>EDIT</button>${ciExplain ? `<small class="ci-eff">每點：${statPer(k, c.job)}<br>目前：<b>${statTotal(k, c.stats[k], c.job)}</b></small>` : ''}</div>`).join('') + (ciExplain ? `<small class="ci-eff" style="display:block;margin-top:4px">上面只算素質本身；裝備、天賦、鑲嵌石、寵物等的加成另外算。上限：${STAT_CAPS}。</small>` : '');
   const html = `<div class="ci"><div class="ci-col"><section><h4>EQUIPMENT</h4><div class="ci-grid">${grid}</div>${(() => { const it = items.find(i => i.id === ciSel && i.equipped); return it ? `<div class="ci-sel"><b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${esc(itemName(it))}</b>　<small>${SLOTS[it.slot]}</small><br><small>${statLine(it)}</small><br><button class="btn" id="ciUneq" style="margin-top:4px">卸下</button></div>` : ''; })()}</section><section><h4>COSTUME</h4><div class="ci-grid c2">${cos}</div><small class="ci-hint">髮型、髮色、服裝配色找廣場的造型師</small></section></div>
-    <div class="ci-col"><section><h4>INFO</h4><div class="ci-info">${info}</div></section><section><h4>STATUS</h4><div class="ci-pts"><span>點數</span><b>${c.points}</b></div>${stat}
+    <div class="ci-col"><section><h4>INFO</h4><div class="ci-info">${info}</div></section><section><h4>STATUS<button class="btn" id="ciExplain" style="float:right;padding:0 8px;font-size:12px;line-height:20px">${ciExplain ? '收起說明' : '📖 說明'}</button></h4><div class="ci-pts"><span>點數</span><b>${c.points}</b></div>${stat}
     <small class="ci-hint">Job 每升 1 級 +3 點${c.rebirth ? `・已轉生 ${c.rebirth} 次` : ''}</small><button class="btn" id="ciPersonal" style="margin-top:6px;background:linear-gradient(#9fe39a,#4cae4c);color:#fff;border-color:#3d8b3d">個性化${c.persona?.lv ? ` Lv${c.persona.lv}` : ''}</button></section></div></div>`;
   openDlg('CHARACTER INFO', html, [['詳細觀看', () => { bagMode = 'bag'; bagTab = 'stats'; renderBag(); }, true]], true); // PC 只有「詳細觀看」；不放跳到背包的鈕
   const B = $('#dlgBody');
   // 點裝備格：在角色視窗裡顯示那件的資訊（不跳去背包）；卸下在這裡做，穿上去背包
   B.querySelectorAll('[data-ci]').forEach(el => el.onclick = () => { const id = +el.dataset.ci; ciSel = ciSel === id || !id ? null : id; openCharInfo(); });
   B.querySelector('#ciUneq')?.addEventListener('click', async () => { try { showChar(await call('POST', '/api/unequip', { itemId: ciSel })); ciSel = null; openCharInfo(); } catch (e) { toast(e.message); } });
+  $('#ciExplain')?.addEventListener('click', () => { ciExplain = !ciExplain; try { localStorage.setItem('ss_ciExplain', ciExplain ? '1' : ''); } catch {} openCharInfo(); });
   B.querySelectorAll('[data-stat]').forEach(b => b.onclick = async () => { try { showChar(await call('POST', '/api/statup', { charId: c.id, stat: b.dataset.stat })); openCharInfo(); } catch (e) { toast(e.message); } });
   $('#ciPersonal')?.addEventListener('click', openPersona); // 指令 4-2 個性化
   B.querySelectorAll('[data-sedit]').forEach(b => b.onclick = async () => { const k = b.dataset.sedit, n = parseInt(await askText(`${STATS[k].name} 要加幾點？（剩 ${CHAR.points} 點）`, String(CHAR.points), { title: 'EDIT', max: 3 }), 10);
@@ -1912,7 +1914,7 @@ function renderBag() {
     const jp = c.jobNeed ? `${c.jobExp ?? 0} / ${c.jobNeed}` : 'MAX';
     html += `<div style="margin-bottom:6px">Base <b>${c.baseLv}</b>（轉生階段，轉生一次 +1）　Job Lv <b>${c.jobLv}</b> / ${c.jobMax ?? 50}（${jp}）<br><small>Job 每升 1 級：素質點 +3、天賦點 +1。出征、巡邏、經驗魚都是給 Job 經驗。</small></div>`;
     html += `<div>剩餘素質點：<b>${c.points}</b>　<small>（Job 每升 1 級 +3 點${c.rebirth ? `；已轉生 ${c.rebirth} 次` : ''}）</small></div>` + Object.entries(STATS).map(([k, d]) =>
-      `<div class="strow"><b>${d.name}</b><span>${c.stats[k]}</span><button class="btn" data-stat="${k}" ${c.points ? '' : 'disabled'}>＋</button><small>${d.desc}</small></div>`).join('');
+      `<div class="strow"><b>${d.name}</b><span>${c.stats[k]}</span><button class="btn" data-stat="${k}" ${c.points ? '' : 'disabled'}>＋</button><small>每點 ${statPer(k, c.job)}<br>目前 <b>${statTotal(k, c.stats[k], c.job)}</b></small></div>`).join('') + `<small style="color:#6b7896">只算素質本身（裝備、天賦、鑲嵌石等另外加）。上限：${STAT_CAPS}。</small>`;
     // 項目 47：名聲與稱號（名聲等級照原版 fame.scr）
     const fk = Object.entries(c.bossKills || {}).sort((a, b) => b[1] - a[1]);
     html += `<div style="margin-top:12px;background:#fff;border-radius:12px;padding:10px 12px"><b style="font-size:15px">🏅 名聲 Lv ${c.fameLv ?? 0}</b>　<small>名聲 ${(c.fame || 0).toLocaleString()}${c.fameNext ? `／下一級 ${c.fameNext.toLocaleString()}` : '（滿級）'}</small>

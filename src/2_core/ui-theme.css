@@ -157,6 +157,8 @@ body #ssSet input[type=range] { accent-color: var(--th-blue) }
 #dlg .ci-pts b { color: #2a3a08 !important; font-size: 16px; }
 #dlg .ci-st { display: grid; grid-template-columns: 1fr 44px 34px 58px; align-items: center; gap: 6px; padding: 5px 4px; border-bottom: 1px dashed #e0d2b2; }
 #dlg .ci-st span { font-weight: 800; color: #2a3a78; }
+#dlg .ci-eff { grid-column: 1 / -1; color: #6b7896; font-size: 12px; line-height: 1.5; }
+#dlg .ci-eff b { color: #2e6b2e !important; font-size: 12px; text-align: left; }
 #dlg .ci-st b { text-align: right; color: #a86b10 !important; font-size: 16px; }
 #dlg .ci-st .ci-plus { width: 30px; height: 30px; padding: 0 !important; border-radius: 50% !important; }
 #dlg .ci-st .ci-plus:not(:disabled) { background: linear-gradient(#7fb0ff, var(--th-blue) 52%, #2a4fb8) !important; color: #fff !important; }

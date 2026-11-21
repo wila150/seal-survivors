@@ -12,6 +12,20 @@ export const STATS = {
   wis: { name: '精神', desc: '冷卻 -1%' },
   luk: { name: '感覺', desc: '寶箱裝備品質提升、爆擊率 +0.3%' },
 };
+// 11/21 使用者：「數值哪些有做說明嗎、會影響什麼」→ 角色視窗「說明」切換：每項素質目前帶來的效果（公式同 game.js 開局 P）
+const pct = x => +(x).toFixed(1) + '%';
+export function statTotal(k, v, job) {
+  v = v || 0;
+  if (k === 'str') return `物理傷害 +${pct(v * (job === '獵人' ? 1 : 3))}`;
+  if (k === 'agi') return `爆擊率 +${pct(v)}、迴避 +${pct(Math.min(40, v * 0.5))}${job === '獵人' ? `、物理傷害 +${pct(v * 3)}` : ''}`;
+  if (k === 'int') return `魔法傷害 +${pct(v * 3)}`;
+  if (k === 'vit') return `最大 HP +${v * 6}、受到傷害 −${pct(Math.min(30, v * 0.3))}`;
+  if (k === 'wis') return `技能冷卻 −${pct((1 - 1 / (1 + v / 100)) * 100)}`;
+  if (k === 'luk') return `寶箱裝備品質 +${+Math.min(0.6, (v - 1) * 0.02).toFixed(2)}、爆擊率 +${pct(v * 0.3)}`;
+  return '';
+}
+export const statPer = (k, job) => job === '獵人' && k === 'str' ? '物理傷害 +1%' : job === '獵人' && k === 'agi' ? '爆擊率 +1%、迴避 +0.5%、物理傷害 +3%' : STATS[k]?.desc || '';
+export const STAT_CAPS = '迴避最多 40%、體力減傷最多 30%、感覺的寶箱品質最多 +0.6';
 export const FREE_POINTS = 20;
 export const STAT_MAX = 15;
 
