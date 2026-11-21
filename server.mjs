@@ -24,6 +24,7 @@ import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, 
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from './src/1_data/talents.js';
 import * as ATT from './src/1_data/attendance.js';
 import * as FT from './src/1_data/fortune.js';
+import * as TR from './src/1_data/trade.js'; // PC 交易＋擺攤（#18）
 import { COSTUMES, fashionPrice } from './src/1_data/fashion.js'; // PC 時裝（#15）
 import { rankBuffOf } from './src/1_data/rank-buff.js';
 import { gapExp } from './src/1_data/level-gap.js';
@@ -90,7 +91,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS auctions (id INTEGER PRIMARY KEY, seller_cha
 try { db.exec('ALTER TABLE auctions ADD COLUMN ident TEXT'); } catch {} // 項目 28
 try { db.exec('ALTER TABLE auctions ADD COLUMN gup INTEGER NOT NULL DEFAULT 0'); } catch {} // 項目 46
 try { db.exec('ALTER TABLE auctions ADD COLUMN pc INTEGER'); } catch {}
-const AUC_MAX = 10, AUC_HOURS = 24, AUC_FEE = 0.05;
+const AUC_MAX = 10, AUC_HOURS = 24, AUC_FEE = TR.TRADE_FEE; // 11/21 照 PC 擺攤手續費 3%（原本 5%）
 // 過期的拍賣退回賣家背包
 function expireAuctions() {
   npcMarket(); // 項目 56
@@ -101,7 +102,7 @@ function expireAuctions() {
 }
 // ===== 項目 56：離線拍賣 NPC（第八批藍圖）=====
 // ①自動上架：每 2 小時補 2 件，NPC 同時最多 6 件；帶技能屬性鑑定（武器、防具）或 G 化的 PC 道具，定價＝賣價 ×8（G 化、鑑定再加價）
-// ②自動收購：玩家上架 10 分鐘以上，依「行情 ÷ 定價」每小時有機率被買走（便宜賣很快、亂開價幾乎不會成交）；金幣扣 5% 手續費後用信件寄給賣家
+// ②自動收購：玩家上架 10 分鐘以上，依「行情 ÷ 定價」每小時有機率被買走（便宜賣很快、亂開價幾乎不會成交）；金幣扣 3% 手續費後用信件寄給賣家
 db.exec('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)');
 // 錯誤紀錄（11/20 偵測 bug → 維運監控）：前端回報（src/2_core/errlog.js）＋伺服器 500；同一個錯誤只留一列、累加次數
 db.exec('CREATE TABLE IF NOT EXISTS client_errors (sig TEXT PRIMARY KEY, kind TEXT NOT NULL, msg TEXT NOT NULL, src TEXT, page TEXT, ua TEXT, stack TEXT, n INTEGER NOT NULL, first INTEGER NOT NULL, last INTEGER NOT NULL)');
@@ -151,7 +152,7 @@ function npcMarket() {
     if (Math.random() >= 1 - Math.pow(1 - pH, hrs)) continue;
     db.prepare('DELETE FROM auctions WHERE id=?').run(a.id);
     const got = Math.floor(a.price * (1 - AUC_FEE));
-    sendMail(a.seller_char, { sender: '拍賣商人', title: '拍賣成交', body: `你上架的裝備被 ${NPC_SELLERS[Math.floor(Math.random() * NPC_SELLERS.length)]} 以 ${a.price} 金幣買走了（扣 5% 手續費）。`, gold: got });
+    sendMail(a.seller_char, { sender: '拍賣商人', title: '拍賣成交', body: `你上架的裝備被 ${NPC_SELLERS[Math.floor(Math.random() * NPC_SELLERS.length)]} 以 ${a.price} 金幣買走了（扣 3% 手續費）。`, gold: got });
   }
 }
 const aucView = a => ({ id: a.id, seller: a.seller_name, sellerChar: a.seller_char, slot: a.slot, base: a.base, rarity: a.rarity, roll: a.roll, refine: a.refine, gup: a.gup || 0, aff: a.aff ? JSON.parse(a.aff) : null, pc: a.pc || null, price: a.price, expires: a.expires, ident: a.ident ? JSON.parse(a.ident) : null });
@@ -199,8 +200,25 @@ function sendMail(cid, { sender = '系統', title, body = '', gold = 0, items = 
   db.prepare('INSERT INTO mails (char_id, sender, title, body, gold, items, mats, created) VALUES (?,?,?,?,?,?,?,?)')
     .run(cid, sender, title, body, gold | 0, items.length ? JSON.stringify(items) : null, Object.keys(mats).length ? JSON.stringify(mats) : null, Date.now());
 }
-const mailView = m => ({ id: m.id, sender: m.sender, title: m.title, body: m.body, gold: m.gold, items: m.items ? JSON.parse(m.items) : [], mats: m.mats ? JSON.parse(m.mats) : {}, read: !!m.read, claimed: !!m.claimed, created: m.created });
+const mailView = m => ({ id: m.id, sender: m.sender, title: m.title, body: m.body, gold: m.gold, items: m.items ? JSON.parse(m.items).map(it => it.ref ? (r => r ? itemView(r) : null)(db.prepare('SELECT * FROM items WHERE id=?').get(it.ref)) : it).filter(Boolean) : [], mats: m.mats ? JSON.parse(m.mats) : {}, read: !!m.read, claimed: !!m.claimed, created: m.created });
 const hasAttach = m => m.gold > 0 || !!m.items || !!m.mats;
+
+// ===== PC 交易＋擺攤（#18）=====
+db.exec(`CREATE TABLE IF NOT EXISTS trades (id INTEGER PRIMARY KEY, a INTEGER NOT NULL, b INTEGER NOT NULL, status TEXT NOT NULL, offa TEXT, offb TEXT, locka INTEGER NOT NULL DEFAULT 0, lockb INTEGER NOT NULL DEFAULT 0, oka INTEGER NOT NULL DEFAULT 0, okb INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS buyorders (id INTEGER PRIMARY KEY, char_id INTEGER NOT NULL, name TEXT NOT NULL, mat TEXT NOT NULL, n INTEGER NOT NULL, lft INTEGER NOT NULL, price INTEGER NOT NULL, created INTEGER NOT NULL);`);
+const ownCharById = id => db.prepare('SELECT * FROM characters WHERE id=?').get(id);
+const tradeOf = cid => { const t = db.prepare("SELECT * FROM trades WHERE (a=? OR b=?) AND status IN ('invite','open') ORDER BY id DESC LIMIT 1").get(cid, cid); if (t && Date.now() - t.updated > TR.TRADE_TTL_MS) { db.prepare("UPDATE trades SET status='cancel' WHERE id=?").run(t.id); return null; } return t; };
+// 這份出價合不合法：金幣夠、材料夠、裝備是自己的而且沒穿／沒鎖／沒綁定
+function offerErr(c, o) {
+  const d = JSON.parse(c.data || '{}'); if ((c.gold || 0) < (o.gold || 0)) return `${c.name} 的金幣不夠`;
+  for (const [k, v] of Object.entries(o.mats || {})) if ((d.mats?.[k] || 0) < v) return `${c.name} 的「${ORES[k]?.name || k}」不夠`;
+  for (const id of o.items || []) { const it = db.prepare('SELECT * FROM items WHERE id=? AND char_id=?').get(id, c.id); if (!it) return '找不到裝備'; if (it.equipped) return '穿著的裝備不能交易'; if (it.locked) return '鎖定的裝備不能交易'; if (it.bound) return '綁定帳號的裝備不能交易'; }
+  return null;
+}
+function tradeView(t, cid) {
+  const me = t.a === cid ? 'a' : 'b', ot = me === 'a' ? 'b' : 'a', side = k => { const o = JSON.parse(t['off' + k] || '{}'); return { gold: o.gold || 0, mats: o.mats || {}, items: (o.items || []).map(id => db.prepare('SELECT * FROM items WHERE id=?').get(id)).filter(Boolean).map(itemView), lock: !!t['lock' + k], ok: !!t['ok' + k] }; };
+  return { id: t.id, status: t.status, inviter: t.a === cid, other: ownCharById(t[ot])?.name || '?', me: side(me), them: side(ot) };
+}
 // 開服見面禮：每個角色第一次打開信箱時寄一封（舊角色也會收到）。內容暫定
 function welcomeMail(c) {
   const d = JSON.parse(c.data || '{}'); if (d.welcomed) return;
@@ -1045,7 +1063,7 @@ const api = {
       if (m.claimed || !hasAttach(m)) continue;
       const items = m.items ? JSON.parse(m.items) : [], mats = m.mats ? JSON.parse(m.mats) : {};
       if (bagCount(c.id) + items.length > BAG_MAX) { full = true; if (mailId !== 'all') return send(res, 400, { error: `背包放不下（要 ${items.length} 格）` }); continue; }
-      for (const it of items) giveItem(c.id, it);
+      for (const it of items) { if (it.ref) db.prepare('UPDATE items SET char_id=? WHERE id=? AND char_id=-1').run(c.id, it.ref); else giveItem(c.id, it); } // ref＝玩家寄的裝備（寄送中 char_id=-1）
       const cur = ownChar(uid, c.id), d = JSON.parse(cur.data || '{}'); d.mats ??= {};
       for (const [k, v] of Object.entries(mats)) d.mats[k] = (d.mats[k] || 0) + v;
       db.prepare('UPDATE characters SET gold=gold+?, data=? WHERE id=?').run(m.gold, JSON.stringify(d), c.id);
@@ -1056,7 +1074,7 @@ const api = {
   'POST /api/maildel': async (req, res, _, uid) => {
     const { charId, mailIds } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     if (!Array.isArray(mailIds) || !mailIds.length) return send(res, 400, { error: '清單不對' });
-    for (const id of mailIds) db.prepare('DELETE FROM mails WHERE id=? AND char_id=?').run(+id, c.id);
+    for (const id of mailIds) { const m = db.prepare('SELECT items, claimed FROM mails WHERE id=? AND char_id=?').get(+id, c.id); if (m && !m.claimed && m.items && m.items.includes('"ref"')) return send(res, 400, { error: '有玩家寄來的裝備還沒領，先領取再刪除' }); db.prepare('DELETE FROM mails WHERE id=? AND char_id=?').run(+id, c.id); }
     send(res, 200, { mails: db.prepare('SELECT * FROM mails WHERE char_id=? ORDER BY id DESC LIMIT ?').all(c.id, MAIL_MAX).map(mailView) });
   },
   // ===== 項目 21：轉生（Base Lv 70 以上；Base 回 1、素質全部回 1，可重配點數＝20＋75×轉生次數；職業、Job、天賦、裝備、背包保留；最多 10 次）=====
@@ -1452,6 +1470,113 @@ const api = {
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
   // ===== 拍賣所 =====
+  // ===== PC 交易＋擺攤（#18，src/1_data/trade.js）=====
+  // 交易：invite → accept → offer（放道具／金幣／材料，改了雙方鎖定都取消）→ lock → confirm（雙方都確認才成交）
+  'GET /api/trade': async (req, res, _, uid) => {
+    const cid = +new URL(req.url, 'http://x').searchParams.get('charId'); const c = ownChar(uid, cid); if (!c) return send(res, 404, { error: '找不到角色' });
+    db.prepare('UPDATE characters SET seen=? WHERE id=?').run(Date.now(), c.id);
+    const t = tradeOf(c.id); send(res, 200, { trade: t ? tradeView(t, c.id) : null });
+  },
+  'POST /api/trade': async (req, res, _, uid) => {
+    const { charId, act, to, offer } = await body(req); const c0 = ownChar(uid, charId); if (!c0) return send(res, 404, { error: '找不到角色' });
+    const out = tx(() => {
+      const c = ownChar(uid, charId), now = Date.now(); let t = tradeOf(c.id);
+      if (act === 'invite') {
+        if (t) return { err: '你已經在交易中了' };
+        const o = db.prepare('SELECT id, name, seen FROM characters WHERE name=?').get(String(to || '').trim()); if (!o) return { err: '找不到這個角色' };
+        if (o.id === c.id) return { err: '不能跟自己交易' }; if (now - (o.seen || 0) > TR.TRADE_ONLINE_MS) return { err: `${o.name} 不在線上` };
+        if (tradeOf(o.id)) return { err: `${o.name} 正在跟別人交易` };
+        db.prepare("INSERT INTO trades (a, b, status, offa, offb, updated) VALUES (?,?,'invite','{}','{}',?)").run(c.id, o.id, now); return { ok: 1 };
+      }
+      if (!t) return { err: '現在沒有交易' };
+      const me = t.a === c.id ? 'a' : 'b', other = me === 'a' ? 'b' : 'a';
+      const upd = f => db.prepare(`UPDATE trades SET ${Object.keys(f).map(k => k + '=?').join(',')}, updated=? WHERE id=?`).run(...Object.values(f), now, t.id);
+      if (act === 'cancel' || act === 'decline') { upd({ status: 'cancel' }); return { ok: 1 }; }
+      if (act === 'accept') { if (me !== 'b' || t.status !== 'invite') return { err: '沒有交易邀請' }; upd({ status: 'open' }); return { ok: 1 }; }
+      if (t.status !== 'open') return { err: '對方還沒同意交易' };
+      if (act === 'offer') {
+        const o = offer || {}, gold = Math.max(0, Math.floor(+o.gold || 0)), items = [...new Set((o.items || []).map(Number))].slice(0, TR.TRADE_ITEMS), mats = {};
+        for (const [k, v] of Object.entries(o.mats || {})) { const n = Math.floor(+v || 0); if (n > 0 && Object.hasOwn(ORES, k)) mats[k] = n; }
+        const e = offerErr(c, { gold, items, mats }); if (e) return { err: e };
+        upd({ ['off' + me]: JSON.stringify({ gold, items, mats }), locka: 0, lockb: 0, oka: 0, okb: 0 }); return { ok: 1 };
+      }
+      if (act === 'lock') { upd({ ['lock' + me]: 1 }); return { ok: 1 }; }
+      if (act === 'confirm') {
+        if (!t.locka || !t.lockb) return { err: '雙方都按「鎖定」之後才能確認' };
+        upd({ ['ok' + me]: 1 }); t = db.prepare('SELECT * FROM trades WHERE id=?').get(t.id);
+        if (!(t.oka && t.okb)) return { ok: 1 };
+        const A = ownCharById(t.a), B = ownCharById(t.b), oa = JSON.parse(t.offa || '{}'), ob = JSON.parse(t.offb || '{}');
+        const ea = offerErr(A, oa), eb = offerErr(B, ob); if (ea || eb) { upd({ locka: 0, lockb: 0, oka: 0, okb: 0 }); return { err: '交易內容有問題，已取消鎖定：' + (ea || eb) }; }
+        if (bagCount(A.id) - (oa.items || []).length + (ob.items || []).length > BAG_MAX || bagCount(B.id) - (ob.items || []).length + (oa.items || []).length > BAG_MAX) { upd({ locka: 0, lockb: 0, oka: 0, okb: 0 }); return { err: '有一方背包放不下，已取消鎖定' }; }
+        const da = JSON.parse(A.data || '{}'), dbb = JSON.parse(B.data || '{}'); da.mats ??= {}; dbb.mats ??= {};
+        for (const [k, v] of Object.entries(oa.mats || {})) { da.mats[k] -= v; dbb.mats[k] = (dbb.mats[k] || 0) + v; }
+        for (const [k, v] of Object.entries(ob.mats || {})) { dbb.mats[k] -= v; da.mats[k] = (da.mats[k] || 0) + v; }
+        for (const id of oa.items || []) db.prepare('UPDATE items SET char_id=?, equipped=0 WHERE id=?').run(B.id, id);
+        for (const id of ob.items || []) db.prepare('UPDATE items SET char_id=?, equipped=0 WHERE id=?').run(A.id, id);
+        db.prepare('UPDATE characters SET gold=gold-?+?, data=? WHERE id=?').run(oa.gold || 0, ob.gold || 0, JSON.stringify(da), A.id);
+        db.prepare('UPDATE characters SET gold=gold-?+?, data=? WHERE id=?').run(ob.gold || 0, oa.gold || 0, JSON.stringify(dbb), B.id);
+        upd({ status: 'done' }); return { ok: 1, done: true };
+      }
+      return { err: '不認得的動作' };
+    });
+    if (out.err) return send(res, 400, { error: out.err });
+    const t = tradeOf(c0.id) || (out.done ? db.prepare('SELECT * FROM trades WHERE (a=? OR b=?) ORDER BY id DESC LIMIT 1').get(c0.id, c0.id) : null);
+    send(res, 200, { done: !!out.done, trade: t ? tradeView(t, c0.id) : null, char: fullChar(ownChar(uid, c0.id)) });
+  },
+  // 寄信給其他玩家（PC 銀行職員菲利）：文字／道具／金幣；手續費照 PC ÷1000；每帳號每天 20 次
+  'POST /api/mailsend': async (req, res, _, uid) => {
+    const { charId, to, title, text, gold = 0, items = [], mats = {} } = await body(req); const c0 = ownChar(uid, charId); if (!c0) return send(res, 404, { error: '找不到角色' });
+    const out = tx(() => {
+      const c = ownChar(uid, charId), o = db.prepare('SELECT id, name FROM characters WHERE name=?').get(String(to || '').trim()); if (!o) return { err: '找不到這個角色' };
+      if (o.id === c.id) return { err: '不能寄給自己' };
+      const g = Math.max(0, Math.floor(+gold || 0)), ids = [...new Set((items || []).map(Number))].slice(0, TR.TRADE_ITEMS), m = {};
+      for (const [k, v] of Object.entries(mats || {})) { const n = Math.floor(+v || 0); if (n > 0 && Object.hasOwn(ORES, k)) m[k] = n; }
+      const e = offerErr(c, { gold: g, items: ids, mats: m }); if (e) return { err: e };
+      const day = ATT.twDay(), key = `mailn:${uid}`, M = (() => { try { return JSON.parse(metaGet(key) || '{}'); } catch { return {}; } })(); if (M.day !== day) { M.day = day; M.n = 0; }
+      if (M.n >= TR.MAIL_DAILY) return { err: `每個帳號每天最多寄 ${TR.MAIL_DAILY} 封` };
+      const fee = TR.mailCost({ gold: g, items: ids.length, mats: Object.keys(m).length }); if ((c.gold || 0) < g + fee) return { err: `金幣不夠（寄 ${g}＋手續費 ${fee}）` };
+      const d = JSON.parse(c.data || '{}'); d.mats ??= {}; for (const [k, v] of Object.entries(m)) d.mats[k] -= v;
+      for (const id of ids) db.prepare('UPDATE items SET char_id=?, equipped=0 WHERE id=?').run(-1, id); // 寄送中（收件人領取時才搬過去）
+      db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(g + fee, JSON.stringify(d), c.id);
+      sendMail(o.id, { sender: c.name, title: String(title || '').slice(0, 30) || `${c.name} 寄來的信`, body: String(text || '').slice(0, 300), gold: g, items: ids.map(id => ({ ref: id })), mats: m });
+      M.n++; metaSet(key, JSON.stringify(M)); return { fee, left: TR.MAIL_DAILY - M.n };
+    });
+    if (out.err) return send(res, 400, { error: out.err });
+    send(res, 200, { ...out, char: fullChar(ownChar(uid, c0.id)) });
+  },
+  // 收購攤（PC 收購擺攤）：材料×數量×單價，金幣先扣；別人賣進來自動成交（賣的人扣 3％），買到的材料寄信箱
+  'GET /api/buyorders': async (req, res) => {
+    const q = new URL(req.url, 'http://x').searchParams.get('mat') || '';
+    send(res, 200, { rows: db.prepare(`SELECT * FROM buyorders WHERE lft>0 ${q ? 'AND mat=?' : ''} ORDER BY price DESC, id LIMIT 100`).all(...(q ? [q] : [])) });
+  },
+  'POST /api/buyorder': async (req, res, _, uid) => {
+    const { charId, act, mat, n, price, id } = await body(req); const c0 = ownChar(uid, charId); if (!c0) return send(res, 404, { error: '找不到角色' });
+    const out = tx(() => {
+      const c = ownChar(uid, charId), d = JSON.parse(c.data || '{}'); d.mats ??= {};
+      if (act === 'post') {
+        if (!Object.hasOwn(ORES, mat)) return { err: '沒有這種材料' }; const N = Math.floor(+n || 0), P = Math.floor(+price || 0);
+        if (N < 1 || N > TR.BUY_MAX) return { err: `數量 1～${TR.BUY_MAX}` }; if (P < 1) return { err: '單價至少 1 金幣' };
+        if (db.prepare('SELECT COUNT(*) n FROM buyorders WHERE char_id=? AND lft>0').get(c.id).n >= TR.BUY_SLOTS) return { err: `收購攤位最多 ${TR.BUY_SLOTS} 個` };
+        if ((c.gold || 0) < N * P) return { err: `金幣不夠（要先放 ${N * P}）` };
+        db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(N * P, c.id);
+        db.prepare('INSERT INTO buyorders (char_id, name, mat, n, lft, price, created) VALUES (?,?,?,?,?,?,?)').run(c.id, c.name, mat, N, N, P, Date.now()); return { ok: 1 };
+      }
+      const o = db.prepare('SELECT * FROM buyorders WHERE id=?').get(+id); if (!o || o.lft <= 0) return { err: '這個收購攤已經收完了' };
+      if (act === 'cancel') { if (o.char_id !== c.id) return { err: '不是你的攤位' }; db.prepare('UPDATE buyorders SET lft=0 WHERE id=?').run(o.id); db.prepare('UPDATE characters SET gold=gold+? WHERE id=?').run(o.lft * o.price, c.id); return { ok: 1, refund: o.lft * o.price }; }
+      if (act === 'sell') {
+        if (o.char_id === c.id) return { err: '不能賣給自己' }; const N = Math.min(o.lft, Math.floor(+n || 0)); if (N < 1) return { err: '數量不對' };
+        if ((d.mats[o.mat] || 0) < N) return { err: `你的「${ORES[o.mat].name}」不夠` };
+        d.mats[o.mat] -= N; const got = TR.afterFee(N * o.price);
+        db.prepare('UPDATE characters SET gold=gold+?, data=? WHERE id=?').run(got, JSON.stringify(d), c.id);
+        db.prepare('UPDATE buyorders SET lft=lft-? WHERE id=?').run(N, o.id);
+        sendMail(o.char_id, { sender: '收購攤', title: `收購到 ${ORES[o.mat].name} ×${N}`, body: `${c.name} 賣給你 ${ORES[o.mat].name} ×${N}（單價 ${o.price}）。`, mats: { [o.mat]: N } });
+        return { ok: 1, got };
+      }
+      return { err: '不認得的動作' };
+    });
+    if (out.err) return send(res, 400, { error: out.err });
+    send(res, 200, { ...out, char: fullChar(ownChar(uid, c0.id)) });
+  },
   'GET /api/auctions': async (req, res) => {
     expireAuctions();
     const rows = db.prepare('SELECT * FROM auctions WHERE expires>=? ORDER BY price ASC LIMIT 500').all(Date.now()).map(aucView);

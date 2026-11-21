@@ -290,6 +290,7 @@ import { weakList } from './src/2_core/stun.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
 import * as BPD from './src/1_data/blueprint.js'; // PC 希望藍圖
 import { COSTUMES, FASHION_SLOTS, isOnePiece, fashionPrice, fashionText, costumeStats, shopList, STAT_LABEL } from './src/1_data/fashion.js'; // PC 時裝（#15）
+import * as TRD from './src/1_data/trade.js'; // PC 交易＋擺攤（#18）
 import { BAGS as FT_BAGS, CHESTS as FT_CHESTS, KEY as FT_KEY, chestOdds, JACKPOT_TAKE } from './src/1_data/fortune.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
@@ -388,6 +389,8 @@ const QM = {
   friend:  { n: '好友', c: '社群', i: 'btn_friend_0', f: 1, run: () => { ptyFr = null; openFriends(); } },
   party:   { n: '組隊', c: '社群', i: 'sys/party', f: 0, run: () => openParty() },
   mail:    { n: '信箱', c: '社群', i: 'sys/mail', f: 0, run: () => openMail() },
+  trade:   { n: '交易', c: '社群', i: 'qm/shop', f: 1, run: () => openTrade() },
+  buyord:  { n: '收購攤', c: '活動', i: 'sys/stall', f: 0, run: () => openBuyOrders() },
   status:  { n: '狀態', c: '角色', i: 'qm/sword', f: 0, run: () => $('#statBtn').click() },
   bag:     { n: '背包', c: '角色', i: 'btn_bag_0', f: 1, run: () => $('#bagBtn').click() },
   skill:   { n: '技能', c: '角色', i: 'btn_skill_0', f: 1, run: () => $('#skillBtn').click() },
@@ -1111,7 +1114,7 @@ async function openMail(refetch = true) {
       <span class="ic">${has(x) && !x.claimed ? '📦' : '✉️'}</span><div style="flex:1">${x.read ? '' : '<b style="color:#c0392b">● </b>'}<b>${x.title.replace(/</g, '&lt;')}</b>　<small>${x.sender}・${new Date(x.created).toLocaleDateString()}</small><small>${has(x) ? (x.claimed ? '附件已領取' : '📎 ' + attachHtml(x)) : ''}</small></div></div>`).join('') || '<small>信箱是空的</small>'}</div></div>
     <div class="detail">${m ? `<b>${m.title.replace(/</g, '&lt;')}</b>　<small>寄件人：${m.sender}</small><p>${m.body.replace(/</g, '&lt;')}</p>${has(m) ? `<p>附件：${attachHtml(m)}</p>` : ''}
       <div class="acts">${has(m) && !m.claimed ? `<button class="btn primary" id="mClaim">領取</button>` : ''}<button class="btn" id="mDel">丟掉這封</button></div>` : '<small>點一封信來看</small>'}</div>`;
-  openDlg(`郵差（${mails.length} 封）`, html, [['全部領取', () => claim('all'), true], ['丟掉已讀且已領取的', () => del(mails.filter(x => x.read && (x.claimed || !has(x))).map(x => x.id))]], true);
+  openDlg(`郵差（${mails.length} 封）`, html, [['✉ 寄信', () => openMailSend()], ['全部領取', () => claim('all'), true], ['丟掉已讀且已領取的', () => del(mails.filter(x => x.read && (x.claimed || !has(x))).map(x => x.id))]], true);
   const b = $('#dlgBody');
   b.querySelectorAll('[data-ml]').forEach(x => x.onclick = async () => { mSel = +x.dataset.ml; const mm = mails.find(y => y.id === mSel); if (!mm.read) { mm.read = true; call('POST', '/api/mailread', { charId: CHAR.id, mailId: mSel }).catch(() => {}); } openMail(false); });
   $('#mClaim')?.addEventListener('click', () => claim(mSel));
@@ -1478,14 +1481,89 @@ let aTab = 'browse', aQ = '', aSlot = 'all', aRar = -1, aSort = 'asc', aSel = nu
 const left = ms => { const m = Math.max(0, Math.floor(ms / 60000)); return `${Math.floor(m / 60)} 小時 ${m % 60} 分`; };
 const myEq = slot => (CHAR.items || []).find(i => i.equipped && i.slot === slot);
 const score = it => it ? Math.round(Object.entries(itemStats(it)).reduce((a, [k, v]) => a + (k === 'hp' ? v : k === 'armor' ? v * 8 : v * 400), 0)) : 0;
+// ===== PC 交易＋擺攤（#18，src/1_data/trade.js）=====
+const matOpts = () => Object.entries(ORES).map(([k, o]) => `<option value="${k}">${o.name}</option>`).join('');
+const tradeable = it => !it.equipped && !it.locked && !it.bound;
+// 寄信給其他玩家（PC 銀行職員菲利）：手續費照 PC ÷1000（文字／道具 1 金幣、金幣 1%），每帳號每天 20 封
+function openMailSend(pre = {}) {
+  const items = (CHAR.items || []).filter(tradeable), sel = new Set(pre.items || []);
+  const html = `<div style="display:grid;gap:6px"><label>收件人（角色名稱）<input id="msTo" value="${esc(pre.to || '')}" maxlength="12"></label><label>標題<input id="msTi" value="${esc(pre.title || '')}" maxlength="30"></label>
+    <label>內容<textarea id="msTx" rows="3" maxlength="300" style="font:inherit">${esc(pre.text || '')}</textarea></label>
+    <label>附上金幣<input id="msGo" type="number" min="0" value="${pre.gold || 0}"></label>
+    <label>附上材料<select id="msMk"><option value="">（不附）</option>${matOpts()}</select> ×<input id="msMn" type="number" min="0" value="0" style="width:80px"></label>
+    <div><small>附上裝備（最多 ${TRD.TRADE_ITEMS} 件；穿著、鎖定、綁定的不能寄）：</small><div style="display:flex;flex-wrap:wrap;gap:4px">${items.map(it => `<div class="wcell sm${sel.has(it.id) ? ' on' : ''}" data-msi="${it.id}" title="${esc(itemName(it))}" style="width:40px;height:40px;cursor:pointer"><img src="${itemIcon(it)}" alt=""></div>`).join('') || '<small>（沒有可以寄的裝備）</small>'}</div></div>
+    <small>手續費：文字或附件 1 金幣＋寄出金幣的 1%（照 PC 銀行郵件）。每個帳號每天最多 ${TRD.MAIL_DAILY} 封。</small></div>`;
+  openDlg('寄信', html, [['寄出', async () => {
+    const mk = $('#msMk').value, mn = +$('#msMn').value || 0, body = { charId: CHAR.id, to: $('#msTo').value, title: $('#msTi').value, text: $('#msTx').value, gold: +$('#msGo').value || 0, items: [...sel], mats: mk && mn > 0 ? { [mk]: mn } : {} };
+    try { const r = await call('POST', '/api/mailsend', body); showChar(r.char); toast(`寄出了（手續費 ${r.fee}，今天還能寄 ${r.left} 封）`); openMail(); } catch (e) { toast(e.message); }
+  }, true], ['回信箱', () => openMail()]], true);
+  $('#dlgBody').querySelectorAll('[data-msi]').forEach(x => x.onclick = () => { const id = +x.dataset.msi; sel.has(id) ? sel.delete(id) : sel.size < TRD.TRADE_ITEMS && sel.add(id); openMailSend({ to: $('#msTo').value, title: $('#msTi').value, text: $('#msTx').value, gold: +$('#msGo').value || 0, items: [...sel] }); });
+}
+// 收購攤（PC 收購擺攤）
+let boMat = '';
+async function openBuyOrders() {
+  let rows; try { rows = (await call('GET', '/api/buyorders' + (boMat ? '?mat=' + boMat : ''))).rows; } catch (e) { return toast(e.message); }
+  const m = CHAR.mats || {}, mine = rows.filter(r => r.char_id === CHAR.id);
+  const html = `<div class="tabs2">${[['browse', '瀏覽'], ['sell', '上架'], ['mine', '我的拍賣'], ['buy', '收購攤']].map(([k, v]) => `<button class="btn ${k === 'buy' ? 'primary' : ''}" data-at="${k}">${v}</button>`).join('')}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${CHAR.gold}</span></div>
+    <p><small>收購攤＝想買的材料先付錢掛著，別人賣進來就自動成交（賣的人扣 ${Math.round(TRD.TRADE_FEE * 100)}% 手續費），買到的材料寄到信箱。一次最多收 ${TRD.BUY_MAX} 個、最多 ${TRD.BUY_SLOTS} 個攤位。</small></p>
+    <div class="tabs2"><select id="boF"><option value="">全部材料</option>${matOpts()}</select></div>
+    ${rows.map(r => `<div class="eq" style="cursor:default;margin-bottom:6px"><img src="assets/items/${ORES[r.mat]?.icon || 36}.png" alt=""><div style="flex:1"><b>收購 ${ORES[r.mat]?.name || r.mat}</b><small>還要 ${r.lft} / ${r.n} 個・單價 <b class="gold">${r.price}</b>・攤主：${esc(r.name)}　你有 ${m[r.mat] || 0}</small></div>
+      <div style="text-align:right">${r.char_id === CHAR.id ? `<button class="btn" data-boc="${r.id}">收攤</button>` : `<input type="number" min="1" max="${Math.min(r.lft, m[r.mat] || 0)}" value="${Math.min(r.lft, m[r.mat] || 0)}" data-bon="${r.id}" style="width:60px"> <button class="btn primary" data-bos="${r.id}" ${(m[r.mat] || 0) > 0 ? '' : 'disabled'}>賣給他</button>`}</div></div>`).join('') || '<p>目前沒有收購攤。</p>'}
+    <div class="sec"><h4>開一個收購攤（我的 ${mine.length} / ${TRD.BUY_SLOTS}）</h4><select id="boM">${matOpts()}</select> ×<input id="boN" type="number" min="1" max="${TRD.BUY_MAX}" value="10" style="width:70px"> 單價<input id="boP" type="number" min="1" value="100" style="width:80px"> 金幣 <button class="btn primary" id="boPost">開攤（先付總價）</button></div>`;
+  openDlg('拍賣所・收購攤', html, [], true);
+  const b = $('#dlgBody'); $('#boF').value = boMat;
+  b.querySelectorAll('[data-at]').forEach(x => x.onclick = () => openAuction(x.dataset.at));
+  $('#boF').onchange = e => { boMat = e.target.value; openBuyOrders(); };
+  const go = async (body, msg) => { try { const r = await call('POST', '/api/buyorder', { charId: CHAR.id, ...body }); showChar(r.char); toast(msg(r)); openBuyOrders(); } catch (e) { toast(e.message); } };
+  $('#boPost').onclick = () => go({ act: 'post', mat: $('#boM').value, n: +$('#boN').value, price: +$('#boP').value }, () => '收購攤開好了');
+  b.querySelectorAll('[data-boc]').forEach(x => x.onclick = () => go({ act: 'cancel', id: +x.dataset.boc }, r => `收攤了，退回 ${r.refund} 金幣`));
+  b.querySelectorAll('[data-bos]').forEach(x => x.onclick = () => go({ act: 'sell', id: +x.dataset.bos, n: +b.querySelector(`[data-bon="${x.dataset.bos}"]`).value }, r => `賣掉了，拿到 ${r.got} 金幣（扣 3% 手續費）`));
+}
+// 交易（PC：邀請 → 同意 → 放道具／金幣 → 雙方鎖定 → 雙方確認）；視窗開著每 2 秒更新
+let TRV = null, trTimer = 0, trOffer = null; const trBox = () => dlgShown().find(b => b.dataset.k === dlgKey('交易'));
+async function openTrade(view) {
+  if (!view) { try { TRV = (await call('GET', '/api/trade?charId=' + CHAR.id)).trade; } catch (e) { return toast(e.message); } } else TRV = view;
+  clearTimeout(trTimer); const t = TRV;
+  const sideHtml = (S, label) => `<div class="sec" style="flex:1;min-width:200px;border:2px solid ${S.ok ? '#2e7d32' : S.lock ? '#e0a826' : '#c9d5f3'};border-radius:10px;padding:8px"><b>${label}</b> ${S.ok ? '✅ 已確認' : S.lock ? '🔒 已鎖定' : ''}<br>
+    <span class="gold">💰 ${S.gold}</span>　${Object.entries(S.mats).map(([k, v]) => `${ORES[k]?.name || k} ×${v}`).join('、')}<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${S.items.map(it => `<div class="wcell sm" title="${esc(itemName(it))}" style="width:40px;height:40px"><img src="${itemIcon(it)}" alt=""></div>`).join('')}</div></div>`;
+  let html;
+  if (!t) html = `<p>跟線上的玩家交易（PC：放好道具和金幣 → 雙方「鎖定」→ 雙方「確認」才成交）。綁定帳號、穿著、鎖定的裝備不能交易。</p><div class="tabs2"><input id="trTo" placeholder="對方角色名稱" maxlength="12" style="flex:1"><button class="btn primary" id="trInv">邀請交易</button></div>`;
+  else if (t.status === 'invite') html = t.inviter ? `<p>已經邀請 <b>${esc(t.other)}</b>，等對方同意…</p>` : `<p><b>${esc(t.other)}</b> 想跟你交易。</p><div class="acts"><button class="btn primary" id="trAcc">同意</button><button class="btn" id="trDec">拒絕</button></div>`;
+  else {
+    const o = trOffer || { gold: t.me.gold, mats: { ...t.me.mats }, items: t.me.items.map(x => x.id) }; trOffer = o;
+    const items = (CHAR.items || []).filter(tradeable);
+    html = `<div style="display:flex;gap:8px;flex-wrap:wrap">${sideHtml(t.me, '我放的')}${sideHtml(t.them, esc(t.other) + ' 放的')}</div>
+      <div class="sec"><h4>我要放</h4>金幣 <input id="trG" type="number" min="0" value="${o.gold}" style="width:100px">　材料 <select id="trMk"><option value="">（不放）</option>${matOpts()}</select> ×<input id="trMn" type="number" min="0" value="0" style="width:70px">
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${items.map(it => `<div class="wcell sm${o.items.includes(it.id) ? ' on' : ''}" data-tri="${it.id}" title="${esc(itemName(it))}" style="width:40px;height:40px;cursor:pointer"><img src="${itemIcon(it)}" alt=""></div>`).join('') || '<small>沒有可以交易的裝備</small>'}</div>
+        <div class="acts"><button class="btn" id="trSet">更新我放的東西</button><button class="btn primary" id="trLock" ${t.me.lock ? 'disabled' : ''}>鎖定</button><button class="btn primary" id="trOk" ${t.me.lock && t.them.lock && !t.me.ok ? '' : 'disabled'}>確認交易</button><button class="btn" id="trCan">取消交易</button></div>
+        <small>改了放的東西，雙方的鎖定都會取消。雙方都鎖定後才能按確認。</small></div>`;
+  }
+  openDlg('交易', html, t ? [] : [], true);
+  const act = async (body, msg) => { try { const r = await call('POST', '/api/trade', { charId: CHAR.id, ...body }); if (r.char) showChar(r.char); if (r.done) { trOffer = null; toast('交易完成！'); return openTrade(null); } if (msg) toast(msg); openTrade(r.trade || null); } catch (e) { toast(e.message); openTrade(); } };
+  $('#trInv')?.addEventListener('click', () => act({ act: 'invite', to: $('#trTo').value }, '邀請送出了'));
+  $('#trAcc')?.addEventListener('click', () => act({ act: 'accept' }));
+  $('#trDec')?.addEventListener('click', () => act({ act: 'decline' }, '拒絕了'));
+  $('#trCan')?.addEventListener('click', () => { trOffer = null; act({ act: 'cancel' }, '交易取消了'); });
+  $('#trLock')?.addEventListener('click', () => act({ act: 'lock' }));
+  $('#trOk')?.addEventListener('click', () => act({ act: 'confirm' }));
+  $('#dlgBody').querySelectorAll('[data-tri]').forEach(x => x.onclick = () => { const id = +x.dataset.tri, L = trOffer.items; trOffer.items = L.includes(id) ? L.filter(y => y !== id) : L.length < TRD.TRADE_ITEMS ? [...L, id] : L; openTrade(TRV); });
+  $('#trSet')?.addEventListener('click', () => { const mk = $('#trMk').value, mn = +$('#trMn').value || 0; trOffer.gold = +$('#trG').value || 0; if (mk) { if (mn > 0) trOffer.mats[mk] = mn; else delete trOffer.mats[mk]; } act({ act: 'offer', offer: trOffer }); });
+  // 視窗開著（而且是交易視窗）才每 2 秒更新；欄位正在輸入時不重畫
+  if (t) trTimer = setTimeout(async () => { const box = trBox(); if (!box) return;
+    if (!box.contains($('#dlgTitle')) || document.activeElement?.closest?.('input,select,textarea')) { trTimer = setTimeout(() => trBox() && openTrade(TRV), 2000); return; }
+    try { const r = await call('GET', '/api/trade?charId=' + CHAR.id); if (!trBox() || !trBox().contains($('#dlgTitle'))) return; if (!r.trade) { trOffer = null; toast('交易結束了'); } openTrade(r.trade || null); } catch {} }, 2000);
+}
+// 有人邀請交易：主城畫面看得到時每 15 秒問一次（分頁切走就停）
+setInterval(async () => { if (document.hidden || !CHAR?.id || trBox()) return;
+  try { const r = await call('GET', '/api/trade?charId=' + CHAR.id); if (r.trade?.status === 'invite' && !r.trade.inviter && r.trade.id !== window.__trAsked) { window.__trAsked = r.trade.id; if (await askConfirm(`${r.trade.other} 想跟你交易，要打開交易視窗嗎？`, { ok: '打開' })) openTrade(r.trade); } } catch {} }, 15000);
 async function openAuction(tab) {
-  aTab = tab || aTab;
+  aTab = tab || aTab; if (aTab === 'buy') return openBuyOrders();
   try {
     if (aTab === 'browse') aData = await call('GET', '/api/auctions');
     if (aTab === 'mine') aData = await call('GET', '/api/myauctions/' + CHAR.id);
   } catch (e) { return toast(e.message); }
   const c = CHAR;
-  let html = `<div class="tabs2">${[['browse', '瀏覽'], ['sell', '上架'], ['mine', '我的拍賣']].map(([k, v]) => `<button class="btn ${aTab === k ? 'primary' : ''}" data-at="${k}">${v}</button>`).join('')}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
+  let html = `<div class="tabs2">${[['browse', '瀏覽'], ['sell', '上架'], ['mine', '我的拍賣'], ['buy', '收購攤']].map(([k, v]) => `<button class="btn ${aTab === k ? 'primary' : ''}" data-at="${k}">${v}</button>`).join('')}<span style="flex:1"></span><span class="gold" style="align-self:center">💰 ${c.gold}</span></div>`;
   if (aTab === 'browse') {
     let rows = aData.rows.filter(r => (aSlot === 'all' || r.slot === aSlot) && (aRar < 0 || r.rarity === aRar) && (!aQ || itemName(r).includes(aQ)));
     rows.sort((x, y) => aSort === 'asc' ? x.price - y.price : y.price - x.price);
@@ -2218,7 +2296,7 @@ function loop(now) {
   raf = requestAnimationFrame(loop);
 }
 raf = requestAnimationFrame(loop);
-window.__town = { player, map: TMAP, center: TC, openBag, openFortune, openFashionShop, openWardrobe }; // 測試用（無頭截圖）
+window.__town = { player, map: TMAP, center: TC, openBag, openFortune, openFashionShop, openWardrobe, openTrade, openBuyOrders }; // 測試用（無頭截圖）
 moduleReady();
 // 切到背景就停
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(loop); } });
