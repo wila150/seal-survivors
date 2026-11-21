@@ -1259,7 +1259,7 @@ const boxOpen = t => dlgBoxes().some(b => !b.hidden && b.dataset.k === dlgKey(t)
 function ptyRedraw() { redrawBg(() => { if (boxOpen(PTY_T)) openParty(); if (boxOpen(FR_T)) openFriends(); }); updatePartyBtn(); }
 function updatePartyBtn() { for (const b of [$('#partyBtn'), $('#partyBtnM')]) { if (!b) continue; if (PTY?.room) b.dataset.n = `${PTY.room.members.length}/${PTY.room.max}`; else delete b.dataset.n; } } // 菜單鈕也顯示組隊人數
 const NOCLOUD = '<p>組隊要連雲端伺服器。用 <b>https://wila150.github.io/seal-survivors/</b> 開遊戲就可以組隊（離線模式、本機伺服器不能組隊）。</p>';
-async function ptyRefresh() { try { ptyList = (await call('GET', '/api/parties')).parties.filter(r => !r.lv || Math.abs(r.lv - (CHAR.jobLv || 1)) <= 40); } // PC 冒險團：Job 等級差 ±40 以外的隊伍不顯示 catch (e) { ptyList = []; toast(e.message); } if (boxOpen(PTY_T)) redrawBg(openParty); }
+async function ptyRefresh() { try { ptyList = (await call('GET', '/api/parties')).parties.filter(r => !r.lv || Math.abs(r.lv - (CHAR.jobLv || 1)) <= 40); } /* PC 冒險團：Job 等級差 ±40 以外的隊伍不顯示 */ catch (e) { ptyList = []; toast(e.message); } if (boxOpen(PTY_T)) redrawBg(openParty); }
 function openParty() {
   if (!partyOK()) return openDlg(PTY_T, NOCLOUD, [], true);
   if (PTY) return openPartyRoom();
