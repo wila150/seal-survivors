@@ -23,6 +23,7 @@ import * as ATT from '../src/1_data/attendance.js';
 import { rankBuffOf } from '../src/1_data/rank-buff.js';
 import { gapExp } from '../src/1_data/level-gap.js';
 import { POLY } from '../src/1_data/polymorph.js';
+import * as BC from '../src/1_data/bosschest.js'; // PC 首領寶箱＋鑰匙
 import { huntExtra } from '../src/1_data/hunt.js';
 import * as ML from '../src/1_data/mainline.js'; // 主線獎勵：時間寶箱、巡邏 // PC 狩獵系統 // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../src/1_data/fishing.js';
@@ -437,6 +438,7 @@ const api = {
       g.fx = (g.fx || 0) + 20 * n; while (g.fx >= 100 && g.grade < 3) { g.fx -= 100; g.grade++; gemUps.push(g.grade); } if (g.grade >= 3) g.fx = Math.min(g.fx, 100); } }
     let souls = 0; if (isTower) { delete d.towerPass; souls = Math.floor(floor / 3); if (souls) { d.mats ??= {}; d.mats.ashton = (d.mats.ashton || 0) + souls; } } // 賢者之塔：入場證用掉、每 3 層 1 個艾希頓之魂
     d.poly = null; // PC 變身：出征結束就恢復原狀（一瓶＝一局）
+    let bossChest = null; if (bonus && Math.random() < BC.CHEST_DROP) { const k = BC.chestOfStage(S.key); if (k) { d.mats ??= {}; d.mats[k] = (d.mats[k] || 0) + 1; bossChest = ORES[k].name; } } // PC 首領寶箱：打倒 MVP 70% 掉上鎖寶箱
     const spentGold = Math.max(0, Math.min(Math.floor(+req.__spent || 0), (c.gold ?? 0) + gold)); // 項目 37：菁英寶箱花的金幣，結算時扣（不會扣到負的）
     db.prepare('UPDATE characters SET base_lv=?, job_lv=?, exp=?, gold=gold+?, data=? WHERE id=?').run(base, job, exp, gold - spentGold, JSON.stringify(d), c.id);
     db.prepare('INSERT INTO runs (char_id, secs, kills, lv, exp, created) VALUES (?,?,?,?,?,?)').run(c.id, secs, kills, lv, gain, Date.now());
@@ -445,7 +447,7 @@ const api = {
     if (isTower) { const before = towerBest(c.id), score = towerScore(floor, kills, curse);
       db.prepare('INSERT INTO towers (char_id, month, floor, score, curse, kills, created) VALUES (?,?,?,?,?,?,?)').run(c.id, monthKey(), floor, score, curse, kills, Date.now());
       tower = { floor, score, newBest: score > before.score, newFloor: floor > before.floor, points: towerPoints(Math.max(floor, before.floor)) }; }
-    send(res, 200, { gain: jobGain, bonus, baseLv: base, exp: jexp, need: job >= JM ? 0 : jobNeed(job), levelUps: 0, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, petStarve, petDied, bpet: bpetRes, pet: ap && !petDied ? { name: petName(ap), hunger: Math.round(ap.hunger), lv: ap.lv, up: petUp } : null, petEgg: null, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, souls, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
+    send(res, 200, { gain: jobGain, bonus, bossChest, baseLv: base, exp: jexp, need: job >= JM ? 0 : jobNeed(job), levelUps: 0, jobLv: job, jobExp: jexp, jobNeed: job >= JM ? 0 : jobNeed(job), jobUps, gems: gemsGot, tower, filtered, petStarve, petDied, bpet: bpetRes, pet: ap && !petDied ? { name: petName(ap), hunger: Math.round(ap.hunger), lv: ap.lv, up: petUp } : null, petEgg: null, fame: { gain: fameGain, total: d.fame, lv: fameAfter, up: fameAfter > fameBefore, newTitles: newTitles.map(t => titleOf(t)?.name), gear: fameGear.map(g => g[3]) }, gold, spent: spentGold, souls, gemUps, items: got, newStage, bagFull: bagCount(c.id) >= BAG_MAX });
   },
   // ===== 背包、商店、強化、素質 =====
   'POST /api/equip': async (req, res, _, uid) => {
@@ -1221,6 +1223,23 @@ const api = {
     const lvMon = stageBaseLv(STAGES[Math.max(0, n - 1)]), items = Array.from({ length: nGear }, () => ({ ...rollItem(Math.random, 0, null, lvMon, c.job), rarity: ML.patrolGear(n) }));
     if (items.length) sendMail(c.id, { sender: '巡邏隊', title: `${act === 'quick' ? '快速巡邏' : '巡邏'}帶回 ${items.length} 件裝備`, body: '巡邏途中撿到的裝備。', items });
     send(res, 200, { got: { hours: +y.hours.toFixed(2), gold: y.gold, ore1: y.ore1, exp, gear: items.length, cost, ups: JG.ups }, char: fullChar(ownChar(uid, c.id)) });
+  },
+  // ===== PC 首領寶箱（item.scr 類別 41／42、drop_1.scr 3901～3903）：背包裡的上鎖寶箱 ＋ 1 把寶箱鑰匙 → 抽一樣 =====
+  'POST /api/chestopen': async (req, res, _, uid) => {
+    const { charId, key } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'); d.mats ??= {};
+    if (!BC.CHESTS[key]) return send(res, 400, { error: '這不是首領寶箱' });
+    if (!(d.mats[key] > 0)) return send(res, 400, { error: `沒有「${ORES[key].name}」` });
+    if (!(d.mats[BC.KEY] > 0)) return send(res, 400, { error: '需要 1 把「寶箱鑰匙」（裝備商人有賣）' });
+    const x = BC.rollChest(key); let gold = 0, got;
+    d.mats[key]--; d.mats[BC.KEY]--;
+    if (x.gold) { gold = x.gold; got = `${BC.WALLET_NAME[x.gold] || '錢袋'}：金幣 +${x.gold}`; }
+    else if (x.mat) { d.mats[x.mat] = (d.mats[x.mat] || 0) + 1; got = `${ORES[x.mat].name} ×1`; }
+    else if (x.pet) { d.pets ??= []; migratePets(d); const P = PC_PETS[x.pet];
+      if (d.pets.length >= PET_MAX) { gold = Math.round(P.price / 1000); got = `寵物「${P.name}」（寵物欄滿了，換成金幣 +${gold}）`; }
+      else { d.pets.push({ id: Date.now(), pc: x.pet, lv: 1, exp: 0 }); got = `寵物「${P.name}」！（到寵物管理員看）`; } }
+    db.prepare('UPDATE characters SET gold=gold+?, data=? WHERE id=?').run(gold, JSON.stringify(d), c.id);
+    send(res, 200, { got, rare: !!x.pet || x.gold >= 10000 || /T$/.test(x.mat || ''), char: fullChar(ownChar(uid, c.id)) });
   },
   // ===== PC 變身系統（2u id=67、polymorph.scr）：喝藥水 → 下一次出征整局變身；恢復原狀藥水解除 =====
   'POST /api/poly': async (req, res, _, uid) => {

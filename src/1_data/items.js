@@ -87,6 +87,7 @@ export const fmtStat = (k, v) => PCT.has(k) ? `+${Math.round(v * 1000) / 10}%` :
 // 強化：每 +1 數值多 12%；成功率；失敗時 +7 以上會碎，其他降 1 級
 // 11/21 合成照 PC 改 +12（src/1_data/refine.js：2u news id=58）
 import { REFINE_MAX, REFINE_RATE, refineBreaks, refineMat, MELT_STONES } from './refine.js';
+import { CHEST_ORES } from './bosschest.js'; // PC 首領寶箱＋鑰匙（企劃_PC系統補齊 #17）
 export { REFINE_MAX, REFINE_RATE, refineBreaks };
 export const refineCost = lv => 60 * (lv + 1) * (lv + 1);
 
@@ -217,6 +218,7 @@ export const ORES = {
   petGugu: { name: '咕咕大力丸', icon: 761, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +150、飢餓 −25', scroll: true, noshop: true },
   macaron: { name: '特級全能馬卡龍', icon: 31, price: 0, desc: '寵物食品：餵出戰中的寵物，經驗 +15、飢餓 −25', scroll: true, noshop: true },
   clkInherit: { name: '發條屬性繼承卷軸', icon: 4336, price: 10000, desc: '把一件裝備的發條屬性移到同部位的另一件裝備上（原本那件的發條屬性會消失）', scroll: true },
+  ...CHEST_ORES,
 };
 // ===== 指令 4-2 發條配件：items.clk＝[[屬性, 數值, 等級 0 N／1 G／2 DG／3 XG], ×3]（同一次不重複；數值 🔢 暫定）=====
 export const CLK_GRADE = ['N', 'G', 'DG', 'XG'], CLK_COLOR = ['#5a6070', '#1e9e45', '#1f6fd6', '#d9740a'];
