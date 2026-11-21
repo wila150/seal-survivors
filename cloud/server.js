@@ -189,7 +189,7 @@ const hasAttach = m => m.gold > 0 || !!m.items || !!m.mats;
 function welcomeMail(c) {
   const d = JSON.parse(c.data || '{}'); if (d.welcomed) return;
   d.welcomed = true; db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
-  let w; do { w = rollItem(Math.random, 2, 'weapon', Math.max(1, c.base_lv), c.job); } while (w.rarity < 2); // 見面禮：自己職業的武器、照角色等級挑 PC 原版
+  let w; do { w = rollItem(Math.random, 2, 'weapon', Math.max(1, c.job_lv), c.job); } while (w.rarity < 2); // 見面禮：自己職業的武器、照角色等級挑 PC 原版
   sendMail(c.id, { sender: '希望倖存者營運團隊', title: '開服見面禮', body: `${c.name}，歡迎來到艾林！這是我們準備的見面禮，祝你出征順利。`, gold: 1000, items: [w], mats: { ore1: 10 } });
 }
 const stashSave = (uid, s) => db.prepare('UPDATE accounts SET stash=? WHERE id=?').run(JSON.stringify(s), uid);
@@ -321,7 +321,7 @@ const api = {
     if (!FIRST_JOBS.includes(job)) return send(res, 400, { error: '沒有這個職業' });
     const d = JSON.parse(c.data || '{}'); delete d.novice; d.jobExp = 0; d.talents = {};
     db.prepare('UPDATE characters SET job=?, job_lv=1, data=? WHERE id=?').run(job, JSON.stringify(d), c.id);
-    { const w = rollItem(Math.random, 0, 'weapon', Math.max(1, c.base_lv), job); w.rarity = 1; sendMail(c.id, { sender: '百業宗師', title: `轉職賀禮：${job}的新手武器`, body: `恭喜你成為${job}！這是給你的新手武器，記得裝上。`, items: [w] }); } // 一轉自動配發職業新手武器
+    { const w = rollItem(Math.random, 0, 'weapon', 1, job); w.rarity = 1; sendMail(c.id, { sender: '百業宗師', title: `轉職賀禮：${job}的新手武器`, body: `恭喜你成為${job}！這是給你的新手武器，記得裝上。`, items: [w] }); } // 一轉自動配發職業新手武器
     send(res, 200, fullChar(ownChar(uid, c.id)));
   },
   'POST /api/chars': async (req, res, _, uid) => {
@@ -376,10 +376,10 @@ const api = {
     const minR = Math.max(0, Math.min(4, lootMin | 0)); let filtered = 0;
     const lukBonus = Math.min(0.6, ((d0.stats?.luk || 1) - 1) * 0.02); // 感覺每點 +0.02 品質加成（暫定） // 撿取篩選：低於門檻的直接不給、不佔背包
     const nBoss = Math.max(0, Math.min(+bossChests | 0, Math.floor(secs / 120), 5));
-    const got = [], monLvRun = isTower ? stageBaseLv(STAGES[si]) + floor : cleanDiff(diff, stB).monLv; // 寶箱裝備照這局怪物等級挑 PC 原版道具
+    const got = []; // 寶箱裝備照角色 Job Lv 挑 PC 原版道具（11/21 起，需求等級 Job−15～Job+5 隨機；原本照這局怪物等級）
     for (let i = 0; i < nChest + nBoss; i++) {
       if (bagCount(c.id) >= BAG_MAX) break;
-      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus + evBonus, undefined, monLvRun, i >= nChest || Math.random() < 0.5 ? c.job : null); // 11/19 使用者企劃：一般寶箱 50% 本職業／50% 其他，首領寶箱一定本職業 // 項目 49：寶箱掉全職業（保留原味），非本職業的拿去一鍵餵寵／分解（項目 50） // 項目 35：感覺提升寶箱品質
+      const it = rollItem(Math.random, (i < nChest ? lootBonus(DL.gear, 0.3) : lootBonus(DL.boss, 2)) + si * 0.4 + lukBonus + evBonus, undefined, Math.max(1, c.job_lv), i >= nChest || Math.random() < 0.5 ? c.job : null); // 11/19 使用者企劃：一般寶箱 50% 本職業／50% 其他，首領寶箱一定本職業 // 項目 49：寶箱掉全職業（保留原味），非本職業的拿去一鍵餵寵／分解（項目 50） // 項目 35：感覺提升寶箱品質
       if (i >= nChest && it.rarity < 1) it.rarity = 1; // 首領寶箱至少精良
       if (it.rarity < minR) { filtered++; continue; }
       got.push(giveItem(c.id, it));
@@ -428,7 +428,7 @@ const api = {
     const spentGold = Math.max(0, Math.min(Math.floor(+req.__spent || 0), (c.gold ?? 0) + gold)); // 項目 37：菁英寶箱花的金幣，結算時扣（不會扣到負的）
     db.prepare('UPDATE characters SET base_lv=?, job_lv=?, exp=?, gold=gold+?, data=? WHERE id=?').run(base, job, exp, gold - spentGold, JSON.stringify(d), c.id);
     db.prepare('INSERT INTO runs (char_id, secs, kills, lv, exp, created) VALUES (?,?,?,?,?,?)').run(c.id, secs, kills, lv, gain, Date.now());
-    for (const [l, slot, rar, name] of fameGear) sendMail(c.id, { sender: '名聲', title: `名聲 Lv${l} 獎勵`, body: `你的名聲到了 Lv${l}，送你名聲專屬裝備「${name}」。`, items: [{ ...rollItem(Math.random, 0, slot, Math.max(1, c.base_lv), c.job), rarity: rar }] });
+    for (const [l, slot, rar, name] of fameGear) sendMail(c.id, { sender: '名聲', title: `名聲 Lv${l} 獎勵`, body: `你的名聲到了 Lv${l}，送你名聲專屬裝備「${name}」。`, items: [{ ...rollItem(Math.random, 0, slot, Math.max(1, c.job_lv), c.job), rarity: rar }] });
     let tower = null;
     if (isTower) { const before = towerBest(c.id), score = towerScore(floor, kills, curse);
       db.prepare('INSERT INTO towers (char_id, month, floor, score, curse, kills, created) VALUES (?,?,?,?,?,?,?)').run(c.id, monthKey(), floor, score, curse, kills, Date.now());
@@ -478,7 +478,7 @@ const api = {
     const PRICE = 150;
     if ((c.gold ?? 0) < PRICE) return send(res, 400, { error: `金幣不夠（要 ${PRICE}）` });
     if (bagCount(c.id) >= BAG_MAX) return send(res, 400, { error: '背包滿了' });
-    const it = rollItem(Math.random, 0, slot, Math.max(1, c.base_lv), c.job); if (it.rarity > 1) it.rarity = 1; // 商店只賣普通～精良；照角色等級、職業
+    const it = rollItem(Math.random, 0, slot, Math.max(1, c.job_lv), c.job); if (it.rarity > 1) it.rarity = 1; // 商店只賣普通～精良；照角色等級、職業
     db.prepare('UPDATE characters SET gold=gold-? WHERE id=?').run(PRICE, c.id);
     const got = giveItem(c.id, it);
     send(res, 200, { item: got, char: fullChar(ownChar(uid, c.id)) });
@@ -602,7 +602,7 @@ const api = {
     const { charId, set, slot } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
     if (!TW.ASHTON_SETS[set] || !TW.ASHTON_SLOTS.includes(slot)) return send(res, 400, { error: '沒有這種艾希頓裝備' }); if (bagCount(c.id) >= BAG_MAX) return send(res, 400, { error: '背包滿了' });
     const d = JSON.parse(c.data || '{}'); d.mats ??= {}; if ((d.mats.ashton || 0) < TW.ASH_CRAFT.souls) return send(res, 400, { error: `艾希頓之魂不夠（要 ${TW.ASH_CRAFT.souls}）` }); if ((c.gold ?? 0) < TW.ASH_CRAFT.gold) return send(res, 400, { error: `希幣不夠（要 ${TW.ASH_CRAFT.gold}）` });
-    d.mats.ashton -= TW.ASH_CRAFT.souls; const it = rollItem(Math.random, 0, slot, Math.max(60, c.base_lv), c.job); it.rarity = 3; it.setk = set;
+    d.mats.ashton -= TW.ASH_CRAFT.souls; const it = rollItem(Math.random, 0, slot, Math.max(60, c.job_lv), c.job); it.rarity = 3; it.setk = set;
     const got = giveItem(c.id, it); db.prepare('UPDATE items SET setk=? WHERE id=?').run(set, got.id);
     db.prepare('UPDATE characters SET gold=gold-?, data=? WHERE id=?').run(TW.ASH_CRAFT.gold, JSON.stringify(d), c.id);
     send(res, 200, { item: { ...got, setk: set }, char: fullChar(ownChar(uid, c.id)) });
@@ -1045,7 +1045,7 @@ const api = {
         case 'talentreset': { d.talents = {}; d.talents2 = {}; saveD(); msg = '天賦全部重置'; break; }
         case 'item': { const slot = args[0] || 'weapon'; if (!SLOTS[slot]) throw new Error('部位：' + Object.keys(SLOTS).join('／'));
           const rar = int(1, 0, 4), ref = args[2] == null ? 0 : int(2, 0, REFINE_MAX); if (bagCount(c.id) >= BAG_MAX) throw new Error('背包滿了');
-          const it = rollItem(Math.random, 0, slot, Math.max(1, c.base_lv), c.job); // 部位、底材、數值浮動照一般擲法，品質與精煉用指定的
+          const it = rollItem(Math.random, 0, slot, Math.max(1, c.job_lv), c.job); // 部位、底材、數值浮動照一般擲法，品質與精煉用指定的
           const got = giveItem(c.id, { ...it, rarity: rar, refine: ref }); msg = `給了 ${RARITY_N[rar]} ${slot} +${ref}（id ${got.id}）`; break; }
         case 'mat': { const k = args[0], v = int(1, 1, 99999), ok = [...Object.keys(ORES), 'dust', 'crystal', 'rainbow']; if (!ok.includes(k)) throw new Error('道具：' + ok.join('／'));
           d.mats ??= {}; d.mats[k] = (d.mats[k] || 0) + v; saveD(); msg = `${k} +${v}（持有 ${d.mats[k]}）`; break; }
