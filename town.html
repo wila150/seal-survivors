@@ -826,7 +826,7 @@ async function openJob2() {
 
 // ===== GM 面板（只限本機；照 PC 小助手的 GM 指令表：分類、搜尋、指令清單、發送）=====
 const IS_LOCAL = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
-let gmCat = '全部', gmQ = '', gmLog = [], gmLine = '';
+let gmCat = '全部', gmQ = '', gmLog = [], gmLine = '', gmTarget = '';
 (IS_LOCAL ? Promise.resolve(true) : fetch('/api/gm', { headers: { authorization: 'Bearer ' + token } }).then(r => r.json()).then(j => j.gm).catch(() => false)).then(ok => { if (ok) { $('#gmBtn').style.display = 'block'; $('#gmBtn').onclick = () => openGm(); } }); // 雲端：GM 帳號才有
 addEventListener('keydown', e => { if (IS_LOCAL && e.code === 'Backquote' && !e.target.closest('input,textarea')) { e.preventDefault(); openGm(); } });
 function openGm() {
@@ -835,8 +835,9 @@ function openGm() {
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><small>搜尋：</small><input id="gmQ" value="${esc(gmQ)}" style="flex:1" placeholder="指令或說明"></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${['全部', ...GM_CATS].map(c => `<button class="btn ${gmCat === c ? 'primary' : ''}" data-gc="${c}" style="${gmCat === c ? 'background:#e07a1c;border-color:#e07a1c' : ''}">${c}</button>`).join('')}</div>
     <div style="background:#fff;border:1px solid #f0d2a8;border-radius:8px;max-height:200px;overflow:auto;padding:4px 8px;font-size:14px">${list.map(([, cmd, d]) => `<div data-gcmd="${esc(cmd)}" style="cursor:pointer;padding:3px 0;border-bottom:1px dashed #f3e2c8"><code style="color:#b35a00">${esc(cmd)}</code>　<small style="color:#7a6a58">${esc(d)}</small></div>`).join('') || '<small>沒有符合的指令</small>'}</div>
+    <div style="display:flex;gap:6px;margin-top:8px;align-items:center"><small>對象</small><input id="gmTo" value="${esc(gmTarget)}" style="flex:1" placeholder="角色名（空白＝自己：${esc(CHAR.name)}）"></div>
     <div style="display:flex;gap:6px;margin-top:8px"><small style="align-self:center">發送</small><input id="gmIn" value="${esc(gmLine)}" style="flex:1;font-family:monospace" placeholder="/lv 70"><button class="btn primary" id="gmGo" style="background:#e07a1c;border-color:#e07a1c">發送</button></div>
-    <small style="color:#7a6a58">點清單＝填進發送欄（可改參數），Enter 執行。快捷鍵 \` 開關。目前角色：${esc(CHAR.name)}</small>
+    <small style="color:#7a6a58">點清單＝填進發送欄（可改參數），Enter 執行。快捷鍵 \` 開關。對象空白＝自己（${esc(CHAR.name)}）；填別人的角色名就改那個角色（出征類指令只對自己）</small>
     </div>`;
   openDlg('GM 命令表', html, [], true);
   const b = $('#dlgBody'), inp = $('#gmIn');
@@ -845,6 +846,7 @@ function openGm() {
   const q = $('#gmQ'); q.addEventListener('keydown', e => e.stopPropagation()); q.addEventListener('input', () => { gmQ = q.value.trim(); const p = q.selectionStart; openGm(); const q2 = $('#gmQ'); q2.focus(); q2.setSelectionRange(p, p); });
   inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') run(); });
   inp.addEventListener('input', () => { gmLine = inp.value; });
+  const to = $('#gmTo'); to.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') run(); }); to.addEventListener('input', () => { gmTarget = to.value.trim(); });
   $('#gmGo').onclick = run;
   async function run() {
     const line = inp.value.trim(); if (!line) return; gmLine = line;
@@ -853,7 +855,8 @@ function openGm() {
     if (cmd === 'help') { gmLog.unshift({ ok: true, t: GM_CMDS.map(c => c[1].split(' ')[0]).join(' ') }); return openGm(); }
     if (cmd === 'stage' || cmd === 'boss') { const st = cmd === 'stage' ? +a1 || 0 : 0; try { sessionStorage.setItem('ss_stage', String(st)); } catch {} location.href = cmd === 'boss' ? `game.html?auto&boss=${+a1 || 0}` : 'game.html'; return; }
     if (cmd === 'tower') { location.href = 'game.html?tower=1'; return; }
-    try { const r = await call('POST', '/api/gm', { charId: CHAR.id, line }); showChar(r.char); refreshChar(); gmLog.unshift({ ok: true, t: `${line} → ${r.msg}` }); }
+    const target = gmTarget && gmTarget !== CHAR.name ? gmTarget : '';
+    try { const r = await call('POST', '/api/gm', { charId: CHAR.id, line, target }); if (r.char) { showChar(r.char); refreshChar(); } gmLog.unshift({ ok: true, t: `${line} → ${r.msg}` }); }
     catch (e) { gmLog.unshift({ ok: false, t: `${line} → ${e.message}` }); }
     gmLog = gmLog.slice(0, 30); openGm();
   }

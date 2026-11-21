@@ -1,5 +1,6 @@
 // GM 指令（只限本機：伺服器只接受 127.0.0.1／::1 的請求，主城只有在 localhost 才顯示 GM 按鈕）
 // 前端面板用 GM_CMDS 列清單；伺服器用 parseGm 解析
+// 11/21：面板多一欄「對象」＝角色名，空白＝自己；填別人就改那個角色（出征類 /stage /boss /tower 只對自己）
 export const GM_CATS = ['角色', '物品', '系統／出征'];
 export const GM_CMDS = [
   ['角色', '/lv 70', '設定 Base 等級（1～99，經驗歸零）'],

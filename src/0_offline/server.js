@@ -1011,7 +1011,10 @@ const api = {
   },
   'POST /api/gm': async (req, res, _, uid) => {
     if (!isGm(req, uid)) return send(res, 403, { error: 'GM 指令只限本機或 GM 帳號' });
-    const { charId, line } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    // 11/21 使用者「GM 只能改自己、沒辦法改別人」→ target＝角色名（空白＝自己）
+    const { charId, line, target } = await body(req), tn = String(target || '').trim();
+    const c = tn ? db.prepare('SELECT * FROM characters WHERE name=?').get(tn) : ownChar(uid, charId); if (!c) return send(res, 404, { error: tn ? `找不到角色「${tn}」` : '找不到角色' });
+    const getC = () => db.prepare('SELECT * FROM characters WHERE id=?').get(c.id), mine = c.account_id === uid;
     const { cmd, args } = parseGm(line), d = JSON.parse(c.data || '{}'), n = i => Number(args[i]);
     const int = (i, lo, hi) => { const v = n(i); if (!Number.isInteger(v) || v < lo || v > hi) throw new Error(`第 ${i + 1} 個參數要 ${lo}～${hi} 的整數`); return v; };
     const saveD = () => db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
@@ -1049,11 +1052,11 @@ const api = {
           d.stones ??= {}; const st = d.stones[k] = stoneOf(d.stones, k); st.lv = lv; st.attrs = Array.from({ length: lv }, (_, i) => rollAttr(k, i + 1)); saveD(); msg = `${STONES[k].name} → +${lv}`; break; }
         case 'bagclear': { const r = db.prepare('DELETE FROM items WHERE char_id=? AND equipped=0').run(c.id); msg = `清掉 ${r.changes} 件沒穿的裝備`; break; }
         case 'mail': { sendMail(c.id, { sender: 'GM', title: args[0] || '測試信', body: 'GM 指令寄的測試信', gold: args[1] ? int(1, 0, 1e9) : 0 }); msg = '寄出一封信'; break; }
-        case 'welcome': { delete d.welcomed; saveD(); welcomeMail(ownChar(uid, c.id)); msg = '重新寄開服見面禮'; break; }
+        case 'welcome': { delete d.welcomed; saveD(); welcomeMail(getC()); msg = '重新寄開服見面禮'; break; }
         default: throw new Error(`沒有「${cmd}」這個指令（打 /help 看清單）`);
       }
     } catch (e) { return send(res, 400, { error: e.message }); }
-    send(res, 200, { msg, char: fullChar(ownChar(uid, c.id)) });
+    send(res, 200, mine ? { msg, char: fullChar(getC()) } : { msg: `［${c.name}］${msg}（對方重新整理就看得到）`, target: c.name });
   },
   // 項目 40：三轉（百業宗師）：Base Lv 70＋Job Lv 100（二轉滿）＋打倒紅土地帶 MVP（通關）；延續二轉分支，學到三轉技能
   'POST /api/job3': async (req, res, _, uid) => {
