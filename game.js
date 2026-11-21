@@ -426,7 +426,7 @@ addEventListener('keydown', e => { if (e.code === 'KeyV') switchView(); });
 document.getElementById('viewBtn')?.addEventListener('click', switchView);
 
 // ===== 遊戲狀態 =====
-let chestsArr = null, chests = 0, bossChests = 0, runBosses = []; // runBosses：這局打倒的首領名稱（項目 47 名聲）
+let chestsArr = null, chests = 0, bossChests = 0, runBosses = [], mobKills = {}; // mobKills：這局自己打死的怪 { 怪名: 數量 }（PC 希望藍圖任務） // runBosses：這局打倒的首領名稱（項目 47 名聲）
 let state = 'start', boss = null, P, enemies, gems, t, kills;
 let NET = null; // 組隊副本（src/2_core/party-game.js）：隊長＝NET.host、隊員＝NET.guest；單人＝null
 let SM = null; // 技能管理器
@@ -577,7 +577,7 @@ function reset() {
   P.pbuffs = NET ? partyBuffs(NET.jobs) : []; for (const b of P.pbuffs) b.apply(P, b.k); // 組隊 BUFF（src/1_data/party-buff.js）
   P.gem = gemEffects(CHAR.gemSlots, CHAR.gems); // 項目 28：技能寶石（每招 傷害／爆擊率／爆擊傷害／冷卻）
   if (chestsArr) for (const c of chestsArr) scene.remove(c.mesh);
-  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; finalDown = false; winAt = null; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
+  chestsArr = []; chests = 0; bossChests = 0; runBosses = []; mobKills = {}; finalDown = false; winAt = null; goldSpent = 0; dashCd = 0; if (typeof EV !== 'undefined') { if (EV.cur) evEnd(false); Object.assign(EV, { cur: null, next: 50, done: 0, failed: 0, mvpDone: false }); } cbReset();
   enemies = []; gems = []; t = 0; kills = 0; spawner.reset(); newStun(); HUNT = createHunt((NET?.jobs?.length || 1) > 1); // PC 狩獵：每局重新開始
   SM?.clear(); fxPool.clear(); PCFX.clear();
   SM = new SkillManager({ pcfx: PCFX, data: SKD, job: CHAR.job, pool: TOWER ? TSET?.skills : null, extraPool: (TAL && CHAR.job2 && (B => [...(B?.skills || []), ...(CHAR.job3 && B?.skill3 ? [B.skill3] : [])])(branchOf(TAL, CHAR.job, CHAR.job2))) || [], maxCarry: CHAR.job3 ? 6 : CHAR.job2 ? 5 : 4, /* 技能欄 一轉 4／二轉 5／三轉 6（項目 37、40）*/ fx: fxPool, player, P, enemies: () => enemies, nearest, hurt, onCast: (f, motion) => rig.swing(f, motion), sound: k => play(k, 0.35, 120), onMusou: m => { showBanner(`<small>${SM.combo} 連擊！職業無雙</small><b>${m.name}</b>`, 1100); bossFx.shake = Math.max(bossFx.shake, 0.4); } });
@@ -679,7 +679,7 @@ function spawnMirror(s) { // 隊員：照隊長的生怪資料做一隻鏡像（
   return e;
 }
 function guestKill(e, d, mine) { // 隊員：隊長說這隻倒了
-  const pos = { x: d.x, z: d.z }; dropGem(pos, d.xp, 'k' + d.id); if (mine) { kills++; huntKill(); }
+  const pos = { x: d.x, z: d.z }; dropGem(pos, d.xp, 'k' + d.id); if (mine) { kills++; huntKill(); if (e?.type) mobKills[e.type] = (mobKills[e.type] || 0) + 1; }
   if (!e || e.dead) return; e.dead = true; dropCoin(pos); cbOnKill(e); mobSound(e, 'dd');
   if (e.netBoss) { runBosses.push(e.type); dropChest(pos, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); } // 首領寶箱每個人各一個（結算時各自開）
   else if (e.elite) { if (Math.random() < (0.4 + (P.pbLoot || 0)) * GAP_DROP) dropChest(pos, false); dropChest({ x: pos.x + 1.2, z: pos.z }, false, true); }
@@ -746,7 +746,7 @@ function hurt(e, dmg, from, kind = 'phys', src = '', opts = {}) {
   if (from) { e.kb.subVectors(e.mesh.position, from).setY(0).normalize().multiplyScalar(e.boss ? 0.3 : e.elite ? 2 : 6); }
   play('hit', 0.25, 60);
   if (e.hp <= 0 && !e.dead) {
-    e.dead = true; if (e.lastSrc === 'bpet') bpet.kills++; /* 戰寵自己殺的才算戰寵經驗 */ if (!NET || (e.by ?? NET.me) === NET.me) { kills++; huntKill(); } dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
+    e.dead = true; if (e.lastSrc === 'bpet') bpet.kills++; /* 戰寵自己殺的才算戰寵經驗 */ if (!NET || (e.by ?? NET.me) === NET.me) { kills++; huntKill(); mobKills[e.type] = (mobKills[e.type] || 0) + 1; } dropGem(e.mesh.position, e.xp, NET ? NET.gemId(e) : null); NET?.onKill(e); dropCoin(e.mesh.position); /* 組隊：擊殺數算最後一擊的人 */ cbOnKill(e); mobSound(e, 'dd'); if (e.ai) runBosses.push(e.type);
     if (e.mvp) finalDown = true;
     if (e.ai && STUNS?.died(e)) { P.pbLoot = (P.pbLoot || 0) + 0.1; showBanner('<small>崩解斬殺</small><b>元素支配者</b><span>昏厥中從 30％ 以上直接打倒首領・這局掉寶率提升</span>', 2200, true); }
     if (e.ai) { BS.death(e); dropChest(e.mesh.position, true); PCFX.play('bigkill', 'cast', e.mesh.position, 0, { y: 0.3, scale: 1.4 }); /* 原版 BigKill */ const sl = bossSlots.find(b => b.e === e); if (sl) sl.done = true; }
@@ -1261,7 +1261,7 @@ async function saveRun() {
   if (!token || !CHAR.id) return;
   out.textContent = '結算中…';
   try {
-    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done, combos: CB.done || 0, party: NET?.n || 1, bpetKills: bpet.kills, bpetDead: bpet.dead });
+    const j = await submitRun(token, { charId: CHAR.id, secs: Math.floor(t), kills, lv: P.lv, cleared, chests, bossChests, stage: STAGE.key, curse: TSET?.curse || 'none', lootMin, bosses: runBosses, mobKills, diff: TOWER ? null : DIFF, spent: goldSpent, events: EV.done, combos: CB.done || 0, party: NET?.n || 1, bpetKills: bpet.kills, bpetDead: bpet.dead });
     const F = j.fame; // 項目 47
     out.innerHTML = (F?.gain ? `🏅 名聲 +${F.gain}${F.up ? `　<b>名聲 Lv${F.lv}！</b>` : ''}${F.newTitles?.length ? `　新稱號：${F.newTitles.map(t => `【${t}】`).join('')}` : ''}${F.gear?.length ? `　名聲裝備已寄到信箱` : ''}<br>` : '') + (j.tower ? `<b>分數 ${j.tower.score.toLocaleString()}</b>${j.tower.newBest ? '　🏆 新紀錄！' : ''}${j.tower.newFloor ? `　最高樓層更新（塔點數 ${j.tower.points}）` : ''}<br>` : '') + (j.bonus ? `通關獎勵 ×1.5！　` : '') + `Job 經驗 +${j.gain}　金幣 +${j.gold}${j.spent ? `（菁英寶箱 −${j.spent}）` : ''}${j.gemUps?.length ? `<br>💎 連續技融合：技能寶石升級 ${j.gemUps.map(g => ['N', 'G', 'DG', 'XG'][g]).join('、')}！` : ''}` + (j.need ? `　（${j.exp} / ${j.need}）` : '') + (j.jobUps ? `<br>Job 升級！Job Lv ${j.jobLv}（素質點 +${j.jobUps * 3}、天賦點 +${j.jobUps}）` : '') + (j.gems?.length ? `<br>拿到技能寶石 ${j.gems.length} 顆（主城「寶石」開放後裝備）` : '')
       + (j.newStage ? `<br>🔓 解鎖新地圖：${j.newStage}` : '') + (j.bossChest ? `<br>🧰 掉了「${j.bossChest}」（在背包用寶箱鑰匙開啟）` : '') + (j.items.length ? `<div class="loot">${j.items.map(it => `<span class="${it.rarity >= 3 ? 'glow' : ''}" style="border-color:${RARITY[it.rarity].color};${it.rarity >= 3 ? `color:${RARITY[it.rarity].color}` : ''}"><img src="${itemIcon(it)}" alt=""><em style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${itemName(it)}</em></span>`).join('')}</div>` : '')

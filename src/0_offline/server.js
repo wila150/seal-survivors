@@ -20,10 +20,12 @@ import { PC_PETS, PET_MAX, EGGS, FEED_EXP, addPetExp, petNeed, petStage9, petNam
 import { GRADES, newGem, rollGem, enchant, checkGemSlots, PATTERNS, OPEN_TRIES, OPEN_COST, FUSE_COST, FUSE_NEED, FUSE_UP, SLOT_LV, SLOT_COST, GEM_MAX, gemName } from '../1_data/gems.js';
 import { checkTalents, talentPoints, spentPoints, branchOf, JOB1_MAX, JOB2_MAX, JOB3_MAX, IDENT_SLOTS, IDENT_COST, IDENT_PICK_COST, rollIdent } from '../1_data/talents.js';
 import * as ATT from '../1_data/attendance.js';
+import * as FT from '../1_data/fortune.js';
 import { rankBuffOf } from '../1_data/rank-buff.js';
 import { gapExp } from '../1_data/level-gap.js';
 import { POLY } from '../1_data/polymorph.js';
 import * as BC from '../1_data/bosschest.js'; // PC 首領寶箱＋鑰匙
+import * as BP from '../1_data/blueprint.js'; // PC 希望藍圖（成長型任務）
 import { huntExtra } from '../1_data/hunt.js';
 import * as ML from '../1_data/mainline.js'; // 主線獎勵：時間寶箱、巡邏 // PC 狩獵系統 // PC 變身系統 // PC 等差掉寶率 // PC 戰鬥力排名 BUFF（Rank.scr） // PC 在線與簽到（服務端 Attendance_Reward.scr／Reward_Time.scr）
 import { RODS, BAIT, CATCH, rollCatch, AUTO_SECS, ROD_CAP, BAITS, baitPcPrice, FISH_ID, GEM_ID, JUNK, rollFishV2, tierOf, EXP_FISH, expFishGain } from '../1_data/fishing.js';
@@ -118,6 +120,7 @@ db.exec('CREATE TABLE IF NOT EXISTS friendreqs (id INTEGER PRIMARY KEY, from_cha
 db.exec('CREATE TABLE IF NOT EXISTS parties (code TEXT PRIMARY KEY, name TEXT NOT NULL, leader TEXT NOT NULL, lim INTEGER NOT NULL, exp TEXT NOT NULL, count INTEGER NOT NULL, place TEXT NOT NULL, phase TEXT NOT NULL, updated INTEGER NOT NULL)');
 const NPC_SELLERS = ['旅行商人 卡爾', '收藏家 莉莉', '老商人 巴頓'], NPC_MAX = 6, NPC_EVERY = 2 * 3600e3;
 const metaGet = k => db.prepare('SELECT v FROM meta WHERE k=?').get(k)?.v, metaSet = (k, v) => db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k, String(v));
+const ftGet = () => { try { return { pool: FT.JACKPOT_SEED, ...JSON.parse(metaGet('fortune') || '{}') }; } catch { return { pool: FT.JACKPOT_SEED }; } }, ftPut = F => metaSet('fortune', JSON.stringify(F)); // 發財遊戲全服彩金
 // 11/20 使用者：「初心者剛建立角色沒有配點進去遊戲時點數會不見」→ 建角沒分完的點數存進 d.points；舊角色補回（應有＝20＋轉生×75＋(Base Lv−1)×3 − 已分配，只補不扣，一次）
 const statsUsed = st => Object.keys(STATS).reduce((a, k) => a + Math.max(0, (st?.[k] || 1) - 1), 0);
 const marketValue = it => sellPrice(it) * 6 * (1 + 0.5 * (it.gup || 0)) * (it.ident ? 1.5 : 1);
@@ -236,7 +239,7 @@ function auth(req) {
   if (!s || s.expires < Date.now()) return null;
   return s.account_id;
 }
-const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0, pwRank: pwRankOf(c.id), poly: d.poly || null, bestSecs: d.bestSecs || {}, msGot: d.msGot || {}, sweepLeft: SWEEP_DAILY - (d.sweep?.day === ATT.twDay() ? d.sweep.n : 0), sweepRef: d.sweepRef || {}, patrol: patrolView(d, c) }; };
+const charView = c => { const d = JSON.parse(c.data || '{}'); return { id: c.id, slot: c.slot, name: c.name, gender: c.gender, job: c.job, baseLv: c.base_lv, jobLv: c.job_lv, exp: c.exp, jobExp: d.jobExp ?? 0, jobMax: jobMaxOf(d), job2: d.job2 ?? null, job3: !!d.job3, jobName: (d.job2 && (d.job3 ? branchOf(TALENTS(), c.job, d.job2)?.third : branchOf(TALENTS(), c.job, d.job2)?.name)) || c.job, talents2: d.talents2 ?? {}, talentPts2: d.job2 ? talentPoints(c.job_lv, d.job2) : 0, stats: (S0 => { for (const [k, v] of Object.entries({ ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) })) S0[k] = (S0[k] || 0) + v * 3; return S0; })({ wis: 1, ...(d.stats || {}) }), persona: { lv: d.persona?.lv || 0, lines: d.persona?.lines || [], sub: { ...(d.persona?.pts || {}), ...(d.persona?.sub || {}) }, corr: d.persona?.corr || 0 }, fameCur: (d.fame || 0) - (d.fameUsed || 0), towerToday: d.towerDay?.day === TW.towerDay() ? d.towerDay : { n: 0, t: 0 }, outfit: d.outfit ?? 0, hair: d.hair ?? 0, hairColor: d.hairColor ?? 0, gold: c.gold ?? 0, points: d.points ?? 0, cleared: d.cleared ?? [], mats: d.mats ?? {}, mountUntil: d.mountUntil ?? 0, talents: d.talents ?? {}, talentPts: talentPoints(c.job_lv), rebirth: d.rebirth ?? 0, fame: d.fame ?? 0, ...(F => ({ fameLv: F.lv, fameNext: F.next }))(fameLevel(d.fame ?? 0)), bossKills: d.bossKills ?? {}, title: d.title ?? null, pets: (migratePets(d), d.pets ?? []), bpets: d.bpets ?? [], bpet: d.bpet ?? null, natStone: d.natStone ?? 0, pet: d.pet ?? null, gems: d.gems ?? [], gemOpen: d.gemOpen ?? 0, gemSlots: d.gemSlots ?? [], stones: Object.fromEntries(STONE_ORDER.map(k => [k, stoneOf(d.stones, k)])), cbTotal: d.cbTotal || 0, pwRank: pwRankOf(c.id), poly: d.poly || null, bp: d.bp || null, bestSecs: d.bestSecs || {}, msGot: d.msGot || {}, sweepLeft: SWEEP_DAILY - (d.sweep?.day === ATT.twDay() ? d.sweep.n : 0), sweepRef: d.sweepRef || {}, patrol: patrolView(d, c) }; };
 function gainJob(c, d, amt) { // 加 Job 經驗（升級照 jobNeed、每升 1 級 +3 素質點）；回傳新的 Job Lv 與升了幾級，呼叫的人負責寫回 job_lv 與 data
   const JM = jobMaxOf(d); let job = c.job_lv, jexp = (d.jobExp || 0) + Math.max(0, amt | 0), ups = 0;
   while (job < JM && jexp >= jobNeed(job)) { jexp -= jobNeed(job); job++; ups++; } if (job >= JM) jexp = 0;
@@ -358,7 +361,7 @@ const api = {
   },
   // 出征結算：存紀錄、加經驗、升級
   'POST /api/runs': async (req, res, _, uid) => {
-    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0, combos = 0, party = 1, bpetKills = 0, bpetDead = false } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
+    const { charId, secs, kills, lv, cleared, chests = 0, bossChests = 0, stage = 'hill', curse = 'none', lootMin = 0, bosses = [], diff = null, spent = 0, events = 0, combos = 0, party = 1, bpetKills = 0, bpetDead = false, mobKills = null } = await body(req); req.__spent = spent; const evBonus = 0.15 * Math.max(0, Math.min(10, events | 0)); // 項目 53：完成地圖事件 → 寶箱品質提升
     const stB = stageBaseLv(STAGES.find(x => x.key === stage)), DL = isTowerKey(stage) ? diffLoot(null) : diffLoot(cleanDiff(diff, stB), stB); // 項目 41：難度只影響寶箱裝備品質，經驗金幣不變
     const isTower = stage === 'tower';
     const c = db.prepare('SELECT * FROM characters WHERE id=? AND account_id=?').get(+charId, uid);
@@ -438,6 +441,7 @@ const api = {
       g.fx = (g.fx || 0) + 20 * n; while (g.fx >= 100 && g.grade < 3) { g.fx -= 100; g.grade++; gemUps.push(g.grade); } if (g.grade >= 3) g.fx = Math.min(g.fx, 100); } }
     let souls = 0; if (isTower) { delete d.towerPass; souls = Math.floor(floor / 3); if (souls) { d.mats ??= {}; d.mats.ashton = (d.mats.ashton || 0) + souls; } } // 賢者之塔：入場證用掉、每 3 層 1 個艾希頓之魂
     d.poly = null; // PC 變身：出征結束就恢復原狀（一瓶＝一局）
+    if (!isTower && d.bp?.cur && mobKills && typeof mobKills === 'object') { const K = Math.max(0, +kills | 0), mk = {}; let left = K; for (const [m, n] of Object.entries(mobKills).slice(0, 40)) { const v = Math.max(0, Math.min(left, +n | 0)); if (v) { mk[m] = v; left -= v; } } BP.bpAddKills(d.bp, mk); } // PC 希望藍圖：任務怪擊殺數（總數不超過這局擊殺）
     let bossChest = null; if (bonus && Math.random() < BC.CHEST_DROP) { const k = BC.chestOfStage(S.key); if (k) { d.mats ??= {}; d.mats[k] = (d.mats[k] || 0) + 1; bossChest = ORES[k].name; } } // PC 首領寶箱：打倒 MVP 70% 掉上鎖寶箱
     const spentGold = Math.max(0, Math.min(Math.floor(+req.__spent || 0), (c.gold ?? 0) + gold)); // 項目 37：菁英寶箱花的金幣，結算時扣（不會扣到負的）
     db.prepare('UPDATE characters SET base_lv=?, job_lv=?, exp=?, gold=gold+?, data=? WHERE id=?').run(base, job, exp, gold - spentGold, JSON.stringify(d), c.id);
@@ -1224,6 +1228,34 @@ const api = {
     if (items.length) sendMail(c.id, { sender: '巡邏隊', title: `${act === 'quick' ? '快速巡邏' : '巡邏'}帶回 ${items.length} 件裝備`, body: '巡邏途中撿到的裝備。', items });
     send(res, 200, { got: { hours: +y.hours.toFixed(2), gold: y.gold, ore1: y.ore1, exp, gear: items.length, cost, ups: JG.ups }, char: fullChar(ownChar(uid, c.id)) });
   },
+  // ===== PC 希望藍圖（2u id=78）成長型任務：收取 → 出征打任務怪 → 收取獎勵（每個只能完成一次）=====
+  'POST /api/blueprint': async (req, res, _, uid) => {
+    const { charId, act, id } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
+    const d = JSON.parse(c.data || '{}'); d.bp ??= { cur: null, prog: {}, done: [] }; d.bp.done ??= [];
+    const save = () => db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+    if (act === 'accept') {
+      const t = BP.bpTask(id); if (!t) return send(res, 400, { error: '沒有這個任務' });
+      if (d.bp.done.includes(t.id)) return send(res, 400, { error: '這個任務已經完成過了（成長型任務只能完成一次）' });
+      if (c.job_lv < t.lv) return send(res, 400, { error: `要 Job Lv ${t.lv} 才能接` });
+      if (d.bp.cur) return send(res, 400, { error: '一次只能進行一個任務：先完成或放棄目前的任務' });
+      d.bp.cur = t.id; d.bp.prog = {}; save(); return send(res, 200, { char: fullChar(ownChar(uid, c.id)) });
+    }
+    if (act === 'drop') { if (!d.bp.cur) return send(res, 400, { error: '現在沒有進行中的任務' }); d.bp.cur = null; d.bp.prog = {}; save(); return send(res, 200, { char: fullChar(ownChar(uid, c.id)) }); }
+    if (act === 'claim') {
+      const t = BP.bpTask(d.bp.cur); if (!t) return send(res, 400, { error: '現在沒有進行中的任務' });
+      const ok = t.refine ? itemsOf(c.id).some(it => (it.refine || 0) >= t.refine) : BP.bpKillDone(t, d.bp);
+      if (!ok) return send(res, 400, { error: `還沒完成：${BP.bpGoalText(t)}` });
+      const exp = BP.bpJobExp(t, jobNeed), gold = BP.bpGold(t), JG = gainJob(c, d, exp);
+      const fameBefore = fameLevel(d.fame || 0).lv; d.fame = (d.fame || 0) + t.fame; const fameAfter = fameLevel(d.fame).lv;
+      d.mats ??= {}; d.mats.rToken = (d.mats.rToken || 0) + t.r;
+      d.bp.done.push(t.id); d.bp.cur = null; d.bp.prog = {};
+      db.prepare('UPDATE characters SET job_lv=?, gold=gold+?, data=? WHERE id=?').run(JG.job, gold, JSON.stringify(d), c.id);
+      if (t.gear) sendMail(c.id, { sender: '希望藍圖', title: `任務獎勵：${t.gearName}`, body: `完成希望藍圖任務「${t.pc}」。（本作沒有拉迪克斯系列，送同部位的精良裝備）`, items: [{ ...rollItem(Math.random, 0, t.gear, t.lv, c.job), rarity: 2 }] });
+      for (const [l, slot, rar, name] of FAME_GEAR.filter(([l]) => fameBefore < l && fameAfter >= l)) sendMail(c.id, { sender: '名聲', title: `名聲 Lv${l} 獎勵`, body: `你的名聲到了 Lv${l}，送你名聲專屬裝備「${name}」。`, items: [{ ...rollItem(Math.random, 0, slot, Math.max(1, JG.job), c.job), rarity: rar }] });
+      return send(res, 200, { got: { exp, fame: t.fame, gold, r: t.r, gear: t.gear ? t.gearName : null, ups: JG.ups }, char: fullChar(ownChar(uid, c.id)) });
+    }
+    send(res, 400, { error: '不明的動作' });
+  },
   // ===== PC 首領寶箱（item.scr 類別 41／42、drop_1.scr 3901～3903）：背包裡的上鎖寶箱 ＋ 1 把寶箱鑰匙 → 抽一樣 =====
   'POST /api/chestopen': async (req, res, _, uid) => {
     const { charId, key } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });
@@ -1278,6 +1310,40 @@ const api = {
       return send(res, 200, attView(uid));
     }
     send(res, 400, { error: '不認得的動作' });
+  },
+  // PC 發財遊戲（#10，src/1_data/fortune.js）：全服彩金存 meta 'fortune'＝{ pool, last:{ name, gold, at } }
+  'GET /api/fortune': async (req, res) => { const F = ftGet(); send(res, 200, { pool: F.pool, last: F.last || null }); },
+  'POST /api/fortune': async (req, res, _, uid) => {
+    const { charId, act, bag, chest } = await body(req); const c0 = ownChar(uid, charId); if (!c0) return send(res, 404, { error: '找不到角色' });
+    const out = tx(() => {
+      const c = ownChar(uid, charId), d = JSON.parse(c.data || '{}'); d.mats ??= {};
+      if (act === 'throw') {
+        const B = FT.BAGS[bag]; if (!B) return { err: '沒有這種沙包' };
+        if (!(d.mats[bag] > 0)) return { err: `沒有${B.name}（在裝備商人「購買」分頁買）` };
+        d.mats[bag]--; const F = ftGet(); if (bag === 'sandbag') F.pool += B.price; // 普通沙包花的錢累積成彩金
+        const r = FT.throwBag(bag); let gold = 0;
+        if (r.win) { gold = Math.floor(F.pool * FT.JACKPOT_TAKE); F.pool -= gold; F.last = { name: c.name, gold, at: Date.now() }; }
+        if (r.chest) d.mats[r.chest] = (d.mats[r.chest] || 0) + 1;
+        ftPut(F); db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
+        if (gold) sendMail(c.id, { sender: '哈比發財樹', title: '發財彩金', body: `恭喜！投中哈比發財樹，拿到全服彩金的 70%：${gold} 希幣`, gold });
+        return { win: r.win, gold, chest: r.chest, pool: F.pool, cid: c.id };
+      }
+      if (act === 'open') {
+        const C = FT.CHESTS[chest]; if (!C) return { err: '沒有這種寶箱' };
+        if (!(d.mats[chest] > 0)) return { err: `沒有${C.name}` }; if (!(d.mats[FT.KEY] > 0)) return { err: '沒有發財寶箱鑰匙（在裝備商人「購買」分頁買）' };
+        d.mats[chest]--; d.mats[FT.KEY]--;
+        const x = FT.rollChest(chest); let gold = 0;
+        if (x.mat) d.mats[x.mat] = (d.mats[x.mat] || 0) + 1;
+        if (x.fish) { d.fishing ??= { rod: 0, bait: 0, fish: {} }; d.fishing.fish ??= {}; d.fishing.fish[x.fish] = (d.fishing.fish[x.fish] || 0) + 1; }
+        if (x.nat) d.natStone = (d.natStone || 0) + 1;
+        if (x.gold) gold = x.gold;
+        db.prepare('UPDATE characters SET gold=gold+?, data=? WHERE id=?').run(gold, JSON.stringify(d), c.id);
+        return { got: { name: x.name || ORES[x.mat]?.name || '?', mat: x.mat || null, gold }, cid: c.id };
+      }
+      return { err: '不認得的動作' };
+    });
+    if (out.err) return send(res, 400, { error: out.err });
+    send(res, 200, { ...out, char: fullChar(ownChar(uid, out.cid)) });
   },
   'POST /api/petfeed': async (req, res, _, uid) => {
     const { charId, petId, itemIds, food } = await body(req); const c = ownChar(uid, charId); if (!c) return send(res, 404, { error: '找不到角色' });

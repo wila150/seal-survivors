@@ -288,6 +288,8 @@ import { EMO_TABS, emoPos } from './src/1_data/emote.js';
 import * as ML from './src/1_data/mainline.js';
 import { weakList } from './src/2_core/stun.js';
 import { PET_FOOD as ATT_FOOD, ATTEND, ONLINE, rewardText } from './src/1_data/attendance.js';
+import * as BPD from './src/1_data/blueprint.js'; // PC 希望藍圖
+import { BAGS as FT_BAGS, CHESTS as FT_CHESTS, KEY as FT_KEY, chestOdds, JACKPOT_TAKE } from './src/1_data/fortune.js';
 import { GM_CATS, GM_CMDS } from './src/1_data/gm.js';
 import { TITLES, titleOf, bonusText, FAME_GEAR } from './src/1_data/fame.js';
 import { PC_PETS, PET_MAX, PET_MAX_LV, EGGS, FAM_NAME, CAT_NAME, FEED_EXP, petName, petNeed, petStatText, petBonusText, evoTargets } from './src/1_data/pets.js';
@@ -340,7 +342,7 @@ function showChar(c) {
 }
 // 模組裡有 top-level await（主城地圖），要等整個模組跑完才執行開場（不然 townMount 等變數還沒宣告，11/18 修）
 let moduleReady; const moduleDone = new Promise(r => moduleReady = r);
-Promise.all([refreshChar(), moduleDone]).then(() => { if (CHAR.unreadMail) toast(`📬 你有 ${CHAR.unreadMail} 封新信，去找郵差`); loadTownMount(); checkUnfinishedRun(); const h = location.hash.slice(1); ({ talent: () => $('#talentBtn').click(), gem: () => $('#gemBtn').click(), mail: () => openMail(), stash: () => openStash(), rank: () => openRank(), rebirth: () => openRebirth(), ident: () => openIdent(), zaro: () => openZaro(), job2: () => openJob2(), guide: () => openGuide(), tower: () => openTower(), pet: () => openPets(), fishing: () => openFishing(), expedition: () => openExpedition() })[h]?.(); if (['bag', 'smith'].includes(h)) openBag(h); if (h === 'shop') openMerchant('sell'); if (h === 'stylist') openStylist(); if (h === 'stock') openMerchant('stock'); if (h === 'exp') openExpedition(); if (h === 'mount') openMount(); if (h === 'library') { bSel = 7; openBestiary(); } if (h === 'auction') openAuction('browse'); }).catch(e => console.error(e));
+Promise.all([refreshChar(), moduleDone]).then(() => { if (CHAR.unreadMail) toast(`📬 你有 ${CHAR.unreadMail} 封新信，去找郵差`); loadTownMount(); checkUnfinishedRun(); const h = location.hash.slice(1); ({ blueprint: () => openBlueprint(), talent: () => $('#talentBtn').click(), gem: () => $('#gemBtn').click(), mail: () => openMail(), stash: () => openStash(), rank: () => openRank(), rebirth: () => openRebirth(), ident: () => openIdent(), zaro: () => openZaro(), job2: () => openJob2(), guide: () => openGuide(), tower: () => openTower(), pet: () => openPets(), fishing: () => openFishing(), expedition: () => openExpedition() })[h]?.(); if (['bag', 'smith'].includes(h)) openBag(h); if (h === 'shop') openMerchant('sell'); if (h === 'stylist') openStylist(); if (h === 'stock') openMerchant('stock'); if (h === 'exp') openExpedition(); if (h === 'mount') openMount(); if (h === 'library') { bSel = 7; openBestiary(); } if (h === 'auction') openAuction('browse'); }).catch(e => console.error(e));
 $('#charsBtn').onclick = () => location.href = './';
 // 右上選單（項目 14）：技能＝本職業 PC 版技能一覽、角色＝素質頁、⚙＝設定
 $('#statBtn').onclick = () => openCharInfo(); // 11/19 使用者附 PC「CHARACTER INFO」截圖：照 PC 版改
@@ -370,8 +372,10 @@ const QM = {
   emote:   { n: '表情', c: '社群', i: 'qm/emo', f: 1, run: () => openEmote() },
   online:  { n: '在線', c: '活動', i: 'sys/online', f: 0, run: () => openAttend('online') },
   checkin: { n: '簽到', c: '活動', i: 'sys/checkin', f: 0, run: () => openAttend('check') },
+  fortune: { n: '發財', c: '活動', i: '../items/2739', f: 1, run: () => openFortune() },
   exp:     { n: '傳送', c: '活動', i: 'qm/pin', f: 0, run: () => openExpedition() },
   rank:    { n: '排行榜', c: '活動', i: 'qm/trophy', f: 0, run: () => openRank() },
+  blueprint: { n: '希望藍圖', c: '活動', i: 'sys/blueprint', f: 0, run: () => openBlueprint() },
   tower:   { n: '賢者之塔', c: '活動', i: 'sys/blueprint', f: 0, run: () => openTower() },
   fish:    { n: '釣魚', c: '活動', i: '../items/264', f: 1, run: () => $('#fishBtn').click() },
   auction: { n: '拍賣所', c: '活動', i: 'qm/mall', f: 0, run: () => openAuction('browse') },
@@ -456,6 +460,33 @@ let ATT_V = null;
 async function attTick() { if (document.hidden || !CHAR) return; try { ATT_V = await call('POST', '/api/attend', { charId: CHAR.id, act: 'tick' }); if ($('#dlgTitle')?.dataset.t?.startsWith('在線與簽到')) openAttend(); } catch {} }
 setInterval(attTick, 60000); setTimeout(attTick, 3000);
 let attTab = 'online';
+// PC 希望藍圖（2u id=78）：依 Job 等級列成長型任務；收取 → 「移動」到任務地圖出征 → 收取獎勵（每個只能完成一次）
+let bpLv = null;
+function openBlueprint(lv) {
+  const bp = CHAR.bp || { cur: null, prog: {}, done: [] }, done = bp.done || [], jl = CHAR.jobLv || 1;
+  if (lv) bpLv = lv; if (!bpLv) bpLv = BPD.BP_LEVELS.filter(l => l <= jl).at(-1) || BPD.BP_LEVELS[0];
+  const lvState = l => { const T = BPD.BP_TASKS.filter(t => t.lv === l); return T.every(t => done.includes(t.id)) ? 'done' : T.some(t => t.id === bp.cur) ? 'cur' : ''; };
+  const need = t => BPD.bpJobExp(t, l => (400 + 80 * l));
+  let h = `<p><small>依 Job 等級接成長型任務，每個只能完成一次；一次進行一個。任務怪在出征結算時算（收取任務之後、自己打死的）。「移動」＝打開出征視窗選好那張地圖。</small></p>
+    <div class="tabs2">${BPD.BP_LEVELS.map(l => `<button class="btn ${l === bpLv ? 'primary' : ''}" data-bpl="${l}" ${jl < l ? 'title="Job 等級不夠"' : ''}>Lv ${l}${lvState(l) === 'done' ? ' ✔' : lvState(l) === 'cur' ? ' ●' : jl < l ? ' 🔒' : ''}</button>`).join('')}</div>`;
+  for (const t of BPD.BP_TASKS.filter(t => t.lv === bpLv)) {
+    const isCur = bp.cur === t.id, isDone = done.includes(t.id), S = STAGES.find(x => x.key === t.stage);
+    const prog = t.kill ? t.kill.map(([m, n]) => `${m} <b>${isDone ? n : isCur ? (bp.prog?.[m] || 0) : 0}</b> / ${n}`).join('、') : (isDone ? '已完成' : '擁有一件 +1 以上的裝備（到強化師合成）');
+    const canClaim = isCur && (t.kill ? BPD.bpKillDone(t, bp) : (CHAR.items || []).some(it => (it.refine || 0) >= t.refine));
+    h += `<div class="sec" style="border:1px solid ${isCur ? '#ff9a3d' : '#c9d5f3'};border-radius:10px;padding:8px 10px;margin:6px 0;background:${isDone ? '#eef7ee' : '#fff'}">
+      <b>${BPD.bpGoalText(t)}</b>${isDone ? '　<small style="color:#2e8b57">✔ 已完成</small>' : isCur ? '　<small style="color:#e07a1c">● 進行中</small>' : ''}<br>
+      <small style="color:#6b7896">PC：${t.pc}${S ? `　地圖：${S.name}` : ''}</small><br><small>進度：${prog}</small><br>
+      <small>獎勵：Job 經驗 ${need(t).toLocaleString()}、名聲 ${t.fame}、金幣 ${BPD.bpGold(t)}、R代幣 ${t.r}${t.gear ? `、${t.gearName}（精良裝備）` : ''}</small>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${isDone ? '' : isCur ? `<button class="btn primary" data-bpc ${canClaim ? '' : 'disabled'}>收取獎勵</button>${S ? `<button class="btn" data-bpm="${t.stage}">移動</button>` : ''}<button class="btn" data-bpd>放棄</button>` : `<button class="btn primary" data-bpa="${t.id}" ${jl < t.lv || bp.cur ? 'disabled' : ''}>收取任務</button>`}</div></div>`;
+  }
+  openDlg('希望藍圖', h, [], true);
+  const b = $('#dlgBody'), go = async (body, msg) => { try { const r = await call('POST', '/api/blueprint', { charId: CHAR.id, ...body }); showChar(r.char); if (msg) toast(msg(r)); openBlueprint(); } catch (e) { toast(e.message); } };
+  b.querySelectorAll('[data-bpl]').forEach(x => x.onclick = () => openBlueprint(+x.dataset.bpl));
+  b.querySelectorAll('[data-bpa]').forEach(x => x.onclick = () => go({ act: 'accept', id: x.dataset.bpa }, () => '收取任務了！出征打任務怪吧'));
+  b.querySelector('[data-bpc]')?.addEventListener('click', () => go({ act: 'claim' }, r => `任務完成！Job 經驗 +${r.got.exp}、名聲 +${r.got.fame}、金幣 +${r.got.gold}、R代幣 +${r.got.r}${r.got.gear ? '（裝備寄到信箱）' : ''}${r.got.ups ? `　Job 升了 ${r.got.ups} 級！` : ''}`));
+  b.querySelector('[data-bpd]')?.addEventListener('click', async () => { if (await askConfirm('放棄目前的任務？（進度會歸零，之後可以再接）', { ok: '放棄' })) go({ act: 'drop' }, () => '已放棄任務'); });
+  b.querySelector('[data-bpm]')?.addEventListener('click', e => { const i = STAGES.findIndex(x => x.key === e.target.dataset.bpm); if (!stageUnlocked(i, CHAR.cleared || [])) return toast('那張地圖還沒解鎖'); expSel = i; openExpedition(); });
+}
 async function openAttend(tab) {
   if (tab) attTab = tab; if (!ATT_V) { try { ATT_V = await call('GET', '/api/attend'); } catch (e) { return toast(e.message); } }
   const V = ATT_V, cell = (id, n) => `<span style="display:inline-flex;align-items:center;gap:3px"><img src="assets/items/${ATT_ICON(id)}.png" alt="" style="width:28px;height:28px">${rewardText(id, n)}</span>`;
@@ -477,6 +508,26 @@ async function openAttend(tab) {
   b.querySelectorAll('[data-att]').forEach(x => x.onclick = () => openAttend(x.dataset.att));
   b.querySelectorAll('[data-oc]').forEach(x => x.onclick = async () => { try { ATT_V = await call('POST', '/api/attend', { charId: CHAR.id, act: 'claim', idx: +x.dataset.oc }); toast('獎勵寄到信箱了，去找郵差領'); openAttend(); } catch (e) { toast(e.message); } });
   $('#attSign')?.addEventListener('click', async () => { try { ATT_V = await call('POST', '/api/attend', { charId: CHAR.id, act: 'check' }); toast(`第 ${ATT_V.got} 天簽到成功！獎勵寄到信箱`); openAttend(); } catch (e) { toast(e.message); } });
+}
+// PC 發財遊戲（#10，src/1_data/fortune.js）：投沙包到哈比發財樹，中了拿全服彩金 70%；寶貝沙包可能掉發財寶箱，用鑰匙開
+let FT_MSG = '';
+async function openFortune() {
+  let F; try { F = await call('GET', '/api/fortune'); } catch (e) { return toast(e.message); }
+  const m = CHAR.mats || {}, ic = id => `<img src="assets/items/${id}.png" alt="" style="width:28px;height:28px;vertical-align:middle">`;
+  let h = `<div style="text-align:center;padding:10px;border-radius:12px;background:linear-gradient(#fff6d8,#ffe7a3);border:2px solid #e0a826">
+      <div style="font-size:13px;color:#8a5a00">哈比發財樹・全服累積彩金</div><div style="font-size:30px;font-weight:900;color:#c0392b">💰 ${F.pool.toLocaleString()}</div>
+      <small>投中拿走 ${Math.round(JACKPOT_TAKE * 100)}%（寄到信箱）${F.last ? `・上一位得主：<b>${esc(F.last.name)}</b> ${F.last.gold.toLocaleString()} 希幣` : ''}</small></div>
+    ${FT_MSG ? `<p style="text-align:center;font-weight:700;color:#2e5aa8">${FT_MSG}</p>` : ''}
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0">${Object.entries(FT_BAGS).map(([k, b]) => `<button class="btn primary" data-ftb="${k}" ${(m[k] || 0) > 0 ? '' : 'disabled'}>${ic(b.icon)} 投${b.name}（持有 ${m[k] || 0}）</button>`).join('')}</div>
+    <p><small>沙包、寶貝沙包、發財寶箱鑰匙在裝備商人「購買」分頁。投普通沙包花的錢會累積進彩金。寶貝沙包另外有機會掉發財寶箱。</small></p>
+    <h4 style="margin:8px 0 4px">發財寶箱（鑰匙 ${ic(2269)} ${m[FT_KEY] || 0}）</h4>
+    ${Object.entries(FT_CHESTS).map(([k, c]) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #c9d5f3;border-radius:10px;margin:4px 0">${ic(c.icon)}<b>${c.name}</b> ×${m[k] || 0}<span style="flex:1"></span><button class="btn" data-fto="${k}" ${(m[k] || 0) > 0 && (m[FT_KEY] || 0) > 0 ? '' : 'disabled'}>用鑰匙開啟</button></div>
+      <small style="color:#6b7896">內容：${chestOdds(k).map(([x, p]) => `${x.name || ORES[x.mat]?.name} ${(p * 100).toFixed(1)}%`).join('、')}</small>`).join('')}`;
+  openDlg('發財遊戲', h, [], true); FT_MSG = '';
+  const b = $('#dlgBody');
+  b.querySelectorAll('[data-ftb]').forEach(x => x.onclick = async () => { try { const r = await call('POST', '/api/fortune', { charId: CHAR.id, act: 'throw', bag: x.dataset.ftb }); showChar(r.char);
+    FT_MSG = r.win ? `🎉 投中了！彩金 ${r.gold.toLocaleString()} 希幣寄到信箱` : '沒投中…'; if (r.chest) FT_MSG += `・掉出 ${FT_CHESTS[r.chest].name}！`; openFortune(); } catch (e) { toast(e.message); } });
+  b.querySelectorAll('[data-fto]').forEach(x => x.onclick = async () => { try { const r = await call('POST', '/api/fortune', { charId: CHAR.id, act: 'open', chest: x.dataset.fto }); showChar(r.char); FT_MSG = `打開寶箱：${r.got.name}${r.got.gold ? `（${r.got.gold} 希幣）` : ''}`; openFortune(); } catch (e) { toast(e.message); } });
 }
 $('#escQm').onclick = () => { escMenu(false); openQuickMenu(); };
 // 左邊系統圖示欄：藍色箭頭收起／展開（記住狀態）；手機的組隊／好友／菜單在這一欄
@@ -2135,7 +2186,7 @@ function loop(now) {
   raf = requestAnimationFrame(loop);
 }
 raf = requestAnimationFrame(loop);
-window.__town = { player, map: TMAP, center: TC, openBag }; // 測試用（無頭截圖）
+window.__town = { player, map: TMAP, center: TC, openBag, openFortune }; // 測試用（無頭截圖）
 moduleReady();
 // 切到背景就停
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(loop); } });
