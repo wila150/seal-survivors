@@ -1,6 +1,7 @@
 /* PC 原版視窗樣式（共用：主城＋出征）。參考 PC 的 MONSTER SURVIVAL／PARTY SEARCH 視窗：
    白色亮面外框＋藍色外線、置中白字藍描邊標題、米色內容面板、亮面藍按鈕。
    設定（settings.js #ssSet）與確認框（ask.js #ssAsk）是執行時才插入樣式 → 這裡用 body 前綴提高權重蓋過去 */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%} /* 11/21 使用者：「技能敘述忽大忽小」→ 關掉 iPhone Safari 自動放大文字（字多的區塊會被放大） */
 body #ssSet .box, body #ssAsk .box, #pause .box, .pcwin {
   background: linear-gradient(#fdfdfd, #dde3ec); border: 3px solid #fff; border-radius: 22px;
   box-shadow: 0 0 0 2px #8193b4, 0 12px 40px #0008; color: #26324d;
