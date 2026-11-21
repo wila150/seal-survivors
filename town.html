@@ -19,7 +19,7 @@
   #face{position:relative;width:64px;height:64px;flex:none;border-radius:50%;background:radial-gradient(#fff,#bcd);border:3px solid #fff;box-shadow:0 0 0 2px #6f8fd8}
   #face img{width:100%;height:100%;border-radius:50%;object-fit:cover}
   #lv{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);background:linear-gradient(#6f8fd8,#3a5bbf);color:#fff;border-radius:10px;padding:0 8px;font-size:12px;white-space:nowrap;border:1px solid #fff}
-  #me .pfr{width:min(250px,42vw)}#me b{font-size:14px}#me small{color:#6b7896;font-size:12px}
+  #me .pfr{width:min(250px,42vw)}#me b{font-size:14px}#me small{color:#6b7896;font-size:12px}#meJob{white-space:nowrap}
   #me .info{display:flex;justify-content:space-between;gap:8px;background:#26324d;color:#fff;border-radius:6px;padding:1px 8px;margin:3px 0;font-size:11px;line-height:16px}#me .info small{color:#fff;font-size:11px}
   #me .exprow{display:flex;align-items:center;gap:6px;font-size:11px;color:#3a5bbf}#me .bar{flex:1;height:7px;background:#26324d;border-radius:6px;overflow:hidden}#me .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4fc3ff,#a06bff)}
   #place{left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);padding:8px 20px;text-align:center;font-weight:800}
@@ -217,7 +217,7 @@
 <!-- 進城載入畫面：玩家模型和 NPC 載完才拿掉（11/18 使用者：載入時會先看到紅色膠囊人偶） -->
 <div id="labels"></div>
 <button id="stoneBtn" title="石頭鑲嵌（強化／分解）"><i style="background:#e8453c"></i><i style="background:#f0a030"></i><i style="background:#f5d442"></i></button>
-<div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Lv 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">EXP<div class="bar"><i id="meExp"></i></div><span id="xpPct">0%</span></div></div></div>
+<div id="me" class="chip"><div id="face"><img id="faceImg" alt=""><span id="lv">Lv 1</span></div><div class="pfr"><b id="meName"></b> <small id="meJob"></small><div class="info"><small id="meLv"></small><small class="gold" id="meGold"></small></div><div class="exprow">EXP<div class="bar"><i id="meExp"></i></div><span id="xpPct">0%</span></div><div class="exprow">JOB<div class="bar"><i id="meJExp" style="background:linear-gradient(90deg,#7ee07a,#e0c04a)"></i></div><span id="jxpPct">0%</span></div></div></div>
 <div id="place" class="chip">希望之城<small>中央廣場</small></div>
 <!-- PC 原版主選單按鈕列（assets/ui/btn_*：tools/build-ui.mjs 從客戶端 mainbutton_all.tex 切）；原版沒有的功能用同色系文字鈕 -->
 <div id="escMenu" hidden><button id="escQm" title="快速選單（自訂左邊側邊欄）"><b>Quick Menu</b><span>快速選單</span></button><div class="esc-ring">
@@ -321,9 +321,13 @@ async function refreshChar(tries = 0) {
   CHAR = c;
   try { sessionStorage.setItem('ss_char', JSON.stringify(c)); } catch {}
   $('#meName').textContent = (titleOf(c.title) ? `【${titleOf(c.title).name}】` : '') + c.name; $('#meJob').textContent = c.jobName || c.job;
-  $('#meLv').textContent = `經驗 ${c.exp} / ${c.need}`; /* 11/19 使用者：大廳只顯示一個等級（Job 只在角色視窗／百業宗師看） */ $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
-  $('#meExp').style.width = Math.min(100, c.exp / c.need * 100) + '%';
+  showLv(c);
   showChar(c);
+}
+function showLv(c) { // 11/21 使用者：「應該要顯示 job 等級」→ 職業名後面加 Job Lv、EXP 下多一條 JOB 經驗條（照 PC）
+  $('#meLv').textContent = `經驗 ${c.exp} / ${c.need}`; $('#lv').textContent = `Lv ${c.baseLv}`; $('#meJob').textContent = `${c.jobName || c.job || ''} Job ${c.jobLv ?? 1}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
+  $('#meExp').style.width = Math.min(100, c.exp / c.need * 100) + '%';
+  const jp = c.jobNeed ? Math.min(100, (c.jobExp || 0) / c.jobNeed * 100) : 100; $('#meJExp').style.width = jp + '%'; $('#jxpPct').textContent = c.jobNeed ? jp.toFixed(1) + '%' : 'MAX';
 }
 let wearKey = null; // 穿著外觀（武器、盾、頭、上衣、下衣、鞋的 PC 編號）變了就重載角色模型
 function showChar(c) {
@@ -332,7 +336,7 @@ function showChar(c) {
     const k2 = k + JSON.stringify(c.costume || {}); // 衣櫥時裝也算
     if (wearKey !== null && k2 !== wearKey && typeof loadPlayer === 'function') loadPlayer(); wearKey = k2; }
   $('#meGold').textContent = `💰 ${c.gold}` + (c.points ? `　素質點 ${c.points}` : '');
-  $('#meLv').textContent = `經驗 ${c.exp} / ${c.need}`; /* 11/19 使用者：大廳只顯示一個等級（Job 只在角色視窗／百業宗師看） */ $('#lv').textContent = `Lv ${c.baseLv}`; $('#xpPct').textContent = (c.exp / c.need * 100).toFixed(1) + '%';
+  showLv(c);
 }
 // 模組裡有 top-level await（主城地圖），要等整個模組跑完才執行開場（不然 townMount 等變數還沒宣告，11/18 修）
 let moduleReady; const moduleDone = new Promise(r => moduleReady = r);
