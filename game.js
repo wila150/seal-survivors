@@ -967,7 +967,7 @@ function drawNums(dt) {
 const mm = document.getElementById('mm'), mmx = mm.getContext('2d');
 function drawMinimap() {
   const pp = player.position;
-  drawSealMinimap(mmx, mm.width, MAP, STAGE, { pp, yaw: player.rotation.y, enemies, chests: chestsArr, bossSlots, t, zone: curZone });
+  drawSealMinimap(mmx, mm.width, MAP, STAGE, { pp, yaw: player.rotation.y, enemies, chests: chestsArr, bossSlots, t, zone: curZone, mates: NET ? [...NET.remotes.values()].filter(r => !r.gone).map(r => ({ x: r.x, z: r.z, name: r.m?.name, down: r.down || r.dead })) : [] });
   document.getElementById('mmTitle').textContent = `${zoneName(STAGE, curZone)} (${Math.round(pp.x)}, ${Math.round(pp.z)})`;
 }
 // 暫停

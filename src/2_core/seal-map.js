@@ -150,7 +150,7 @@ export function walkMove(M, p, nx, nz) {
 
 // 小地圖：原版地圖色調圖（像 RO 的小地圖），以玩家為中心顯示 VIEW 公尺；區域分界淡線；王即時位置
 const mmImg = new Map();
-export function drawSealMinimap(mmx, Wpx, M, STAGE, { pp, yaw, enemies, chests, bossSlots, t, zone, view = 160 }) {
+export function drawSealMinimap(mmx, Wpx, M, STAGE, { pp, yaw, enemies, chests, bossSlots, t, zone, view = 160, mates = [] }) { // mates：組隊隊友 [{x,z,name,down}]（11/21 使用者：打副本看不到隊友位置）
   let img = mmImg.get(M.id); if (!img) { img = new Image(); img.src = M.base + 'color.png'; mmImg.set(M.id, img); }
   const k = Wpx / view, P = (x, z) => [Wpx / 2 + (x - pp.x) * k, Wpx / 2 + (z - pp.z) * k];
   mmx.fillStyle = '#123'; mmx.fillRect(0, 0, Wpx, Wpx);
@@ -170,6 +170,9 @@ export function drawSealMinimap(mmx, Wpx, M, STAGE, { pp, yaw, enemies, chests, 
     mmx.beginPath(); mmx.arc(x, y, R + Math.sin(t * 8), 0, 7); mmx.fillStyle = b.kind === 'mvp' ? '#ff2a6a' : '#ff3030'; mmx.fill(); mmx.strokeStyle = '#fff'; mmx.lineWidth = 1.5; mmx.stroke();
     mmx.fillStyle = '#fff'; mmx.fillText(b.kind === 'mvp' ? '★' : '☠', x, y + 0.5);
   }
+  for (const q of mates) { let [x, y] = P(q.x, q.z); const R = 5; x = Math.max(R, Math.min(Wpx - R, x)); y = Math.max(R, Math.min(Wpx - R, y)); // 畫面外貼邊
+    mmx.beginPath(); mmx.arc(x, y, R, 0, 7); mmx.fillStyle = q.down ? '#9aa3b5' : '#2ecc71'; mmx.fill(); mmx.strokeStyle = '#fff'; mmx.lineWidth = 1.5; mmx.stroke();
+    mmx.fillStyle = '#fff'; mmx.font = 'bold 8px sans-serif'; mmx.fillText(String(q.name || '隊').slice(0, 1), x, y + 0.5); }
   mmx.save(); mmx.translate(Wpx / 2, Wpx / 2); mmx.rotate(-yaw + Math.PI); mmx.fillStyle = '#fff'; mmx.strokeStyle = '#c00'; mmx.lineWidth = 2;
   mmx.beginPath(); mmx.moveTo(0, -7); mmx.lineTo(5, 5); mmx.lineTo(0, 2); mmx.lineTo(-5, 5); mmx.closePath(); mmx.fill(); mmx.stroke(); mmx.restore();
 }

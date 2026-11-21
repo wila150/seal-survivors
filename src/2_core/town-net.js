@@ -46,6 +46,7 @@ export function createTownNet({ THREE, scene, camera, player, CHAR, token, groun
   connect();
   return {
     get count() { return others.size; },
+    positions() { return [...others.values()].filter(o => o.seen).map(o => ({ id: o.m.charId, x: o.x, z: o.z, name: o.m.name })); }, // 小地圖用（11/21 使用者：地圖不會顯示其他玩家）
     emote(e) { if (ws?.readyState === 1) ws.send(JSON.stringify({ t: 'e', e })); },
     tick(dt) {
       const now = performance.now(), mv = moving();

@@ -886,6 +886,11 @@ function drawTownMap(cv, big = false) {
     if (ic && TMM.icons.complete && TMM.icons.naturalWidth) g.drawImage(TMM.icons, ic[0] * 32, ic[1] * 32, 32, 32, x - r, y - r, r * 2, r * 2); // 原版圖示
     else { g.beginPath(); g.arc(x, y, r * 0.75, 0, 7); g.fillStyle = '#' + n.color.toString(16).padStart(6, '0'); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke(); }
     if (big) { g.fillStyle = '#2a1f12'; g.font = 'bold 11px sans-serif'; g.fillText(n.name.split(' ')[0], x, y + r + 8); } }
+  // 其他玩家（11/21 使用者：「地圖不會顯示其他玩家標記」）：藍點；同隊伍的綠點；放大地圖顯示名字
+  { const mates = new Set((PTY?.room?.members || []).map(m => m.charId));
+    for (const o of TNET?.positions?.() || []) { const [x, y] = P(o.x, o.z), r = big ? 6 : 4; if (x < M || y < 0 || x > M + A || y > A) continue;
+      g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = mates.has(o.id) ? '#2ecc71' : '#3a8bff'; g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
+      if (big) { g.fillStyle = '#123'; g.font = 'bold 11px sans-serif'; g.fillText(o.name, x, y - r - 7); } } }
   // 玩家箭頭（方向＝角色面向；地圖轉了 180 度所以 x、z 都反過來）
   const [px, py] = P(player.position.x, player.position.z), fx = -Math.sin(player.rotation.y), fy = -Math.cos(player.rotation.y), L = big ? 12 : 8;
   g.save(); g.translate(px, py); g.rotate(Math.atan2(fy, fx) + Math.PI / 2); g.beginPath(); g.moveTo(0, -L); g.lineTo(L * 0.65, L * 0.7); g.lineTo(0, L * 0.3); g.lineTo(-L * 0.65, L * 0.7); g.closePath();
