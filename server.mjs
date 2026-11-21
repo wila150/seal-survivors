@@ -153,6 +153,7 @@ const STASH_PAGES = 6, STASH_SIZE = 40, STASH_FREE = 2, STASH_COST = [0, 0, 5000
 const stashInfo = uid => { const a = db.prepare('SELECT stash FROM accounts WHERE id=?').get(uid); const s = a?.stash ? JSON.parse(a.stash) : {};
   return { unlocked: Math.max(STASH_FREE, s.unlocked || 0), names: Array.from({ length: STASH_PAGES }, (_, i) => s.names?.[i] || `倉庫 ${i + 1}`) }; };
 // 項目 21：轉生師
+const JOB_STAT_PTS = 3; // 11/21：Job 每升 1 級給的素質點（原本是 Base 每升 1 級 3 點）
 const REBIRTH_LV = 70 /* Job Lv（11/21 改，原本 Base Lv） */, REBIRTH_MAX = 10, REBIRTH_BONUS = 75;
 if (!metaGet('fixPoints1')) {
   for (const c of db.prepare('SELECT id, base_lv, data FROM characters').all()) {
@@ -387,13 +388,14 @@ const api = {
       if (it.rarity < minR) { filtered++; continue; }
       got.push(giveItem(c.id, it));
     }
-    const d = d0; d.points = (d.points || 0) + ups * 3;
+    const d = d0; // 11/21 使用者：「以 Job 等級給天賦跟身體點數」→ Base 升級不再給素質點，改成 Job 每升 1 級 +3（下面）
     // 項目 28：首領寶箱各掉 1 顆未開放的技能寶石（寶石袋滿了就不掉）
     const gemsGot = []; d.gems ??= [];
     for (let i = 0; i < nBoss && d.gems.length < GEM_MAX; i++) { const g = rollGem(); d.gems.push(g); gemsGot.push(g); }
     let job = c.job_lv, jexp = (d.jobExp || 0) + jobGain, jobUps = 0;
     const JM = jobMaxOf(d);
     while (job < JM && jexp >= jobNeed(job)) { jexp -= jobNeed(job); job++; jobUps++; }
+    d.points = (d.points || 0) + jobUps * JOB_STAT_PTS;
     if (job >= JM) jexp = 0;
     d.jobExp = jexp;
     if (!isTower && STAGES[si]) { d.bestSecs ??= {}; d.bestSecs[S.key] = Math.max(d.bestSecs[S.key] || 0, Math.max(0, Math.min(stageTime(S) + 60, +secs | 0))); } // 主線時間寶箱：這張地圖最久活多久
@@ -678,7 +680,7 @@ const api = {
     }
     // EXP 釣魚：每竿（成功或失敗都算一次垂釣）拿經驗，用掉 1 次
     let expGot = 0, base = c.base_lv, exp = c.exp;
-    if (F.expFish > 0) { F.expFish--; expGot = expFishGain(base); exp += expGot; let ups = 0; while (exp >= needExp(base) && base < BASE_MAX) { exp -= needExp(base); base++; ups++; } if (base >= BASE_MAX) exp = 0; d.points = (d.points || 0) + ups * 3; }
+    if (F.expFish > 0) { F.expFish--; expGot = expFishGain(base); exp += expGot; let ups = 0; while (exp >= needExp(base) && base < BASE_MAX) { exp -= needExp(base); base++; ups++; } if (base >= BASE_MAX) exp = 0; }
     db.prepare('UPDATE characters SET data=?, base_lv=?, exp=? WHERE id=?').run(JSON.stringify(d), base, exp, c.id);
     send(res, 200, { got, exp: expGot, tier: tierOf(price), next: manual ? 0 : AUTO_SECS, char: fullChar(ownChar(uid, c.id)) });
   },
@@ -1026,9 +1028,9 @@ const api = {
     let msg;
     try {
       switch (cmd) {
-        case 'lv': { const v = int(0, 1, 99); db.prepare('UPDATE characters SET base_lv=?, exp=0 WHERE id=?').run(v, c.id); { const sh = pointsShould(v, d); if (sh > (d.points || 0)) { d.points = sh; saveD(); } } msg = `Base Lv → ${v}`; break; }
+        case 'lv': { const v = int(0, 1, 99); db.prepare('UPDATE characters SET base_lv=?, exp=0 WHERE id=?').run(v, c.id); msg = `Base Lv → ${v}`; break; }
         case 'bpet': { const b = (d.bpets || []).find(x => x.id === d.bpet) || (d.bpets || [])[0]; if (!b) throw new Error('沒有戰寵'); b.lv = int(0, 1, 100); b.exp = 0; if (args[1] && args[1] !== '-') b.grade = String(args[1]).toUpperCase(); if (args[2] != null) { b.loyal = Math.max(0, +args[2] || 0); b.close = 100; } saveD(); msg = `戰寵 Lv → ${b.lv}${b.grade ? ' ' + b.grade : ''}${args[2] != null ? `・忠誠度 ${b.loyal}` : ''}`; break; } // 戰寵等級（測試用）：bpet <等級> [GRADE 或 -] [忠誠度]
-        case 'job': { const max = jobMaxOf(d), v = int(0, 1, max); d.jobExp = 0; saveD(); db.prepare('UPDATE characters SET job_lv=? WHERE id=?').run(v, c.id); msg = `Job Lv → ${v}`; break; }
+        case 'job': { const max = jobMaxOf(d), v = int(0, 1, max); d.jobExp = 0; if (v > c.job_lv) d.points = (d.points || 0) + (v - c.job_lv) * JOB_STAT_PTS; saveD(); db.prepare('UPDATE characters SET job_lv=? WHERE id=?').run(v, c.id); msg = `Job Lv → ${v}`; break; }
         case 'resetpw': { // 11/20 使用者：「忘記密碼怎麼辦」→ 沒有信箱，GM 幫忙重設；舊的登入全部登出
           const [u, pw] = args; const acc = u && db.prepare('SELECT id FROM accounts WHERE username=?').get(u); if (!acc) throw new Error('找不到這個帳號');
           if (!pw || pw.length < 6 || pw.length > 64) throw new Error('新密碼要 6～64 個字');

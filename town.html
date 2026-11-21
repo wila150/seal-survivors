@@ -1858,7 +1858,7 @@ function openCharInfo() {
   const stat = Object.entries(STATS).map(([k, d]) => `<div class="ci-st"><span>${d.name}</span><b>${c.stats[k]}</b><button class="btn ci-plus" data-stat="${k}" ${c.points ? '' : 'disabled'} title="${d.desc}">＋</button><button class="btn ci-edit" data-sedit="${k}" ${c.points ? '' : 'disabled'}>EDIT</button></div>`).join('');
   const html = `<div class="ci"><div class="ci-col"><section><h4>EQUIPMENT</h4><div class="ci-grid">${grid}</div>${(() => { const it = items.find(i => i.id === ciSel && i.equipped); return it ? `<div class="ci-sel"><b style="color:${RARITY[it.rarity].color}">${RARITY[it.rarity].name} ${esc(itemName(it))}</b>　<small>${SLOTS[it.slot]}</small><br><small>${statLine(it)}</small><br><button class="btn" id="ciUneq" style="margin-top:4px">卸下</button></div>` : ''; })()}</section><section><h4>COSTUME</h4><div class="ci-grid c2">${cos}</div><small class="ci-hint">髮型、髮色、服裝配色找廣場的造型師</small></section></div>
     <div class="ci-col"><section><h4>INFO</h4><div class="ci-info">${info}</div></section><section><h4>STATUS</h4><div class="ci-pts"><span>點數</span><b>${c.points}</b></div>${stat}
-    <small class="ci-hint">每升 1 級 +3 點${c.rebirth ? `・已轉生 ${c.rebirth} 次` : ''}　Base 經驗 ${c.exp} / ${c.need}</small><button class="btn" id="ciPersonal" style="margin-top:6px;background:linear-gradient(#9fe39a,#4cae4c);color:#fff;border-color:#3d8b3d">個性化${c.persona?.lv ? ` Lv${c.persona.lv}` : ''}</button></section></div></div>`;
+    <small class="ci-hint">Job 每升 1 級 +3 點${c.rebirth ? `・已轉生 ${c.rebirth} 次` : ''}　Base 經驗 ${c.exp} / ${c.need}</small><button class="btn" id="ciPersonal" style="margin-top:6px;background:linear-gradient(#9fe39a,#4cae4c);color:#fff;border-color:#3d8b3d">個性化${c.persona?.lv ? ` Lv${c.persona.lv}` : ''}</button></section></div></div>`;
   openDlg('CHARACTER INFO', html, [['詳細觀看', () => { bagMode = 'bag'; bagTab = 'stats'; renderBag(); }, true]], true); // PC 只有「詳細觀看」；不放跳到背包的鈕
   const B = $('#dlgBody');
   // 點裝備格：在角色視窗裡顯示那件的資訊（不跳去背包）；卸下在這裡做，穿上去背包
@@ -1909,7 +1909,7 @@ function renderBag() {
   if (bagTab === 'stats') {
     const jp = c.jobNeed ? `${c.jobExp ?? 0} / ${c.jobNeed}` : 'MAX';
     html += `<div style="margin-bottom:6px">Base Lv <b>${c.baseLv}</b>（${c.exp} / ${c.need}）　Job Lv <b>${c.jobLv}</b> / ${c.jobMax ?? 50}（${jp}）<br><small>Job 等級是天賦點數的來源：每 1 Job Lv＝1 點天賦。Job 經驗跟 Base 經驗一起拿。</small></div>`;
-    html += `<div>剩餘素質點：<b>${c.points}</b>　<small>（角色每升 1 級 +3 點${c.rebirth ? `；已轉生 ${c.rebirth} 次` : ''}）</small></div>` + Object.entries(STATS).map(([k, d]) =>
+    html += `<div>剩餘素質點：<b>${c.points}</b>　<small>（Job 每升 1 級 +3 點${c.rebirth ? `；已轉生 ${c.rebirth} 次` : ''}）</small></div>` + Object.entries(STATS).map(([k, d]) =>
       `<div class="strow"><b>${d.name}</b><span>${c.stats[k]}</span><button class="btn" data-stat="${k}" ${c.points ? '' : 'disabled'}>＋</button><small>${d.desc}</small></div>`).join('');
     // 項目 47：名聲與稱號（名聲等級照原版 fame.scr）
     const fk = Object.entries(c.bossKills || {}).sort((a, b) => b[1] - a[1]);
