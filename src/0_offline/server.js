@@ -1363,7 +1363,7 @@ const api = {
     if (!Object.hasOwn(STATS, stat)) return send(res, 400, { error: '沒有這個素質' });
     const d = JSON.parse(c.data || '{}');
     if (!(d.points > 0)) return send(res, 400, { error: '沒有素質點了' });
-    if ((d.stats[stat] || 1) >= 99) return send(res, 400, { error: '已經到上限了' });
+    // 11/21 使用者：「最多好像只能加到九十九點」→ 拿掉單項 99 上限（轉生、Job 給的點數本來就超過；效果上限另有 STAT_CAPS）
     d.points--; d.stats[stat] = (d.stats[stat] || 1) + 1;
     db.prepare('UPDATE characters SET data=? WHERE id=?').run(JSON.stringify(d), c.id);
     send(res, 200, fullChar(ownChar(uid, c.id)));
