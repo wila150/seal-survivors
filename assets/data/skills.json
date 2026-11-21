@@ -198,6 +198,28 @@
    "startAlso": [
     "n_stone"
    ]
+  },
+  "饕客": {
+   "start": "b_cook",
+   "pool": [
+    "xingyun",
+    "canqian",
+    "naiyou",
+    "jiemo"
+   ],
+   "musou": {
+    "name": "三大美食-鵝肝醬",
+    "icon": [
+     "skill3.png",
+     0,
+     64
+    ],
+    "fx": "circle",
+    "color": "#ffd27a",
+    "radius": 8,
+    "dmg": 88
+   },
+   "basic": "b_cook"
   }
  },
  "skills": {
@@ -4009,6 +4031,508 @@
     "range": 0.2,
     "arc": 0.1
    }
+  },
+  "b_cook": {
+   "name": "叉子連擊",
+   "basic": true,
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    32,
+    32
+   ],
+   "fx": "slash",
+   "color": "#ffe6b0",
+   "pc": "叉子連擊：用饕客的武器（食具）使出連續技",
+   "base": {
+    "dmg": 12,
+    "cd": 1,
+    "range": 2.2,
+    "arc": 1.3
+   },
+   "per": {
+    "dmg": 4,
+    "cd": -0.05,
+    "range": 0.15
+   }
+  },
+  "xingyun": {
+   "pcCd": 5,
+   "name": "幸運餅乾",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    256,
+    32
+   ],
+   "fx": "card",
+   "color": "#ffd890",
+   "pc": "打開幸運餅乾，依籤詩內容給予敵人傷害並附加負面效果（原版 400%）",
+   "status": {
+    "slow": [
+     0.5,
+     2
+    ]
+   },
+   "base": {
+    "dmg": 24,
+    "cd": 5,
+    "count": 1,
+    "speed": 18,
+    "bounce": 1,
+    "pierce": 0,
+    "size": 1.1
+   },
+   "per": {
+    "count": 0.5,
+    "bounce": 0.25
+   },
+   "pcPct": [
+    400,
+    410,
+    430,
+    460,
+    500
+   ],
+   "pcDmg": [
+    24,
+    24.6,
+    25.8,
+    27.6,
+    30
+   ]
+  },
+  "canqian": {
+   "pcCd": 3,
+   "name": "餐前湯",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    288,
+    32
+   ],
+   "fx": "poison",
+   "color": "#ffb060",
+   "pc": "倒入激起食慾的餐前湯攻擊範圍內敵人（原版 350%，4×4 碼）；特殊佐料：持續傷害",
+   "status": {
+    "poison": [
+     3,
+     4
+    ]
+   },
+   "base": {
+    "dmg": 21,
+    "cd": 3,
+    "count": 1,
+    "radius": 2.2,
+    "at": "nearest"
+   },
+   "per": {
+    "count": 0.4,
+    "radius": 0.2
+   },
+   "pcPct": [
+    350,
+    358,
+    373,
+    397,
+    428
+   ],
+   "pcDmg": [
+    21,
+    21.5,
+    22.4,
+    23.8,
+    25.7
+   ]
+  },
+  "naiyou": {
+   "pcCd": 4,
+   "name": "爆漿奶油派",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    320,
+    32
+   ],
+   "fx": "fireball",
+   "color": "#fff4d0",
+   "pc": "把裝滿奶油的派大力丟向敵人的臉（原版 400%～800%）",
+   "base": {
+    "dmg": 24,
+    "cd": 4,
+    "count": 1,
+    "speed": 20,
+    "bounce": 0,
+    "pierce": 1,
+    "size": 1.3
+   },
+   "per": {
+    "count": 0.25,
+    "pierce": 0.25
+   },
+   "pcPct": [
+    400,
+    500,
+    600,
+    700,
+    800
+   ],
+   "pcDmg": [
+    24,
+    30,
+    36,
+    42,
+    48
+   ]
+  },
+  "jiemo": {
+   "pcCd": 4,
+   "name": "日式-芥末",
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    448,
+    32
+   ],
+   "fx": "shock",
+   "color": "#9be070",
+   "pc": "在武器上沾芥末抹在敵人身上，對喝了餐前湯的敵人更有效（原版 600%，3×3 碼）",
+   "base": {
+    "dmg": 36,
+    "cd": 4,
+    "count": 1,
+    "radius": 1.8,
+    "at": "nearest"
+   },
+   "per": {
+    "count": 0.3,
+    "radius": 0.15
+   },
+   "pcPct": [
+    600,
+    630,
+    690,
+    780,
+    900
+   ],
+   "pcDmg": [
+    36,
+    37.8,
+    41.4,
+    46.8,
+    54
+   ]
+  },
+  "yuzijiang": {
+   "pcCd": 5,
+   "name": "三大美食-魚子醬",
+   "super": true,
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    32,
+    64
+   ],
+   "fx": "circle",
+   "color": "#ffcf6a",
+   "pc": "超武：餐前湯＋日式-芥末，把魚子醬灑向四方攻擊範圍內敵人（原版 1400%，5×5 碼）",
+   "status": {
+    "poison": [
+     4,
+     4
+    ]
+   },
+   "base": {
+    "dmg": 84,
+    "cd": 5,
+    "count": 3,
+    "radius": 3,
+    "at": "random"
+   },
+   "pcPct": [
+    1400,
+    1487,
+    1570,
+    1648,
+    1720
+   ],
+   "pcDmg": [
+    84,
+    89.2,
+    94.2,
+    98.9,
+    103.2
+   ]
+  },
+  "k2_shipo": {
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [],
+   "pcCd": 5,
+   "name": "食破天驚",
+   "icon": [
+    "skill3.png",
+    320,
+    64
+   ],
+   "fx": "circle",
+   "color": "#ffd890",
+   "pc": "二轉食神：從天上降下食物雨攻擊敵人（原版 900%；治療隊員割草版沒做）",
+   "job2": true,
+   "base": {
+    "dmg": 54,
+    "cd": 5,
+    "count": 3,
+    "radius": 2.4,
+    "at": "random"
+   },
+   "per": {
+    "count": 0.5,
+    "radius": 0.2
+   },
+   "pcPct": [
+    900,
+    1100,
+    1300,
+    1500,
+    1700
+   ],
+   "pcDmg": [
+    54,
+    66,
+    78,
+    90,
+    102
+   ]
+  },
+  "k2_yangcong": {
+   "pcCd": 5,
+   "name": "洋蔥剁剁剁",
+   "type": "PROJECTILE_BOUNCE",
+   "kind": "phys",
+   "tags": [],
+   "icon": [
+    "skill3.png",
+    352,
+    64
+   ],
+   "fx": "dagger",
+   "color": "#f0e8ff",
+   "pc": "二轉食神：快速刀工削洋蔥射向敵人（原版 1000%）",
+   "job2": true,
+   "base": {
+    "dmg": 60,
+    "cd": 5,
+    "count": 3,
+    "speed": 22,
+    "bounce": 1,
+    "pierce": 1,
+    "size": 1.1
+   },
+   "per": {
+    "count": 0.5,
+    "bounce": 0.25
+   },
+   "pcPct": [
+    1000,
+    1250,
+    1500,
+    1750,
+    2000
+   ],
+   "pcDmg": [
+    60,
+    75,
+    90,
+    105,
+    120
+   ]
+  },
+  "k3_huoji": {
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [
+    "heavy",
+    "fire"
+   ],
+   "pcCd": 6,
+   "name": "火雞伺候",
+   "icon": [
+    "skill3.png",
+    32,
+    192
+   ],
+   "fx": "fire",
+   "color": "#ff8040",
+   "pc": "三轉廚神：火焰中燃燒的雞飛向目標造成傷害（原版 1855%）",
+   "job3": true,
+   "base": {
+    "dmg": 111.3,
+    "cd": 6,
+    "count": 4,
+    "radius": 3,
+    "at": "random"
+   },
+   "per": {
+    "count": 0.5,
+    "radius": 0.2
+   },
+   "pcPct": [
+    1855,
+    2023,
+    2205,
+    2404,
+    2621
+   ],
+   "pcDmg": [
+    111.3,
+    121.4,
+    132.3,
+    144.2,
+    157.3
+   ]
+  },
+  "k2_faguo": {
+   "pcCd": 4,
+   "name": "法國麵包",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    160,
+    64
+   ],
+   "fx": "slash",
+   "color": "#e8c080",
+   "pc": "二轉美食家：掏出硬梆梆的麵包瘋狂揍人（原版 600%）",
+   "job2": true,
+   "base": {
+    "dmg": 36,
+    "cd": 4,
+    "range": 3,
+    "arc": 2.2
+   },
+   "per": {
+    "range": 0.2,
+    "arc": 0.15
+   },
+   "pcPct": [
+    600,
+    750,
+    900,
+    1000,
+    1200
+   ],
+   "pcDmg": [
+    36,
+    45,
+    54,
+    60,
+    72
+   ]
+  },
+  "k2_xiangqi": {
+   "type": "ZONE_AOE",
+   "kind": "phys",
+   "tags": [],
+   "pcCd": 5,
+   "name": "香氣四溢",
+   "icon": [
+    "skill3.png",
+    256,
+    64
+   ],
+   "fx": "wind",
+   "color": "#ffe0b0",
+   "pc": "二轉美食家：攻擊聞到香味聚集過來的敵人（原版 700%）",
+   "job2": true,
+   "base": {
+    "dmg": 42,
+    "cd": 5,
+    "count": 1,
+    "radius": 3,
+    "at": "self"
+   },
+   "per": {
+    "radius": 0.25
+   },
+   "pcPct": [
+    700,
+    850,
+    1000,
+    1100,
+    1300
+   ],
+   "pcDmg": [
+    42,
+    51,
+    60,
+    66,
+    78
+   ]
+  },
+  "k3_duxiang": {
+   "pcCd": 5,
+   "name": "獨享美味",
+   "type": "MELEE_ARC",
+   "kind": "phys",
+   "tags": [
+    "heavy"
+   ],
+   "icon": [
+    "skill3.png",
+    96,
+    192
+   ],
+   "fx": "slash",
+   "color": "#ffb070",
+   "pc": "三轉美食獵人：對近處敵人快速揮動雙手造成強大傷害（原版 1987%）",
+   "job3": true,
+   "base": {
+    "dmg": 119.2,
+    "cd": 5,
+    "range": 3,
+    "arc": 2
+   },
+   "per": {
+    "range": 0.2
+   },
+   "pcPct": [
+    1987,
+    2167,
+    2362,
+    2575,
+    2807
+   ],
+   "pcDmg": [
+    119.2,
+    130,
+    141.7,
+    154.5,
+    168.4
+   ]
   }
  },
  "fusions": [
@@ -4046,6 +4570,11 @@
    "a": "luanshe",
    "b": "shuangzi",
    "into": "hongxin"
+  },
+  {
+   "a": "canqian",
+   "b": "jiemo",
+   "into": "yuzijiang"
   }
  ],
  "status": {

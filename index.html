@@ -463,8 +463,8 @@ function drawCreate() {
   $('#pvInfo').innerHTML = `<b>${job}</b> — ${J.desc}<br>HP <b>${J.hp + stats.vit * 6}</b> · 速度 <b>${J.speed}</b> · 護甲 <b>${J.armor}</b>${J.regen ? ` · 每秒回 <b>${J.regen}</b> HP` : ''}`
     + (SJ ? `<br>初始武器攻擊：${ico(basic.icon, 22)} <b style="font-size:14px">${basic.name}</b> · 第 1 次升級選第一招技能
       <div class="skrow"><small>技能</small>${SJ.pool.map(k => `<span title="${SKD.skills[k].name}">${ico(SKD.skills[k].icon, 28)}</span>`).join('')}${fus ? `<small style="margin-left:6px">超武</small><span title="${SKD.skills[fus.into].name}">${ico(SKD.skills[fus.into].icon, 28)}</span>` : ''}</div>` : '');
-  // 11/19 照 PC：新角色一律先當初心者，Base Lv 10 找百業宗師一轉（下面 7 職只是預告，不能點）
-  $('#jobs').innerHTML = `<div style="grid-column:1/-1;font-size:13px;line-height:1.6;color:#4a5878">新角色先當 <b>初心者</b>（PC 原版）：戰鬥只會空手技，<b>Base Lv 10</b> 找主城的百業宗師一轉，從下面 7 個職業選 1 個。</div>`
+  // 11/19 照 PC：新角色一律先當初心者，Base Lv 10 找百業宗師一轉（下面 8 職只是預告，不能點）
+  $('#jobs').innerHTML = `<div style="grid-column:1/-1;font-size:13px;line-height:1.6;color:#4a5878">新角色先當 <b>初心者</b>（PC 原版）：戰鬥只會空手技，<b>Job Lv 10</b> 找主城的百業宗師一轉，從下面 8 個職業選 1 個。</div>`
     + Object.keys(JOBS).filter(k => k !== '初心者').map(k => { const b = SKD && SKD.skills[SKD.jobs[k].basic]; return `<div class="btn" style="opacity:.75;cursor:default;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px">${b ? ico(b.icon, 30) : ''}<small>${k}</small></div>`; }).join('');
   renderLook($('#look'), look, job, drawCreate);
   $('#pts').textContent = FREE_POINTS - used();

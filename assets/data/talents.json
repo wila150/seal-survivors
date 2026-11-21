@@ -5774,6 +5774,747 @@
     }
    ]
   },
+  "饕客": {
+   "cols": [
+    "食具",
+    "料理",
+    "美食"
+   ],
+   "nodes": [
+    {
+     "id": 277,
+     "name": "叉子連擊",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      32,
+      32
+     ],
+     "eff": {
+      "skill:b_cook": 1,
+      "atk": 0.02
+     },
+     "final": false,
+     "weapon": true,
+     "gate": 0
+    },
+    {
+     "id": 278,
+     "name": "餐桌禮儀",
+     "col": 0,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      64,
+      32
+     ],
+     "eff": {
+      "magnet": 0.08
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      277,
+      2
+     ],
+     "gate": 5
+    },
+    {
+     "id": 284,
+     "name": "幸運餅乾",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill3.png",
+      256,
+      32
+     ],
+     "eff": {
+      "skill:xingyun": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      280,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 286,
+     "name": "爆漿奶油派",
+     "col": 0,
+     "max": 5,
+     "icon": [
+      "skill3.png",
+      320,
+      32
+     ],
+     "eff": {
+      "skill:naiyou": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      284,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 279,
+     "name": "山珍海味",
+     "col": 0,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      128,
+      32
+     ],
+     "eff": {
+      "tag:heavy": 0.08
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      278,
+      2
+     ],
+     "gate": 30
+    },
+    {
+     "id": 285,
+     "name": "餐前湯",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill3.png",
+      288,
+      32
+     ],
+     "eff": {
+      "skill:canqian": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      280,
+      1
+     ],
+     "gate": 5
+    },
+    {
+     "id": 281,
+     "name": "特殊佐料",
+     "col": 1,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      160,
+      32
+     ],
+     "eff": {
+      "skill:canqian": 0.5
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      285,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 288,
+     "name": "韓食-重辣",
+     "col": 1,
+     "max": 5,
+     "icon": [
+      "skill3.png",
+      384,
+      32
+     ],
+     "eff": {
+      "phys": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      285,
+      1
+     ],
+     "gate": 15
+    },
+    {
+     "id": 290,
+     "name": "日式-芥末",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      448,
+      32
+     ],
+     "eff": {
+      "skill:jiemo": 1
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      288,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 289,
+     "name": "中式-火候",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      416,
+      32
+     ],
+     "eff": {
+      "atk": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      290,
+      1
+     ],
+     "gate": 25
+    },
+    {
+     "id": 287,
+     "name": "西餐-奶油",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      352,
+      32
+     ],
+     "eff": {
+      "magnet": 0.08
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      288,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 291,
+     "name": "三大美食-松露",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      480,
+      32
+     ],
+     "eff": {
+      "crit": 0.02
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      293,
+      1
+     ],
+     "gate": 25
+    },
+    {
+     "id": 293,
+     "name": "三大美食-魚子醬",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      32,
+      64
+     ],
+     "eff": {
+      "skill:canqian": 0.5,
+      "skill:jiemo": 0.5
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      292,
+      1
+     ],
+     "gate": 20
+    },
+    {
+     "id": 292,
+     "name": "三大美食-鵝肝醬",
+     "col": 1,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      0,
+      64
+     ],
+     "eff": {
+      "atk": 0.04
+     },
+     "final": true,
+     "weapon": false,
+     "pre": [
+      285,
+      1
+     ],
+     "gate": 30
+    },
+    {
+     "id": 280,
+     "name": "絕對味覺",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      96,
+      32
+     ],
+     "eff": {
+      "regen": 0.15
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      278,
+      2
+     ],
+     "gate": 10
+    },
+    {
+     "id": 282,
+     "name": "美食獵人",
+     "col": 2,
+     "max": 4,
+     "icon": [
+      "skill3.png",
+      192,
+      32
+     ],
+     "eff": {
+      "atk": 0.02,
+      "hp": 0.03
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      280,
+      2
+     ],
+     "gate": 15
+    },
+    {
+     "id": 283,
+     "name": "美食會",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      224,
+      32
+     ],
+     "eff": {
+      "hp": 0.05
+     },
+     "final": false,
+     "weapon": false,
+     "pre": [
+      282,
+      2
+     ],
+     "gate": 25
+    },
+    {
+     "id": 315,
+     "name": "饕客的應援",
+     "col": 2,
+     "max": 1,
+     "icon": [
+      "skill3.png",
+      224,
+      96
+     ],
+     "eff": {
+      "haste": 0.03
+     },
+     "final": true,
+     "weapon": false,
+     "gate": 30
+    }
+   ],
+   "branches": [
+    {
+     "key": "A",
+     "name": "食神",
+     "third": "廚神",
+     "skills": [
+      "k2_shipo",
+      "k2_yangcong"
+     ],
+     "skill3": "k3_huoji",
+     "nodes": [
+      {
+       "id": 301,
+       "name": "最後的晚餐",
+       "gate": 50,
+       "max": 7,
+       "icon": [
+        "skill3.png",
+        288,
+        64
+       ],
+       "eff": {
+        "hp": 0.015,
+        "armor": 0.5
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 302,
+       "name": "食破天驚",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        320,
+        64
+       ],
+       "eff": {
+        "skill:k2_shipo": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        304,
+        1
+       ]
+      },
+      {
+       "id": 303,
+       "name": "洋蔥剁剁剁",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        352,
+        64
+       ],
+       "eff": {
+        "skill:k2_yangcong": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        301,
+        1
+       ]
+      },
+      {
+       "id": 304,
+       "name": "黑暗料理界",
+       "gate": 55,
+       "max": 5,
+       "icon": [
+        "skill3.png",
+        384,
+        64
+       ],
+       "eff": {
+        "atk": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        301,
+        1
+       ]
+      },
+      {
+       "id": 305,
+       "name": "義大利麵",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        416,
+        64
+       ],
+       "eff": {
+        "tag:heavy": 0.03
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        303,
+        1
+       ]
+      },
+      {
+       "id": 306,
+       "name": "特級廚師",
+       "gate": 65,
+       "max": 5,
+       "icon": [
+        "skill3.png",
+        448,
+        64
+       ],
+       "eff": {
+        "regen": 0.15,
+        "hp": 0.01
+       },
+       "final": true,
+       "weapon": false
+      },
+      {
+       "id": 359,
+       "name": "火雞伺候",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        32,
+        192
+       ],
+       "eff": {
+        "skill:k3_huoji": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        302,
+        1
+       ]
+      },
+      {
+       "id": 360,
+       "name": "重口味料理",
+       "gate": 101,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        64,
+        192
+       ],
+       "eff": {
+        "atk": 0.01
+       },
+       "final": false,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        305,
+        1
+       ]
+      }
+     ]
+    },
+    {
+     "key": "B",
+     "name": "美食家",
+     "third": "美食獵人",
+     "skills": [
+      "k2_faguo",
+      "k2_xiangqi"
+     ],
+     "skill3": "k3_duxiang",
+     "nodes": [
+      {
+       "id": 294,
+       "name": "暴食",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        64,
+        64
+       ],
+       "eff": {
+        "atk": 0.015,
+        "hp": 0.015
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 295,
+       "name": "減肥",
+       "gate": 50,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        96,
+        64
+       ],
+       "eff": {
+        "haste": 0.015,
+        "speed": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        294,
+        1
+       ]
+      },
+      {
+       "id": 296,
+       "name": "胃口大開",
+       "gate": 55,
+       "max": 5,
+       "icon": [
+        "skill3.png",
+        128,
+        64
+       ],
+       "eff": {
+        "regen": 0.15
+       },
+       "final": false,
+       "weapon": false
+      },
+      {
+       "id": 297,
+       "name": "法國麵包",
+       "gate": 55,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        160,
+        64
+       ],
+       "eff": {
+        "skill:k2_faguo": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        296,
+        2
+       ]
+      },
+      {
+       "id": 298,
+       "name": "輕如鴻毛",
+       "gate": 55,
+       "max": 5,
+       "icon": [
+        "skill3.png",
+        192,
+        64
+       ],
+       "eff": {
+        "speed": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        295,
+        1
+       ]
+      },
+      {
+       "id": 300,
+       "name": "香氣四溢",
+       "gate": 60,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        256,
+        64
+       ],
+       "eff": {
+        "skill:k2_xiangqi": 0.5
+       },
+       "final": false,
+       "weapon": false,
+       "pre": [
+        297,
+        1
+       ]
+      },
+      {
+       "id": 299,
+       "name": "重於泰山",
+       "gate": 65,
+       "max": 5,
+       "icon": [
+        "skill3.png",
+        224,
+        64
+       ],
+       "eff": {
+        "armor": 0.5,
+        "hp": 0.01
+       },
+       "final": true,
+       "weapon": false,
+       "pre": [
+        294,
+        1
+       ]
+      },
+      {
+       "id": 361,
+       "name": "獨享美味",
+       "gate": 110,
+       "max": 10,
+       "icon": [
+        "skill3.png",
+        96,
+        192
+       ],
+       "eff": {
+        "skill:k3_duxiang": 0.5
+       },
+       "final": true,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        296,
+        2
+       ]
+      },
+      {
+       "id": 362,
+       "name": "特殊料理食材",
+       "gate": 101,
+       "max": 1,
+       "icon": [
+        "skill3.png",
+        128,
+        192
+       ],
+       "eff": {
+        "hp": 0.015
+       },
+       "final": false,
+       "weapon": false,
+       "third": true,
+       "pre": [
+        361,
+        1
+       ]
+      }
+     ]
+    }
+   ]
+  },
   "初心者": {
    "cols": [
     "空手"

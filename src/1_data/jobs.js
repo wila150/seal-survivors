@@ -47,12 +47,15 @@ export const JOBS = {
   // 項目 45：原版第七職（2u jobid 9）；模型＝客戶端 gunner00 初始服裝＋彈弓 R_gunner_G_normal，動作 hm_／hw_
   獵人: { icon: 'assets/fx/e_fireball_Green.png', color: 0x6aa84f, hp: 100, speed: 6.6, armor: 1, weapon: 'fireball', main: 'agi', model: 'gunner', gear: ['wpn_R_gunner_G_normal'], mount: 'G_dark_leopard_stand04',
           desc: '彈弓遠程：亂射、雙子爆發貫穿、爆彈分裂、纏繞樹根緩速；超武紅心連擊。' },
+  // 11/21 原版第八職（2u jobid 31）；模型＝客戶端 gourmet_01 初始服裝＋茶湯匙 R_gourmet01，動作 chef_m_／chef_w_（actor/man24.act）；主屬性照 2u 力量、體力
+  饕客: { icon: 'assets/fx/vfx_dot10_Blue.png', color: 0xe8a860, hp: 110, speed: 6.2, armor: 1, weapon: 'slash', main: 'str', model: 'cook', gear: ['wpn_R_gourmet01'], mount: 'G_flame_dragon04',
+          desc: '食具近戰＋料理投擲：幸運餅乾緩速、餐前湯持續傷害、爆漿奶油派、日式-芥末；超武三大美食-魚子醬。' },
   // 11/19 使用者：「剛開始是初心者」→ 照 PC：新角色先當初心者（原版初始服裝 Bs00＋空手動作 hd），Base Lv 10 找百業宗師一轉
   初心者: { icon: 'assets/fx/vfx_shockwave_fireR.png', color: 0xb8a890, hp: 100, speed: 6.0, armor: 0, weapon: 'slash', main: 'str', model: 'novice', gear: [], mount: 'G_dark_leopard_stand04',
-          desc: 'PC 原版的起點：戰鬥只會空手技。Base Lv 10 找百業宗師一轉（7 個職業選 1 個）。' },
+          desc: 'PC 原版的起點：戰鬥只會空手技。Base Lv 10 找百業宗師一轉（8 個職業選 1 個）。' },
 };
 export const NOVICE = '初心者', JOB1_AT = 10; // 一轉等級（使用者 11/19 選 Base Lv 10）
-export const FIRST_JOBS = Object.keys(JOBS).filter(k => k !== NOVICE); // 一轉可以選的 7 職
+export const FIRST_JOBS = Object.keys(JOBS).filter(k => k !== NOVICE); // 一轉可以選的 8 職
 // PC 初心者技能樹的生活技能（2u 資料站 jobid 0）：到這個 Base 等級才能用（所有職業都一樣）
 export const LIFE_LV = { 交易: 2, 釣魚: 8, 倉庫: 8, 擺地攤: 8, 合成: 10 };
 
@@ -113,4 +116,4 @@ export function validateStats(s) {
 }
 export const defaultStats = () => Object.fromEntries(Object.keys(STATS).map(k => [k, 1]));
 // 職業必殺率（%；2u id=169 遊戲公式：必殺率＝角色必殺／怪物必殺抵抗 × 職業必殺率）→ 割草版當基礎爆擊率加上去
-export const JOB_CRIT = { 劍士: 3.5, 騎士: 3.5, 法師: 3.5, 祭司: 2.5, 小丑: 3.5, 鐵匠: 2, 獵人: 5, 初心者: 2.5 };
+export const JOB_CRIT = { 劍士: 3.5, 騎士: 3.5, 法師: 3.5, 祭司: 2.5, 小丑: 3.5, 鐵匠: 2, 獵人: 5, 饕客: 3.5, 初心者: 2.5 }; // 饕客：2u 技能表必殺率 3.5%

@@ -24,7 +24,7 @@ const cb = fs.readFileSync(path.join(dir, lower.get('cha.dat'))); let o = 0x40; 
 while (o + 4 <= cb.length) { const n = cb.readUInt32LE(o); if (n <= 0 || n > 5000) break; o += 4; const l = []; for (let i = 0; i < n; i++) { l.push(cb.toString('latin1', o, o + 32).split('\0')[0]); o += 32; } CHA[l[0]] = l.slice(1); }
 // PC 道具類別 → cha.dat 段（男, 女）
 const SEC = { 15: ['M_body', 'W_body'], 16: ['M_body', 'W_body'], 25: ['M_Leg', 'W_Leg'], 26: ['M_Leg', 'W_Leg'], 19: ['M_Foot', 'W_Foot'], 20: ['M_Foot', 'W_Foot'],
-  17: ['M_head', 'W_head'], 18: ['M_head', 'W_head'], 14: ['L_', 'L_'], 4: ['R_', 'R_'], 6: ['R_', 'R_'], 7: ['R_', 'R_'], 8: ['R_', 'R_'], 9: ['R_', 'R_'], 11: ['R_', 'R_'], 46: ['R_', 'R_'] };
+  17: ['M_head', 'W_head'], 18: ['M_head', 'W_head'], 14: ['L_', 'L_'], 4: ['R_', 'R_'], 6: ['R_', 'R_'], 7: ['R_', 'R_'], 8: ['R_', 'R_'], 9: ['R_', 'R_'], 11: ['R_', 'R_'], 46: ['R_', 'R_'], 51: ['R_', 'R_'] };
 
 const texCache = new Map();
 function texFor(msName, buf) {

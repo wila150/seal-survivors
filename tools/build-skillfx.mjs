@@ -46,6 +46,9 @@ export const MAP = {
   // 項目 45 獵人：一轉／二轉弓箭手（Arrow）／二轉槍手（Shot）照技能名稱對原版腳本，? ＝猜的
   b_hunter: 'Hunter_Attack_00', luanshe: 'SkillMultiShot', shuangzi: 'SkillDoubleshot', baodan: 'SkillBuckshot?', hongxin: 'SkillPowershot?',
   k2_guanchuan: 'SkillPiercingArrow', k2_baoyu: 'SkillBombArrow?', k3_jianshi: 'SkillArrowsquall', k2_zhimiao: 'SkillAimingShot', k2_hunxuan: 'SkillChargeShot?', k3_huoli: 'SkillHeadShot?',
+  // 11/21 饕客：照技能英文名對原版腳本（SkillFortuneCookie 幸運餅乾、SkillHotSoup 餐前湯、SkillPieShot 爆漿奶油派…）；香氣四溢、火雞伺候找不到對應 → 用一般特效
+  xingyun: 'SkillFortuneCookie', canqian: 'SkillHotSoup', naiyou: 'SkillPieShot', jiemo: 'SkillJapaneseFood', yuzijiang: 'SkillCaviar',
+  k2_shipo: 'SkillFoodRain', k2_yangcong: 'SkillChopOnion', k2_faguo: 'SkillJukBbang', k3_duxiang: 'SkillItsMine',
   levelup: 'LevelUP', // 不是技能：升級時在玩家身上播（sfx/levelUP）
   monrejen: 'MonReJen', bigkill: 'BigKill', bigitem: 'BigItem', // 不是技能：首領／菁英出現、打倒首領、撿到首領寶箱
 };

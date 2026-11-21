@@ -8,7 +8,7 @@ const SKEL = { M: parseBn1(fs.readFileSync(path.join(ACTOR, 'Man_All.bn1'))), W:
 for (const g of ['M', 'W']) fs.writeFileSync(path.join(process.argv[3], `skel_${g.toLowerCase()}.json`), JSON.stringify(SKEL[g].map(b => ({ name: b.name, parent: SKEL[g].findIndex(x => x.name === b.parent), world: b.world.map(v => +v.toFixed(5)) }))));
 const [dir, out] = process.argv.slice(2);
 const files = fs.readdirSync(dir); const lower = new Map(files.map(f => [f.toLowerCase(), f]));
-const JOBSETS = { novice: 'Bs00', musa: 'Musa00', knight: 'knight00', magic: 'magic00', cleric: 'cleric', clown: 'clown00', smith: 'smith00', gunner: 'gunner00' }; // gunner＝獵人（項目 45）
+const JOBSETS = { novice: 'Bs00', musa: 'Musa00', knight: 'knight00', magic: 'magic00', cleric: 'cleric', clown: 'clown00', smith: 'smith00', gunner: 'gunner00', cook: 'gourmet' }; // gunner＝獵人（項目 45）；cook＝饕客（11/21，服裝檔名是 M_Body_gourmet_01 這種「部位在前」的格式）
 const texCache = new Map();
 function texFor(msName, buf) {
   const refs = [...buf.toString('latin1', 0, Math.min(buf.length, 20000)).matchAll(/([A-Za-z0-9_\-]+)\.(tga|jpg|bmp|dds|png)/gi)].map(m => m[1]);
@@ -24,7 +24,7 @@ function texFor(msName, buf) {
   return null;
 }
 for (const g of ['M', 'W']) for (const [job, set] of Object.entries(JOBSETS)) {
-  const pieces = [`${g}_Face`, ...['head', 'body', 'leg', 'foot'].map(p => `${g}_${set}_${p}`)];
+  const pieces = [`${g}_Face`, ...['head', 'body', 'leg', 'foot'].map(p => set === 'gourmet' ? ['01', '02'].map(n => `${g}_${p[0].toUpperCase() + p.slice(1)}_gourmet_${n}`).find(x => lower.has(x.toLowerCase() + '.ms1')) || `${g}_${p}_gourmet_01` : `${g}_${set}_${p}`)]; // 饕客：男生腳沒有 01 → 用 02
   const parts = [];
   for (const p of pieces) {
     const real = lower.get(p.toLowerCase() + '.ms1'); if (!real) { console.log('缺', p); continue; }

@@ -3,7 +3,7 @@ import { PC_ITEMS } from './pc-items.js';
 // 圖示編號 = assets/items/<編號>.png（取自 GM 工具的道具圖示）
 
 // 項目 32（11/19「照建議」＋使用者：「PC 版裝備只有這三件嗎？」）：部位照 PC（服務端 item.scr 道具分類）
-// 武器（4 劍 6 大劍 7 匕首 8 榔頭 9 鎚 11 杖 46 彈弓）、盾牌 14（騎士）、頭部 17 盔／18 帽、上衣 15 盔甲／16 上衣、下衣 25 盔甲(下)／26 下褲、鞋子 19 靴／20 鞋、飾品
+// 武器（4 劍 6 大劍 7 匕首 8 榔頭 9 鎚 11 杖 46 彈弓 51 食具）、盾牌 14（騎士）、頭部 17 盔／18 帽、上衣 15 盔甲／16 上衣、下衣 25 盔甲(下)／26 下褲、鞋子 19 靴／20 鞋、飾品
 // 舊資料的「armor」防具：伺服器啟動時自動搬家（盾 → shield、其他 → top）
 export const SLOTS = { weapon: '武器', shield: '盾牌', head: '頭部', top: '上衣', bottom: '下衣', shoes: '鞋子', acc: '飾品',
   deco: '頭飾', earring: '耳環', neck: '項鍊', bracelet: '手鐲', ring: '戒指' }; // 11/19 飾品照 PC 第 70 欄（裝備位置）再拆 5 格
@@ -19,6 +19,7 @@ export const BASES = {
     { key: 'spear',  name: '匕首',     icon: 183, stat: { atk: 0.09, crit: 0.02 } },
     { key: 'mace',   name: '鎚',       icon: 128, stat: { atk: 0.10, haste: 0.02 } }, // 11/19 道具照 PC：補上祭司鎚、獵人彈弓
     { key: 'sling',  name: '彈弓',     icon: 1561, stat: { atk: 0.08, crit: 0.03 } },
+    { key: 'spoon',  name: '茶湯匙',   icon: 3652, stat: { atk: 0.09, hp: 10 } }, // 11/21 饕客食具（item.scr 類別 51）；底材加成 🔢 暫定
   ],
   shield: [
     { key: 'shield',  name: '騎士盾', icon: 215, stat: { hp: 25, armor: 3 } },
@@ -96,15 +97,15 @@ export const refineCost = lv => 60 * (lv + 1) * (lv + 1);
 // 每種底材對到一種 PC 道具類別（src/1_data/pc-items.js，tools/build-pc-items.mjs 從服務端 item.scr 轉出）；
 // 掉落時依這局的怪物等級挑 PC 原版那件（名稱、圖示、需求等級照 PC），數值＝底材數值 × (那件的 PC 攻擊或防禦 ÷ 該類別入門款)
 // 舊裝備（沒有 pc 編號）照舊：底材名稱、倍率 1
-export const PC_TYPE_OF = { sword: 4, blade: 6, spear: 7, hammer: 8, mace: 9, staff: 11, sling: 46, leather: 16, robe: 16, chain: 15, shield: 14, helm: 17, cap: 18, greave: 25, pants: 26, boots: 19, shoe: 20, ribbon: 'a0', earring: 'a8', neck: 'a9', bangle: 'a10', pcring: 'a11' };
+export const PC_TYPE_OF = { sword: 4, blade: 6, spear: 7, hammer: 8, mace: 9, staff: 11, sling: 46, spoon: 51, leather: 16, robe: 16, chain: 15, shield: 14, helm: 17, cap: 18, greave: 25, pants: 26, boots: 19, shoe: 20, ribbon: 'a0', earring: 'a8', neck: 'a9', bangle: 'a10', pcring: 'a11' };
 const REF = {}; for (const t in PC_ITEMS) { const v = PC_ITEMS[t].slice(0, 5).map(x => x[3]).sort((a, b) => a - b); REF[t] = v[v.length >> 1]; }
 export function pcOf(it) { const t = PC_TYPE_OF[it?.base]; return it?.pc && t ? PC_ITEMS[t]?.find(x => x[0] === it.pc) || null : null; }
 export const pcTier = it => { const p = pcOf(it); return p ? Math.max(0.5, p[3] / REF[PC_TYPE_OF[it.base]]) : 1; };
 export const pcReqLv = it => pcOf(it)?.[2] || 0;
 // ===== 11/20 職業與等級限制照 PC（服務端 item.scr 第 71 欄職業位元、第 3 欄需求等級）=====
 // 使用者：「PC 那邊沒有裝備的限制嗎？什麼角色穿什麼職業的裝備？」
-export const JOB_BIT = { 初心者: 1, 劍士: 2, 騎士: 4, 小丑: 8, 法師: 16, 祭司: 32, 鐵匠: 64, 獵人: 2097152 };
-const FIRST_BITS = 1 | 2 | 4 | 8 | 16 | 32 | 64 | 2097152;
+export const JOB_BIT = { 初心者: 1, 劍士: 2, 騎士: 4, 小丑: 8, 法師: 16, 祭司: 32, 鐵匠: 64, 獵人: 2097152, 饕客: 16777216 };
+const FIRST_BITS = 1 | 2 | 4 | 8 | 16 | 32 | 64 | 2097152 | 16777216;
 export const pcMask = it => pcOf(it)?.[6] || 0;
 // 職業位元能不能穿：0＝全職業；有一轉職業位元＝看自己的職業；只有二轉以上位元的（幻魔、龍皇…套裝）＝二轉以後才能穿
 export const maskWearable = (mask, job, job2 = false) => !mask || !!(mask & (JOB_BIT[job] || 0)) || (!(mask & FIRST_BITS) && job2);
@@ -149,7 +150,7 @@ export const sellPrice = it => Math.round(20 * RARITY[it.rarity].mult * RARITY[i
 
 // 隨機產生裝備（伺服器用）：bonus 越高越容易出好品質
 // PC 每個職業只能拿自己的武器（11/19 使用者：「小丑不是丟匕首嗎？為甚麼見面禮是長槍」）；盾只有騎士
-export const JOB_WEAPON = { 劍士: 'blade', 騎士: 'sword', 小丑: 'spear', 法師: 'staff', 祭司: 'mace', 鐵匠: 'hammer', 獵人: 'sling' };
+export const JOB_WEAPON = { 劍士: 'blade', 騎士: 'sword', 小丑: 'spear', 法師: 'staff', 祭司: 'mace', 鐵匠: 'hammer', 獵人: 'sling', 饕客: 'spoon' };
 // 11/20 使用者：鑑定要給「這件裝備的職業」的技能（劍士拿騎士武器去鑑定 → 出騎士技能）→ 武器＝武器的職業、盾＝騎士；其他防具沒有職業（null：自己的職業，或花錢選）
 export const itemJob = it => it?.slot === 'weapon' ? (Object.entries(JOB_WEAPON).find(([, b]) => b === it.base)?.[0] ?? null) : it?.base === 'shield' ? '騎士' : null;
 // 項目 50：非本職業的裝備（別職業的武器、非騎士的盾）→ 一鍵餵寵物／分解的候選

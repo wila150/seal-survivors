@@ -1278,6 +1278,160 @@
    "cast": "skil6317.wav"
   }
  },
+ "xingyun": {
+  "script": "SkillFortuneCookie",
+  "cast": [
+   {
+    "mesh": "Gourmet_1031_Fortunecookie_skill",
+    "time": 1.4
+   }
+  ],
+  "fly": [
+   {
+    "mesh": "Gourmet_1031_Fortunecookie_missile",
+    "time": 0.65,
+    "delay": 0.5,
+    "y": 0.5
+   }
+  ],
+  "hit": [],
+  "sound": {
+   "cast": "skill6330.wav"
+  }
+ },
+ "canqian": {
+  "script": "SkillHotSoup",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Gourmet_1031_HotSoup_keep",
+    "time": 1.8,
+    "delay": 0.5
+   }
+  ],
+  "sound": {
+   "cast": "skill6331.wav"
+  }
+ },
+ "naiyou": {
+  "script": "SkillPieShot",
+  "cast": [],
+  "fly": [
+   {
+    "mesh": "Gourmet_1031_CreamPie_missile",
+    "time": 0.65,
+    "delay": 0.5,
+    "y": 0.5
+   }
+  ],
+  "hit": [
+   {
+    "mesh": "Gourmet_1031_CreamPie_bomb",
+    "time": 1.7
+   }
+  ],
+  "sound": {
+   "cast": "skill6332.wav"
+  }
+ },
+ "jiemo": {
+  "script": "SkillJapaneseFood",
+  "cast": [
+   {
+    "mesh": "Gourmet_1031_Japanese_skill",
+    "time": 1.8
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skill6336.wav"
+  }
+ },
+ "yuzijiang": {
+  "script": "SkillCaviar",
+  "cast": [],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Gourmet_1031_Caviar_keep",
+    "time": 1.8
+   }
+  ],
+  "sound": {
+   "cast": "skill6339.wav"
+  }
+ },
+ "k2_shipo": {
+  "script": "SkillFoodRain",
+  "cast": [
+   {
+    "mesh": "Gourmet_1131_FoodRain_skill",
+    "time": 1.7
+   }
+  ],
+  "fly": [],
+  "hit": [
+   {
+    "mesh": "Gourmet_1131_FoodRain_Keep",
+    "time": 1.5
+   },
+   {
+    "mesh": "Gourmet_1131_FoodRain_End",
+    "time": 0.9
+   }
+  ],
+  "sound": {
+   "cast": "skill6347.wav"
+  }
+ },
+ "k2_yangcong": {
+  "script": "SkillChopOnion",
+  "cast": [
+   {
+    "mesh": "Gourmet_1131_OnionChop_skill",
+    "time": 1.2
+   }
+  ],
+  "fly": [
+   {
+    "mesh": "Gourmet_1131_OnionChop_missile",
+    "time": 0.5,
+    "delay": 0.7,
+    "y": 0.5
+   }
+  ],
+  "hit": []
+ },
+ "k2_faguo": {
+  "script": "SkillJukBbang",
+  "cast": [
+   {
+    "mesh": "Gourmet_1231_Jukbread_skill",
+    "time": 1.6
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skill6342.wav"
+  }
+ },
+ "k3_duxiang": {
+  "script": "SkillItsMine",
+  "cast": [
+   {
+    "mesh": "Gourmet_1231_FullSwing_skill",
+    "time": 2
+   }
+  ],
+  "fly": [],
+  "hit": [],
+  "sound": {
+   "cast": "skill6345.wav"
+  }
+ },
  "levelup": {
   "script": "LevelUP",
   "cast": [

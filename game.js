@@ -208,7 +208,7 @@ const CB = { g: 0, st: 'charge', done: 0 };
 // 局外成長＝連續技熟練度（累計放過的連續技次數）：50 次 → 滿格 80、200 次 → 60（三階一起照比例縮；PC 天賦樹沒有這種節點，不塞進天賦樹）
 const CB_MAX = (CHAR.cbTotal || 0) >= 200 ? 60 : (CHAR.cbTotal || 0) >= 50 ? 80 : 100, CB_TIER = [0.3, 0.6, 1].map(k => Math.round(CB_MAX * k));
 const W_ELEM = (CHAR.items || []).find(i => i.equipped && i.slot === 'weapon')?.elem || 0; // 指令 4-3 武器七大屬性合成
-const JOB_LINE = { 劍士: '一刀兩斷！', 騎士: '以盾為誓，斬！', 法師: '元素聽我號令！', 祭司: '我要代替聖光懲罰你！', 小丑: '表演開始～', 鐵匠: '人蔘攻擊！', 獵人: '百步穿楊！', 初心者: '別小看初心者！' };
+const JOB_LINE = { 劍士: '一刀兩斷！', 騎士: '以盾為誓，斬！', 法師: '元素聽我號令！', 祭司: '我要代替聖光懲罰你！', 小丑: '表演開始～', 鐵匠: '人蔘攻擊！', 獵人: '百步穿楊！', 饕客: '開動了！', 初心者: '別小看初心者！' };
 const cbStyle = document.createElement('style'); cbStyle.textContent = `#ultBtn{position:fixed;right:calc(50% - 215px);bottom:calc(max(10px,env(safe-area-inset-bottom)) + 18px);z-index:7;width:66px;height:66px;border-radius:50%;padding:0;border:0;pointer-events:auto;--p:0;--ec:#ffd36b;
   background:conic-gradient(var(--ec) 0 calc(var(--p)*1%),#0008 0);box-shadow:0 2px 8px #0008}
 #ultBtn i{position:absolute;inset:5px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 15px sans-serif;font-style:normal;color:#9aa6c8;background:radial-gradient(#2b3550,#0b1430)}
